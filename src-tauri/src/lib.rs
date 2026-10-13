@@ -4,6 +4,8 @@
 //! - `unicore.db`: base SQLite con los registros (carreras, materias, tareas, apuntes, etc.).
 //! - `archivos\`: fotos y PDFs como archivos comunes, nombrados `<id>.<extensión>`.
 //!
+//! Sin WAL: todo queda en un solo archivo, así OneDrive o un pendrive copian la base completa.
+//!
 //! La interfaz trabaja sobre IndexedDB y espeja cada cambio acá; al abrir la app se
 //! restaura desde esta carpeta, que es la copia que manda.
 
@@ -47,7 +49,7 @@ fn open_store() -> Result<Store, String> {
     fs::create_dir_all(root.join("archivos")).map_err(err)?;
     let conn = Connection::open(root.join("unicore.db")).map_err(err)?;
     conn.execute_batch(
-        "PRAGMA journal_mode = WAL;
+        "PRAGMA journal_mode = DELETE;
          CREATE TABLE IF NOT EXISTS records (
            tbl  TEXT NOT NULL,
            id   TEXT NOT NULL,

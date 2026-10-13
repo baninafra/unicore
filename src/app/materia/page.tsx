@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import clsx from "clsx";
 import { BookOpen, ExternalLink, Sparkles } from "lucide-react";
@@ -37,8 +38,17 @@ const STATUS_BADGE: Record<SubjectStatus, string> = {
   APROBADA: "badge badge-mint",
 };
 
-export default function MateriaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function MateriaPage() {
+  return (
+    <Suspense fallback={null}>
+      <MateriaFromUrl />
+    </Suspense>
+  );
+}
+
+// La materia viene en la URL (/materia?id=...) para que la app funcione como archivos estáticos en el .exe.
+function MateriaFromUrl() {
+  const id = useSearchParams().get("id") ?? "";
   // key: al cambiar de materia se reinician las pestañas y el apunte elegido.
   return <MateriaView key={id} subjectId={id} />;
 }

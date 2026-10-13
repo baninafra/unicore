@@ -84,7 +84,7 @@ export function SubjectCard({ subject, all, onEdit }: { subject: Subject; all: S
   const state = subjectState(subject, all);
   return (
     <article className={clsx(subjectCardClass(state), "group")} style={subjectCardStyle(state)}>
-      <SubjectCardBody subject={subject} state={state} href={`/materias/${subject.id}`} />
+      <SubjectCardBody subject={subject} state={state} href={`/materia?id=${subject.id}`} />
       <button
         type="button"
         onClick={onEdit}

@@ -118,7 +118,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
       icon: BookOpen,
       title: s.name,
       subtitle: degreeMap[s.degreeId]?.shortName,
-      onSelect: () => go(`/materias/${s.id}`),
+      onSelect: () => go(`/materia?id=${s.id}`),
     }));
     const notes: Result[] = hits("note").map(({ item: n }) => ({
       key: `n-${n.id}`,
@@ -126,7 +126,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
       title: n.title || "Apunte sin título",
       subtitle: [subjectName(n.subjectId), `Unidad ${n.unitNumber}`].filter(Boolean).join(" · "),
       snippet: snippetFor(n.plainTextCache, words),
-      onSelect: () => go(`/materias/${n.subjectId}`),
+      onSelect: () => go(`/materia?id=${n.subjectId}`),
     }));
     const tasks: Result[] = hits("task").map(({ item: t }) => ({
       key: `t-${t.id}`,
@@ -141,7 +141,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
       title: d.fileName,
       subtitle: [subjectName(d.subjectId), `Unidad ${d.unitNumber}`].filter(Boolean).join(" · "),
       snippet: snippetFor(d.extractedText, words),
-      onSelect: () => go(`/materias/${d.subjectId}`),
+      onSelect: () => go(`/materia?id=${d.subjectId}`),
     }));
 
     for (const [label, items] of [

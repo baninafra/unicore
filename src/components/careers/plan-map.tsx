@@ -51,7 +51,7 @@ function SubjectNode({ data }: NodeProps<SubjectFlowNode>) {
   return (
     <div className={subjectCardClass(data.state)} style={{ ...subjectCardStyle(data.state), width: NODE_W, height: NODE_H }}>
       <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      <SubjectCardBody subject={data.subject} state={data.state} href={`/materias/${data.subject.id}`} />
+      <SubjectCardBody subject={data.subject} state={data.state} href={`/materia?id=${data.subject.id}`} />
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </div>
   );

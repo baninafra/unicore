@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import clsx from "clsx";
 import { BookOpen, ExternalLink, Sparkles } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
+import { useWorkspace } from "@/lib/workspace";
 import { db } from "@/lib/db";
 import { degreeBadgeClass } from "@/lib/format";
 import { useDegreeMap } from "@/lib/hooks";
@@ -38,23 +37,14 @@ const STATUS_BADGE: Record<SubjectStatus, string> = {
   APROBADA: "badge badge-mint",
 };
 
-export default function MateriaPage() {
-  return (
-    <Suspense fallback={null}>
-      <MateriaFromUrl />
-    </Suspense>
-  );
-}
-
-// La materia viene en la URL (/materia?id=...) para que la app funcione como archivos estáticos en el .exe.
-function MateriaFromUrl() {
-  const id = useSearchParams().get("id") ?? "";
+export function MateriaView({ id }: { id: string }) {
   // key: al cambiar de materia se reinician las pestañas y el apunte elegido.
-  return <MateriaView key={id} subjectId={id} />;
+  return <MateriaContent key={id} subjectId={id} />;
 }
 
-function MateriaView({ subjectId }: { subjectId: string }) {
+function MateriaContent({ subjectId }: { subjectId: string }) {
   const { setCurrentSubjectId, setAiOpen } = useAppState();
+  const { openView } = useWorkspace();
   const degrees = useDegreeMap();
   // null = no existe; undefined = todavía cargando
   const subject = useLiveQuery(async () => (await db.subjects.get(subjectId)) ?? null, [subjectId]);
@@ -99,9 +89,9 @@ function MateriaView({ subjectId }: { subjectId: string }) {
           title="No encontramos esta materia"
           text="Puede que se haya borrado o que el enlace esté mal."
           action={
-            <Link href="/carreras" className="btn btn-sm">
+            <button type="button" className="btn btn-sm" onClick={() => openView({ type: "carreras" })}>
               Ir a Mis carreras
-            </Link>
+            </button>
           }
         />
       </div>

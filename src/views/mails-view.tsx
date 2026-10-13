@@ -7,7 +7,7 @@ import { MailItem } from "@/components/mails/mail-item";
 import { PasteMailDialog } from "@/components/mails/paste-mail-dialog";
 import { useAllSubjects, useTasks } from "@/lib/hooks";
 
-export default function MailsPage() {
+export function MailsView() {
   const tasks = useTasks();
   const subjects = useAllSubjects();
   const [pasting, setPasting] = useState(false);

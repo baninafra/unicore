@@ -3,6 +3,9 @@
 import Dexie, { type EntityTable } from "dexie";
 import { nanoid } from "nanoid";
 import type {
+  Bookmark,
+  CanvasDoc,
+  NoteSnapshot,
   Degree,
   Flashcard,
   Note,
@@ -23,6 +26,9 @@ export const db = new Dexie("unicore") as Dexie & {
   files: EntityTable<StoredFile, "id">;
   flashcards: EntityTable<Flashcard, "id">;
   studySessions: EntityTable<StudySession, "id">;
+  canvases: EntityTable<CanvasDoc, "id">;
+  snapshots: EntityTable<NoteSnapshot, "id">;
+  bookmarks: EntityTable<Bookmark, "id">;
 };
 
 db.version(1).stores({
@@ -34,6 +40,14 @@ db.version(1).stores({
   files: "id",
   flashcards: "id, subjectId, noteId, due",
   studySessions: "id, subjectId, completedAt",
+});
+
+// v2: estilo Obsidian (etiquetas, enlaces, notas diarias, canvas, historial, marcadores)
+db.version(2).stores({
+  notes: "id, subjectId, updatedAt, title, dailyDate, *tags, *links",
+  canvases: "id, subjectId, updatedAt",
+  snapshots: "id, noteId, createdAt",
+  bookmarks: "id, kind, targetId, order",
 });
 
 export const newId = () => nanoid(12);

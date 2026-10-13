@@ -8,7 +8,19 @@
 import { db } from "./db";
 import type { StoredFile } from "./types";
 
-const TABLES = ["degrees", "subjects", "tasks", "notes", "documents", "files", "flashcards", "studySessions"] as const;
+const TABLES = [
+  "degrees",
+  "subjects",
+  "tasks",
+  "notes",
+  "documents",
+  "files",
+  "flashcards",
+  "studySessions",
+  "canvases",
+  "snapshots",
+  "bookmarks",
+] as const;
 type TableName = (typeof TABLES)[number];
 type Row = { id: string } & Record<string, unknown>;
 type DiskFile = Omit<StoredFile, "blob"> & { diskName: string };

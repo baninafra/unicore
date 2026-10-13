@@ -51,14 +51,56 @@ export interface Task {
   createdAt: string;
 }
 
+// Carpetas especiales (no son materias). Una nota con subjectId = DAILY_FOLDER es una nota diaria.
+export const DAILY_FOLDER = "__diario";
+export const TEMPLATES_FOLDER = "__plantillas";
+export const LOOSE_FOLDER = "__notas"; // notas sueltas, sin materia
+
 export interface Note {
   id: string;
-  subjectId: string;
+  subjectId: string; // id de materia o una carpeta especial
   title: string;
   unitNumber: number;
   content: unknown[]; // bloques de BlockNote
   plainTextCache: string;
+  // Estilo Obsidian (se recalculan al guardar el apunte)
+  properties?: Record<string, string | number | boolean | string[]>; // propiedades tipo frontmatter
+  aliases?: string[];
+  tags?: string[]; // sin "#", en minúsculas
+  links?: string[]; // ids de notas a las que enlaza con [[...]]
+  dailyDate?: string; // "2026-10-13" si es nota diaria
   updatedAt: string;
+  createdAt: string;
+}
+
+// Lienzo (Canvas): tarjetas de texto, notas, archivos y enlaces en un tablero libre.
+export interface CanvasDoc {
+  id: string;
+  name: string;
+  subjectId?: string;
+  data: { nodes: unknown[]; edges: unknown[]; viewport?: { x: number; y: number; zoom: number } };
+  updatedAt: string;
+  createdAt: string;
+}
+
+// Recuperación de archivos: copias de una nota cada tanto.
+export interface NoteSnapshot {
+  id: string;
+  noteId: string;
+  title: string;
+  content: unknown[];
+  plainText: string;
+  createdAt: string;
+}
+
+export type BookmarkKind = "note" | "subject" | "canvas" | "search" | "document";
+
+export interface Bookmark {
+  id: string;
+  kind: BookmarkKind;
+  targetId: string; // id del destino, o el texto de búsqueda
+  title: string;
+  order: number;
   createdAt: string;
 }
 
@@ -71,6 +113,18 @@ export interface SubjectDocument {
   extractedText: string;
   pageCount: number;
   fileId?: string; // archivo original guardado en `files`
+  usedOcr?: boolean;
+  highlights?: PdfHighlight[]; // resaltados hechos en el lector (estilo Logseq)
+  createdAt: string;
+}
+
+export interface PdfHighlight {
+  id: string;
+  page: number;
+  text: string;
+  color: "amarillo" | "verde" | "azul" | "rosa";
+  rects: { x: number; y: number; w: number; h: number }[]; // relativos a la página (0 a 1)
+  note?: string;
   createdAt: string;
 }
 

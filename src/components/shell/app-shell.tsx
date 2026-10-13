@@ -1,18 +1,79 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppStateProvider } from "@/lib/app-state";
+import clsx from "clsx";
+import { AppStateProvider, useAppState } from "@/lib/app-state";
 import { AIProvider } from "@/lib/ai/ai-provider";
 import { initDesktopStorage } from "@/lib/desktop";
 import { seedIfEmpty } from "@/lib/seed";
+import { useWorkspace, WorkspaceProvider, type Pane } from "@/lib/workspace";
 import { LogoMark } from "@/components/ui/logo";
-import { Sidebar } from "./sidebar";
-import { Topbar } from "./topbar";
-import { AIPanel } from "@/components/ai/ai-panel";
+import { Ribbon } from "@/components/workspace/ribbon";
+import { LeftSidebar, RightSidebar, RightToggle } from "@/components/workspace/sidebars";
+import { TabBar } from "@/components/workspace/tab-bar";
+import { ViewHost } from "@/components/workspace/view-host";
+import { StatusBar } from "@/components/workspace/status-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { SearchPalette } from "@/components/search/search-palette";
+import { CommandPalette } from "@/components/palette/command-palette";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function PaneView({ pane, active, last }: { pane: Pane; active: boolean; last: boolean }) {
+  const { focusPane } = useWorkspace();
+  const tab = pane.tabs.find((t) => t.id === pane.activeTabId) ?? pane.tabs[0];
+  return (
+    <section
+      className={clsx("flex min-w-0 flex-1 flex-col", !last && "border-r border-border")}
+      onMouseDownCapture={() => !active && focusPane(pane.id)}
+    >
+      <div className="flex items-end bg-bg pr-1.5">
+        <div className="min-w-0 flex-1">
+          <TabBar pane={pane} isActivePane={active} />
+        </div>
+        {last && <RightToggle />}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto bg-surface">
+        <ViewHost view={tab.view} />
+      </div>
+    </section>
+  );
+}
+
+// El viejo "abrir IA" (Ctrl+J y botones) ahora abre la IA en el panel derecho.
+function AIBridge() {
+  const { aiOpen, setAiOpen } = useAppState();
+  const { setRight } = useWorkspace();
+  useEffect(() => {
+    if (aiOpen) {
+      setRight(true, "ia");
+      setAiOpen(false);
+    }
+  }, [aiOpen, setAiOpen, setRight]);
+  return null;
+}
+
+function Workspace({ notice }: { notice?: string }) {
+  const { panes, activePaneId } = useWorkspace();
+  return (
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1">
+        <Ribbon />
+        <LeftSidebar />
+        <main className="flex min-w-0 flex-1 flex-col">
+          {notice && <div className="border-b border-border bg-rose-tint px-4 py-1.5 t-small text-rose">{notice}</div>}
+          <div className="flex min-h-0 flex-1">
+            {panes.map((p, i) => (
+              <PaneView key={p.id} pane={p} active={p.id === activePaneId} last={i === panes.length - 1} />
+            ))}
+          </div>
+        </main>
+        <RightSidebar />
+      </div>
+      <StatusBar />
+    </div>
+  );
+}
+
+export function AppShell() {
   // En la app de escritorio primero se cargan los datos desde Documentos\UniCore.
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string>();
@@ -29,28 +90,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-3 text-muted">
+      <div className="flex h-dvh items-center justify-center bg-bg">
         <LogoMark size={40} />
-        <span className="t-small">Abriendo tus datos…</span>
       </div>
     );
   }
 
   return (
     <AppStateProvider>
-      <AIProvider>
-        <div className="flex h-dvh overflow-hidden">
-          <Sidebar />
-          <main className="flex min-w-0 flex-1 flex-col">
-            <Topbar />
-            {loadError && <div className="border-b border-border bg-rose-tint px-6 py-2 t-small text-rose">{loadError}</div>}
-            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-          </main>
-        </div>
-        <AIPanel />
-        <TaskDialog />
-        <SearchPalette />
-      </AIProvider>
+      <WorkspaceProvider>
+        <AIProvider>
+          <AIBridge />
+          <Workspace notice={loadError} />
+          <TaskDialog />
+          <SearchPalette />
+          <CommandPalette />
+        </AIProvider>
+      </WorkspaceProvider>
     </AppStateProvider>
   );
 }

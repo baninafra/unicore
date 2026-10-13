@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
-import { AppShell } from "@/components/shell/app-shell";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -17,9 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es-AR" data-theme="dark" suppressHydrationWarning>
-      <body className={`${outfit.variable} antialiased`}>
-        <AppShell>{children}</AppShell>
-      </body>
+      <body className={`${outfit.variable} antialiased`}>{children}</body>
     </html>
   );
 }

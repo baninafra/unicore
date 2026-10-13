@@ -17,7 +17,7 @@ function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-export default function CalendarioPage() {
+export function CalendarioView() {
   const now = useNow();
   const [offset, setOffset] = useState(0); // meses respecto del actual
   const tasks = useTasks();

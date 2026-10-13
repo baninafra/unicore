@@ -52,7 +52,7 @@ export async function saveSubject(input: SubjectInput, existing?: Subject): Prom
 }
 
 // Todo lo que cuelga de una materia (además de las tareas).
-const SUBJECT_TABLES = [db.subjects, db.tasks, db.notes, db.documents, db.files, db.flashcards, db.studySessions];
+const SUBJECT_TABLES = [db.subjects, db.tasks, db.notes, db.documents, db.files, db.flashcards, db.studySessions, db.snapshots, db.bookmarks, db.canvases];
 
 // Borra materias con sus tareas, apuntes, PDFs, fotos, flashcards y sesiones,
 // y saca sus ids de las correlativas de las demás.
@@ -66,6 +66,10 @@ async function removeSubjects(ids: string[]) {
   for (const n of notes) for (const m of JSON.stringify(n.content).matchAll(/idb:\/\/([\w-]+)/g)) fileIds.add(m[1]);
   for (const d of docs) if (d.fileId) fileIds.add(d.fileId);
   await db.files.bulkDelete([...fileIds]);
+  const noteIds = notes.map((n) => n.id);
+  await db.snapshots.where("noteId").anyOf(noteIds).delete();
+  await db.bookmarks.where("targetId").anyOf([...noteIds, ...ids]).delete();
+  await db.canvases.where("subjectId").anyOf(ids).delete();
   await db.notes.where("subjectId").anyOf(ids).delete();
   await db.documents.where("subjectId").anyOf(ids).delete();
   await db.flashcards.where("subjectId").anyOf(ids).delete();

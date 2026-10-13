@@ -25,7 +25,7 @@ const PlanMap = dynamic(() => import("@/components/careers/plan-map").then((m) =
 
 type View = "grid" | "map";
 
-export default function CarrerasPage() {
+export function CarrerasView() {
   const { degreeFilter, setDegreeFilter } = useAppState();
   // undefined mientras carga: así no mostramos el estado vacío por un instante.
   const degrees = useLiveQuery(() => db.degrees.orderBy("createdAt").toArray(), []);

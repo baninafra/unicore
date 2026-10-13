@@ -51,10 +51,25 @@ export async function saveSubject(input: SubjectInput, existing?: Subject): Prom
   return record.id;
 }
 
-// Borra materias, sus tareas, y saca sus ids de las correlativas de las demás.
+// Todo lo que cuelga de una materia (además de las tareas).
+const SUBJECT_TABLES = [db.subjects, db.tasks, db.notes, db.documents, db.files, db.flashcards, db.studySessions];
+
+// Borra materias con sus tareas, apuntes, PDFs, fotos, flashcards y sesiones,
+// y saca sus ids de las correlativas de las demás.
 async function removeSubjects(ids: string[]) {
   if (!ids.length) return;
   const gone = new Set(ids);
+  const notes = await db.notes.where("subjectId").anyOf(ids).toArray();
+  const docs = await db.documents.where("subjectId").anyOf(ids).toArray();
+  // Fotos insertadas en los apuntes (idb://<id>) y PDFs originales.
+  const fileIds = new Set<string>();
+  for (const n of notes) for (const m of JSON.stringify(n.content).matchAll(/idb:\/\/([\w-]+)/g)) fileIds.add(m[1]);
+  for (const d of docs) if (d.fileId) fileIds.add(d.fileId);
+  await db.files.bulkDelete([...fileIds]);
+  await db.notes.where("subjectId").anyOf(ids).delete();
+  await db.documents.where("subjectId").anyOf(ids).delete();
+  await db.flashcards.where("subjectId").anyOf(ids).delete();
+  await db.studySessions.where("subjectId").anyOf(ids).delete();
   await db.tasks.where("subjectId").anyOf(ids).delete();
   await db.subjects.bulkDelete(ids);
   await db.subjects
@@ -65,14 +80,14 @@ async function removeSubjects(ids: string[]) {
 }
 
 export async function deleteSubjectCascade(subjectId: string) {
-  await db.transaction("rw", db.subjects, db.tasks, async () => {
+  await db.transaction("rw", SUBJECT_TABLES, async () => {
     await removeSubjects([subjectId]);
   });
 }
 
-// Borra la carrera, sus materias y sus tareas.
+// Borra la carrera con todas sus materias (y lo que cuelga de ellas) y sus tareas.
 export async function deleteDegreeCascade(degreeId: string) {
-  await db.transaction("rw", db.degrees, db.subjects, db.tasks, async () => {
+  await db.transaction("rw", [db.degrees, ...SUBJECT_TABLES], async () => {
     const subjectIds = await db.subjects.where("degreeId").equals(degreeId).primaryKeys();
     await removeSubjects(subjectIds);
     await db.tasks.where("degreeId").equals(degreeId).delete();

@@ -144,6 +144,42 @@ export async function initDesktopStorage(): Promise<void> {
   }
 }
 
+// Lo que escriben otras IAs por MCP (unicore.exe --mcp) entra a la app cada pocos segundos.
+let syncStarted = false;
+export function startExternalSync() {
+  if (!isDesktop() || syncStarted) return;
+  syncStarted = true;
+  let since = "9999-12-31 00:00:00";
+  let busy = false;
+  const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const [now, changes] = await call<[string, Record<string, Row[]>]>("db_changes_since", { since });
+      const first = since.startsWith("9999");
+      since = now;
+      if (first) return;
+      const tables = Object.keys(changes).filter((t) => (TABLES as readonly string[]).includes(t) && t !== "files");
+      if (!tables.length) return;
+      paused = true;
+      try {
+        await db.transaction("rw", tables.map((t) => db.table(t)), async () => {
+          for (const t of tables) await db.table(t).bulkPut(changes[t]);
+        });
+      } finally {
+        paused = false;
+      }
+    } catch (e) {
+      console.error("[UniCore] no se pudieron leer los cambios externos", e);
+    } finally {
+      busy = false;
+    }
+  };
+  void tick();
+  setInterval(tick, 3000);
+  window.addEventListener("focus", () => void tick());
+}
+
 export async function getDataFolder(): Promise<string | undefined> {
   if (!isDesktop()) return undefined;
   return call<string>("data_dir");

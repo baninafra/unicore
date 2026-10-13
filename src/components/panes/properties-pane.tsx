@@ -1,6 +1,52 @@
 "use client";
 
-// STUB: lo implementa otro módulo. Mantener el nombre y las props exportadas.
+import { useMemo } from "react";
+import { useContextMenu } from "@/components/ui/menu";
+import { useOpen } from "@/components/workspace/use-open";
+import { useWorkspace } from "@/lib/workspace";
+import { queueBaseFilter } from "@/lib/panes/base-query";
+import { useAllNotes } from "@/lib/panes/hooks";
+import { summarizeProps } from "@/lib/panes/props";
+import { PaneEmpty } from "./pane-ui";
+
+// Propiedades usadas en todas las notas. Clic: abre la base filtrada por esa propiedad.
 export function PropertiesPane() {
-  return <div className="p-4 t-small text-faint">Propiedades</div>;
+  const notes = useAllNotes();
+  const props = useMemo(() => summarizeProps(notes), [notes]);
+  const { openView } = useWorkspace();
+  const open = useOpen();
+  const ctx = useContextMenu();
+
+  const showInBase = (key: string, mode?: "tab") => {
+    queueBaseFilter({ field: key, op: "existe", value: "" });
+    openView({ type: "base" }, mode);
+  };
+
+  return (
+    <div className="p-2">
+      {props.length === 0 && <PaneEmpty>Sin propiedades</PaneEmpty>}
+      {props.map((p) => (
+        <button
+          key={p.key}
+          type="button"
+          onClick={(e) => {
+            queueBaseFilter({ field: p.key, op: "existe", value: "" });
+            open({ type: "base" }, e);
+          }}
+          onContextMenu={(e) =>
+            ctx.open(e, [
+              { label: "Filtrar en la base", onSelect: () => showInBase(p.key) },
+              { label: "Filtrar en pestaña nueva", onSelect: () => showInBase(p.key, "tab") },
+            ])
+          }
+          className="row w-full min-w-0"
+        >
+          <span className="min-w-0 flex-1 truncate text-left text-[13px] text-text">{p.key}</span>
+          <span className="text-[12px] text-faint">{p.kind}</span>
+          <span className="num w-6 text-right text-[12px] text-faint">{p.count}</span>
+        </button>
+      ))}
+      {ctx.menu}
+    </div>
+  );
 }

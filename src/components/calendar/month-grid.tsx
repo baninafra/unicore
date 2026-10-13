@@ -4,19 +4,56 @@ import { useState } from "react";
 import clsx from "clsx";
 import { format, isSameMonth, isToday } from "date-fns";
 import { useAppState } from "@/lib/app-state";
-import { TASK_TYPE_BADGE } from "@/lib/format";
-import type { Task } from "@/lib/types";
+import type { Task, TaskType } from "@/lib/types";
 import { TASK_TYPE_LABEL } from "@/lib/types";
-import { TASK_TYPE_ICON, endOfDayIso } from "@/components/tasks/task-meta";
+import { endOfDayIso } from "@/components/tasks/task-meta";
+import { useTaskMenu } from "@/components/tasks/task-menu";
 
 const WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
-const VISIBLE_CHIPS = 3;
+const VISIBLE_EVENTS = 3;
 
 export function dayKey(date: Date) {
   return format(date, "yyyy-MM-dd");
 }
 
-// Grilla lunes a domingo. Cada día muestra hasta 3 tareas; el resto se despliega con "+N más".
+// Color del borde izquierdo según el tipo: parciales y finales en rosa, entregas en ámbar, el resto en gris.
+function borderFor(type: TaskType) {
+  if (type === "PARCIAL" || type === "FINAL") return "border-rose";
+  if (type === "TP" || type === "FORO") return "border-amber";
+  return "border-border-strong";
+}
+
+function EventLine({ task }: { task: Task }) {
+  const { openTaskDialog } = useAppState();
+  const { show, menu } = useTaskMenu();
+  const done = task.status === "DONE";
+  return (
+    <>
+      <button
+        type="button"
+        title={`${TASK_TYPE_LABEL[task.type]}: ${task.title}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          openTaskDialog(task);
+        }}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          show(e, task);
+        }}
+        className={clsx(
+          "flex w-full min-w-0 cursor-default items-center border-l-2 pl-1.5 text-left text-xs leading-5 text-text hover:bg-surface-raised",
+          borderFor(task.type),
+          done && "text-faint line-through opacity-70",
+        )}
+      >
+        <span className="truncate">{task.title}</span>
+      </button>
+      {menu}
+    </>
+  );
+}
+
+// Grilla de mes lunes a domingo con líneas finas. Clic en un día vacío crea una tarea con esa fecha.
 export function MonthGrid({ days, month, tasksByDay }: { days: Date[]; month: Date; tasksByDay: Map<string, Task[]> }) {
   const { openTaskDialog } = useAppState();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -31,80 +68,59 @@ export function MonthGrid({ days, month, tasksByDay }: { days: Date[]; month: Da
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[640px]">
-        <div className="grid grid-cols-7 pb-2">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="t-small px-2 text-faint">
-              {d}
-            </div>
-          ))}
-        </div>
+    <div className="min-w-[640px] overflow-x-auto">
+      <div className="grid grid-cols-7">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="t-label px-2 pb-1.5">
+            {d}
+          </div>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          {days.map((day) => {
-            const key = dayKey(day);
-            const dayTasks = tasksByDay.get(key) ?? [];
-            const isExpanded = expanded.has(key);
-            const shown = isExpanded ? dayTasks : dayTasks.slice(0, VISIBLE_CHIPS);
-            const hidden = dayTasks.length - shown.length;
-            const isTodayCell = isToday(day);
-            const inMonth = isSameMonth(day, month);
+      <div className="grid grid-cols-7 gap-px overflow-hidden border-y border-border bg-border">
+        {days.map((day) => {
+          const key = dayKey(day);
+          const dayTasks = tasksByDay.get(key) ?? [];
+          const isExpanded = expanded.has(key);
+          const shown = isExpanded ? dayTasks : dayTasks.slice(0, VISIBLE_EVENTS);
+          const hidden = dayTasks.length - shown.length;
+          const today = isToday(day);
+          const inMonth = isSameMonth(day, month);
 
-            // Clic en el día (fuera de un chip) → nueva tarea con esa fecha.
-            return (
-              <div
-                key={key}
-                onClick={() => openTaskDialog({ dueDate: endOfDayIso(day) })}
+          return (
+            <div
+              key={key}
+              onClick={() => openTaskDialog({ dueDate: endOfDayIso(day) })}
+              className="flex min-h-[104px] min-w-0 cursor-default flex-col gap-0.5 bg-surface p-1.5 hover:bg-surface-raised"
+            >
+              <span
                 className={clsx(
-                  "flex min-h-[104px] min-w-0 cursor-pointer flex-col gap-1 bg-surface p-1.5 transition-colors hover:bg-surface-raised",
-                  isTodayCell && "bg-primary-tint hover:bg-primary-tint",
+                  "num t-small flex h-5 w-5 flex-none items-center justify-center rounded-full",
+                  today ? "bg-primary-fill text-on-primary" : inMonth ? "text-muted" : "text-faint",
                 )}
               >
-                <span
-                  className={clsx(
-                    "num t-small self-start px-1",
-                    isTodayCell ? "font-semibold text-primary-soft" : inMonth ? "text-muted" : "text-faint",
-                  )}
+                {format(day, "d")}
+              </span>
+
+              {shown.map((task) => (
+                <EventLine key={task.id} task={task} />
+              ))}
+
+              {dayTasks.length > VISIBLE_EVENTS && (
+                <button
+                  type="button"
+                  className="px-1.5 text-left text-xs text-faint hover:text-text"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpanded(key);
+                  }}
                 >
-                  {format(day, "d")}
-                </span>
-
-                {shown.map((task) => {
-                  const Icon = TASK_TYPE_ICON[task.type];
-                  return (
-                    <button
-                      key={task.id}
-                      type="button"
-                      title={`${TASK_TYPE_LABEL[task.type]}: ${task.title}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openTaskDialog(task);
-                      }}
-                      className={clsx(TASK_TYPE_BADGE[task.type], "w-full min-w-0 cursor-pointer justify-start", task.status === "DONE" && "opacity-60")}
-                    >
-                      <Icon strokeWidth={1.75} />
-                      <span className={clsx("hidden min-w-0 truncate md:inline", task.status === "DONE" && "line-through")}>{task.title}</span>
-                    </button>
-                  );
-                })}
-
-                {dayTasks.length > VISIBLE_CHIPS && (
-                  <button
-                    type="button"
-                    className="t-small px-1 text-left text-muted hover:text-text"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleExpanded(key);
-                    }}
-                  >
-                    {isExpanded ? "Ver menos" : `+${hidden} más`}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {isExpanded ? "Ver menos" : `+${hidden} más`}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

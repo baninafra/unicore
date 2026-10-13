@@ -1,0 +1,35 @@
+/* Lector de PDF: capa de texto seleccionable y marcas de búsqueda. */
+
+.uc-pdf-textlayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: #000;
+  z-index: 2;
+}
+
+.uc-pdf-textlayer span,
+.uc-pdf-textlayer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.uc-pdf-textlayer ::selection {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+.uc-pdf-textlayer span.uc-pdf-hit {
+  background: rgba(250, 204, 21, 0.45);
+  border-radius: 2px;
+}
+
+.uc-pdf-textlayer span.uc-pdf-hit-active {
+  background: rgba(251, 146, 60, 0.7);
+}

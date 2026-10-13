@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardPaste, Inbox } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
+import { ClipboardPaste } from "lucide-react";
 import { MailItem } from "@/components/mails/mail-item";
 import { PasteMailDialog } from "@/components/mails/paste-mail-dialog";
 import { useAllSubjects, useTasks } from "@/lib/hooks";
 
+// Bandeja de mails sin confirmar: lista densa, acciones al pasar el mouse.
 export function MailsView() {
   const tasks = useTasks();
   const subjects = useAllSubjects();
@@ -17,31 +17,19 @@ export function MailsView() {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
-    <div className="mx-auto flex max-w-[860px] flex-col gap-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="t-h1">Mails</h1>
-          <p className="t-small text-muted">Lo que llegó de la facultad, esperando que lo revises.</p>
-        </div>
-        <button className="btn" onClick={() => setPasting(true)}>
+    <div className="view-wide mx-auto flex max-w-[960px] flex-col gap-1">
+      <div className="flex items-center justify-between px-2 pb-1">
+        <span className="t-small text-faint">{inbox.length > 0 ? `${inbox.length} sin confirmar` : ""}</span>
+        <button type="button" className="icon-btn" onClick={() => setPasting(true)} aria-label="Pegar mail" title="Pegar mail">
           <ClipboardPaste strokeWidth={1.75} />
-          Pegar mail
         </button>
-      </header>
+      </div>
 
       {inbox.length === 0 ? (
-        <EmptyState icon={Inbox} title="No hay mails nuevos" text="Cuando pegues un mail de la facultad, aparece acá para revisarlo." />
+        <p className="t-small px-2 py-6 text-faint">Sin mails</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {inbox.map((task) => (
-            <li key={task.id}>
-              <MailItem task={task} subjects={subjects} />
-            </li>
-          ))}
-        </ul>
+        inbox.map((task) => <MailItem key={task.id} task={task} subjects={subjects} />)
       )}
-
-      <p className="t-small text-faint">Pronto vas a poder conectar tu Gmail para que los mails lleguen solos.</p>
 
       {pasting && <PasteMailDialog onClose={() => setPasting(false)} />}
     </div>

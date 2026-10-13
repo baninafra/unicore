@@ -198,13 +198,13 @@ function BlockView({ block }: { block: Block }) {
   switch (block.kind) {
     case "heading": {
       const Tag = block.level <= 2 ? "h3" : block.level === 3 ? "h4" : "h5";
-      const size = block.level <= 2 ? "t-h2" : block.level === 3 ? "t-h3" : "t-small";
+      const size = block.level <= 2 ? "text-[14px] leading-[22px]" : "text-[13px] leading-5";
       return <Tag className={`${size} font-semibold text-text`}>{renderInline(block.text)}</Tag>;
     }
 
     case "paragraph":
       return (
-        <p className="t-body">
+        <p className="text-[14px] leading-[22px]">
           {block.lines.map((line, k) => (
             <Fragment key={k}>
               {k > 0 && <br />}
@@ -218,7 +218,7 @@ function BlockView({ block }: { block: Block }) {
       const ordered = block.ordered;
       const Tag = ordered ? "ol" : "ul";
       return (
-        <Tag className={`${ordered ? "list-decimal" : "list-disc"} space-y-1 pl-5 t-body`}>
+        <Tag className={`${ordered ? "list-decimal" : "list-disc"} space-y-0.5 pl-4 text-[14px] leading-[22px]`}>
           {block.items.map((item, k) => (
             <li key={k}>{renderInline(item, `li${k}`)}</li>
           ))}
@@ -228,7 +228,7 @@ function BlockView({ block }: { block: Block }) {
 
     case "code":
       return (
-        <pre className="overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-[13px] leading-5">
+        <pre className="overflow-x-auto rounded-md border border-border bg-bg p-2.5 font-mono text-[12px] leading-5">
           <code>{block.text}</code>
         </pre>
       );
@@ -236,7 +236,7 @@ function BlockView({ block }: { block: Block }) {
     case "table":
       return (
         <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full border-collapse text-[13px]">
+          <table className="w-full border-collapse text-[12px]">
             <thead>
               <tr>
                 {block.header.map((cell, k) => (
@@ -272,7 +272,7 @@ function BlockView({ block }: { block: Block }) {
 
     case "quote":
       return (
-        <blockquote className="border-l-2 border-primary pl-3 text-muted">
+        <blockquote className="border-l-2 border-primary pl-3 text-[14px] leading-[22px] text-muted">
           {block.lines.map((line, k) => (
             <Fragment key={k}>
               {k > 0 && <br />}
@@ -290,7 +290,7 @@ function BlockView({ block }: { block: Block }) {
 export function Markdown({ text }: { text: string }) {
   const blocks = parseBlocks(text);
   return (
-    <div className="space-y-3 break-words">
+    <div className="space-y-2 break-words">
       {blocks.map((block, i) => (
         <BlockView key={i} block={block} />
       ))}

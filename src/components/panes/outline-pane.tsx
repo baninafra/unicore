@@ -1,6 +1,56 @@
 "use client";
 
-// STUB: lo implementa otro módulo. Mantener el nombre y las props exportadas.
+import { useMemo, useState } from "react";
+import clsx from "clsx";
+import { normalizeText } from "@/lib/ai/rag";
+import { headingsOf } from "@/lib/panes/note-data";
+import { useActiveNoteId, useNote } from "@/lib/panes/hooks";
+import { FIELD_CLASS, PaneEmpty } from "./pane-ui";
+
+// Esquema de la nota activa. Clic en un encabezado: el editor de esa nota va a ese bloque.
 export function OutlinePane() {
-  return <div className="p-4 t-small text-faint">Esquema</div>;
+  const noteId = useActiveNoteId();
+  const note = useNote(noteId);
+  const [query, setQuery] = useState("");
+
+  const headings = useMemo(() => (note ? headingsOf(note.content) : []), [note]);
+  const needle = normalizeText(query).trim();
+  const shown = needle ? headings.filter((h) => normalizeText(h.text).includes(needle)) : headings;
+
+  if (!note) return <PaneEmpty>Abrí una nota</PaneEmpty>;
+
+  const goTo = (blockId: string) => {
+    window.dispatchEvent(new CustomEvent("uc:goto-block", { detail: { noteId: note.id, blockId } }));
+  };
+
+  return (
+    <div className="space-y-2 p-2">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Buscar encabezado"
+        aria-label="Buscar encabezado"
+        className={FIELD_CLASS}
+      />
+      {shown.length === 0 ? (
+        <PaneEmpty>{headings.length === 0 ? "Sin encabezados" : "Sin resultados"}</PaneEmpty>
+      ) : (
+        <div>
+          {shown.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              title={h.text}
+              onClick={() => goTo(h.id)}
+              className="row w-full min-w-0 text-left"
+              style={{ paddingLeft: 8 + (h.level - 1) * 12 }}
+            >
+              <span className={clsx("truncate text-[13px]", h.level <= 2 ? "text-text" : "text-muted")}>{h.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

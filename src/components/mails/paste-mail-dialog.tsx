@@ -82,7 +82,6 @@ export function PasteMailDialog({ onClose }: { onClose: () => void }) {
           />
         </label>
         {error && <p className="t-small text-rose">{error}</p>}
-        <p className="t-small text-faint">La fecha, el tipo y la materia se detectan solos. Después podés revisarlos en la tarjeta.</p>
       </form>
     </Modal>
   );

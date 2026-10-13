@@ -8,6 +8,12 @@
 //!
 //! La interfaz trabaja sobre IndexedDB y espeja cada cambio acá; al abrir la app se
 //! restaura desde esta carpeta, que es la copia que manda.
+//!
+//! Con `unicore.exe --mcp` el mismo ejecutable funciona como servidor MCP (ver mcp.rs)
+//! para que otras IAs lean y escriban en esta base. Lo que escribe el MCP se marca con
+//! `source = 'mcp'` y la app lo trae con `db_changes_since`.
+
+mod mcp;
 
 use std::collections::HashMap;
 use std::fs;
@@ -20,9 +26,9 @@ use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
-struct Store {
-    conn: Mutex<Connection>,
-    root: PathBuf,
+pub(crate) struct Store {
+    pub(crate) conn: Mutex<Connection>,
+    pub(crate) root: PathBuf,
 }
 
 impl Store {
@@ -38,13 +44,17 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 }
 
 fn data_root() -> PathBuf {
+    // Para pruebas: UNICORE_DATA_DIR apunta a otra carpeta y no toca los datos reales.
+    if let Some(dir) = std::env::var_os("UNICORE_DATA_DIR") {
+        return PathBuf::from(dir);
+    }
     let base = dirs::document_dir()
         .or_else(dirs::home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
     base.join("UniCore")
 }
 
-fn open_store() -> Result<Store, String> {
+pub(crate) fn open_store() -> Result<Store, String> {
     let root = data_root();
     fs::create_dir_all(root.join("archivos")).map_err(err)?;
     let conn = Connection::open(root.join("unicore.db")).map_err(err)?;
@@ -59,6 +69,15 @@ fn open_store() -> Result<Store, String> {
          );",
     )
     .map_err(err)?;
+    // v2: de dónde vino el último cambio (app o mcp). Dos procesos pueden usar la base a la vez.
+    let has_source: bool = conn
+        .prepare("SELECT 1 FROM pragma_table_info('records') WHERE name = 'source'")
+        .and_then(|mut st| st.exists([]))
+        .map_err(err)?;
+    if !has_source {
+        conn.execute_batch("ALTER TABLE records ADD COLUMN source TEXT NOT NULL DEFAULT 'app';").map_err(err)?;
+    }
+    conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(err)?;
     Ok(Store { conn: Mutex::new(conn), root })
 }
 
@@ -98,8 +117,8 @@ fn db_dump(store: State<Store>) -> CmdResult<HashMap<String, Vec<Value>>> {
 fn db_put(store: State<Store>, table: String, id: String, data: Value) -> CmdResult<()> {
     let conn = store.conn.lock().map_err(err)?;
     conn.execute(
-        "INSERT INTO records (tbl, id, data, updated_at) VALUES (?1, ?2, ?3, datetime('now'))
-         ON CONFLICT(tbl, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+        "INSERT INTO records (tbl, id, data, updated_at, source) VALUES (?1, ?2, ?3, datetime('now'), 'app')
+         ON CONFLICT(tbl, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at, source = 'app'",
         params![table, id, data.to_string()],
     )
     .map_err(err)?;
@@ -121,6 +140,27 @@ fn db_put_many(store: State<Store>, table: String, records: Vec<Value>) -> CmdRe
         }
     }
     tx.commit().map_err(err)
+}
+
+/// Registros que escribió el MCP desde `since` (formato "YYYY-MM-DD HH:MM:SS"). Devuelve también la hora actual de la base.
+#[tauri::command]
+fn db_changes_since(store: State<Store>, since: String) -> CmdResult<(String, HashMap<String, Vec<Value>>)> {
+    let conn = store.conn.lock().map_err(err)?;
+    let now: String = conn.query_row("SELECT datetime('now')", [], |r| r.get(0)).map_err(err)?;
+    let mut stmt = conn
+        .prepare("SELECT tbl, data FROM records WHERE source = 'mcp' AND updated_at >= ?1")
+        .map_err(err)?;
+    let rows = stmt
+        .query_map(params![since], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+        .map_err(err)?;
+    let mut out: HashMap<String, Vec<Value>> = HashMap::new();
+    for row in rows {
+        let (tbl, data) = row.map_err(err)?;
+        if let Ok(v) = serde_json::from_str(&data) {
+            out.entry(tbl).or_default().push(v);
+        }
+    }
+    Ok((now, out))
 }
 
 #[tauri::command]
@@ -172,6 +212,11 @@ fn open_data_folder(app: tauri::AppHandle, store: State<Store>) -> CmdResult<()>
         .map_err(err)
 }
 
+/// Modo servidor MCP por stdio (`unicore.exe --mcp`).
+pub fn run_mcp() {
+    mcp::serve();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -186,6 +231,7 @@ pub fn run() {
             db_dump,
             db_put,
             db_put_many,
+            db_changes_since,
             db_delete,
             file_write,
             file_read,

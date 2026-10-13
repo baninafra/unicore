@@ -1,0 +1,66 @@
+/* Lienzo: ajustes de React Flow al estilo de UniCore (usa los tokens del tema). */
+
+.uc-canvas .react-flow {
+  background: var(--surface);
+}
+
+.uc-canvas .react-flow__background-pattern {
+  fill: var(--border-strong);
+}
+
+.uc-canvas .react-flow__node {
+  color: var(--text);
+  font-family: inherit;
+}
+
+.uc-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.react-flow__node.selected .uc-card {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.uc-group {
+  background: color-mix(in srgb, var(--text-faint) 7%, transparent);
+}
+
+.react-flow__node.selected .uc-group {
+  border-color: var(--primary);
+}
+
+/* Puntos de conexión: aparecen al pasar el mouse o al seleccionar. */
+.uc-handle {
+  width: 9px !important;
+  height: 9px !important;
+  background: var(--primary) !important;
+  border: 2px solid var(--surface) !important;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.uc-card:hover .uc-handle,
+.react-flow__node.selected .uc-handle,
+.react-flow__handle-connecting {
+  opacity: 1;
+}
+
+.uc-resize-line {
+  border-color: var(--primary) !important;
+}
+
+.uc-resize-handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--surface) !important;
+  border: 1.5px solid var(--primary) !important;
+  border-radius: 2px;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--primary) !important;
+}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { AppStateProvider, useAppState } from "@/lib/app-state";
 import { AIProvider } from "@/lib/ai/ai-provider";
-import { initDesktopStorage } from "@/lib/desktop";
+import { initDesktopStorage, startExternalSync } from "@/lib/desktop";
 import { seedIfEmpty } from "@/lib/seed";
 import { useWorkspace, WorkspaceProvider, type Pane } from "@/lib/workspace";
 import { LogoMark } from "@/components/ui/logo";
@@ -14,8 +14,9 @@ import { TabBar } from "@/components/workspace/tab-bar";
 import { ViewHost } from "@/components/workspace/view-host";
 import { StatusBar } from "@/components/workspace/status-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
-import { SearchPalette } from "@/components/search/search-palette";
 import { CommandPalette } from "@/components/palette/command-palette";
+import { ExportCommands } from "@/components/export/export-commands";
+import { ApplySettings } from "@/components/settings/apply-settings";
 
 function PaneView({ pane, active, last }: { pane: Pane; active: boolean; last: boolean }) {
   const { focusPane } = useWorkspace();
@@ -81,6 +82,7 @@ export function AppShell() {
   useEffect(() => {
     initDesktopStorage()
       .then(() => seedIfEmpty())
+      .then(() => startExternalSync())
       .catch((e) => {
         console.error(e);
         setLoadError("No pudimos abrir tu carpeta de datos. Cerrá la app y volvé a abrirla.");
@@ -103,8 +105,9 @@ export function AppShell() {
           <AIBridge />
           <Workspace notice={loadError} />
           <TaskDialog />
-          <SearchPalette />
           <CommandPalette />
+          <ExportCommands />
+          <ApplySettings />
         </AIProvider>
       </WorkspaceProvider>
     </AppStateProvider>

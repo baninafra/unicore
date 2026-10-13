@@ -27,6 +27,18 @@ function toTimeInput(iso: string) {
   return format(new Date(iso), "HH:mm");
 }
 
+const CONTROL = "input h-7 min-w-0 border-transparent bg-transparent px-2 hover:bg-surface-raised";
+
+// Fila "nombre · control", como una propiedad de Obsidian.
+function Prop({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="prop-row">
+      <span>{label}</span>
+      <div className="flex min-w-0 items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
 function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => void }) {
   const { degreeFilter } = useAppState();
   const degrees = useDegrees();
@@ -124,67 +136,63 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
   const footer = confirmingDelete ? (
     <>
       <span className="t-small mr-auto text-muted">¿Eliminar esta tarea?</span>
-      <button className="btn" onClick={() => setConfirmingDelete(false)}>
+      <button className="btn btn-sm" onClick={() => setConfirmingDelete(false)}>
         Cancelar
       </button>
-      <button className="btn btn-danger" onClick={onDelete}>
-        Sí, eliminar
+      <button className="btn btn-danger btn-sm" onClick={onDelete}>
+        Eliminar
       </button>
     </>
   ) : (
     <>
       {editing && (
-        <button className="btn btn-danger mr-auto" onClick={() => setConfirmingDelete(true)}>
+        <button className="btn btn-ghost btn-sm mr-auto" onClick={() => setConfirmingDelete(true)}>
           <Trash2 strokeWidth={1.75} />
           Eliminar
         </button>
       )}
-      <button className="btn" onClick={onClose}>
+      <button className="btn btn-sm" onClick={onClose}>
         Cancelar
       </button>
-      <button className="btn btn-primary" type="submit" form="task-form" disabled={saving}>
+      <button className="btn btn-primary btn-sm" type="submit" form="task-form" disabled={saving}>
         Guardar
       </button>
     </>
   );
 
   return (
-    <Modal open onClose={onClose} title={editing ? "Editar tarea" : "Nueva tarea"} footer={footer} width={560}>
-      <form id="task-form" className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+    <Modal open onClose={onClose} title={editing ? "Editar tarea" : "Nueva tarea"} footer={footer} width={520}>
+      <form id="task-form" className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
+        <input
+          className={clsx("w-full bg-transparent t-h2 outline-none placeholder:text-faint", error && "text-rose")}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Título"
+          aria-label="Título"
+          autoFocus
+        />
+        {error && <p className="t-small text-rose">{error}</p>}
+
         {task?.aiSummary && (
-          <div className="flex items-start gap-2 rounded-md border border-border bg-primary-tint p-3">
+          <p className="t-small flex items-start gap-2 text-muted">
             <Sparkles className="mt-0.5 h-4 w-4 flex-none text-primary-soft" strokeWidth={1.75} />
-            <p className="t-small">{task.aiSummary}</p>
-          </div>
+            <span>{task.aiSummary}</span>
+          </p>
         )}
 
-        <label className="field">
-          <span>Título</span>
-          <input
-            className={clsx("input", error && "input-error")}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Por ejemplo: TP 2, diagrama de clases"
-            autoFocus
-          />
-          {error && <p className="t-small text-rose">{error}</p>}
-        </label>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="field">
-            <span>Tipo</span>
-            <select className="input" value={type} onChange={(e) => setType(e.target.value as TaskType)}>
+        <div className="flex flex-col">
+          <Prop label="Tipo">
+            <select className={CONTROL} value={type} onChange={(e) => setType(e.target.value as TaskType)}>
               {(Object.keys(TASK_TYPE_LABEL) as TaskType[]).map((t) => (
                 <option key={t} value={t}>
                   {TASK_TYPE_LABEL[t]}
                 </option>
               ))}
             </select>
-          </label>
+          </Prop>
 
-          <label className="field">
-            <span>Carrera</span>
-            <select className="input" value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
+          <Prop label="Carrera">
+            <select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
               <option value="">Sin carrera</option>
               {degrees.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -192,65 +200,66 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
                 </option>
               ))}
             </select>
-          </label>
-        </div>
+          </Prop>
 
-        <label className="field">
-          <span>Materia</span>
-          <select className="input" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-            <option value="">Sin materia</option>
-            {visibleSubjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {!degreeId && degreeName(s.degreeId) ? `${s.name} · ${degreeName(s.degreeId)}` : s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Prop label="Materia">
+            <select className={CONTROL} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+              <option value="">Sin materia</option>
+              {visibleSubjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {!degreeId && degreeName(s.degreeId) ? `${s.name} · ${degreeName(s.degreeId)}` : s.name}
+                </option>
+              ))}
+            </select>
+          </Prop>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="field">
-            <span>Fecha</span>
-            <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Hora</span>
-            <input type="time" className="input" value={time} onChange={(e) => setTime(e.target.value)} disabled={!date} />
-          </label>
-        </div>
-        {date && !time && <p className="t-small text-faint">Sin hora, la tarea vence a las {END_OF_DAY}.</p>}
+          <Prop label="Vence">
+            <input type="date" className={CONTROL} value={date} onChange={(e) => setDate(e.target.value)} aria-label="Fecha" />
+            <input
+              type="time"
+              className={clsx(CONTROL, "w-24")}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              disabled={!date}
+              aria-label="Hora"
+              placeholder={END_OF_DAY}
+            />
+          </Prop>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="field">
-            <span>Prioridad</span>
-            <select className="input" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+          <Prop label="Prioridad">
+            <select className={CONTROL} value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
               {(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABEL[p]}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="field">
-            <span>Estado</span>
-            <select className="input" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
+          </Prop>
+
+          <Prop label="Estado">
+            <select className={CONTROL} value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
               {statusOptions.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABEL[s]}
                 </option>
               ))}
             </select>
-          </label>
+          </Prop>
         </div>
 
-        <label className="field">
-          <span>Descripción</span>
-          <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
-        </label>
+        <textarea
+          className="input min-h-[72px] border-transparent bg-transparent px-2 py-1.5 hover:bg-surface-raised"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          placeholder="Descripción"
+          aria-label="Descripción"
+        />
 
         {fromMail && (
-          <details className="rounded-md border border-border p-3">
-            <summary className="t-small cursor-pointer font-medium text-muted">Mail original</summary>
-            <div className="mt-3 flex flex-col gap-2">
+          <details className="rounded-md border border-border px-3 py-2">
+            <summary className="t-small cursor-pointer text-muted">Mail original</summary>
+            <div className="mt-2 flex flex-col gap-2">
               {task?.rawEmailFrom && <p className="t-small text-muted">De: {task.rawEmailFrom}</p>}
               <pre className="t-small whitespace-pre-wrap font-sans">{task?.rawEmailBody ?? "Sin contenido."}</pre>
             </div>

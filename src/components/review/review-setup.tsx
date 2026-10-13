@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Layers } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
 import { useAppState } from "@/lib/app-state";
 import { db } from "@/lib/db";
-import type { Flashcard } from "@/lib/types";
 import { useAllSubjects, useDegrees } from "@/lib/hooks";
+import type { Flashcard } from "@/lib/types";
 import { QuickCardForm } from "./quick-card-form";
 import { endOfToday, minutesFor, plural } from "./review-utils";
 
@@ -16,7 +14,7 @@ export interface ReviewRun {
   subjectIds: string[];
 }
 
-// Filtros y resumen antes de empezar. Si no hay nada para hoy, muestra el estado vacío con el formulario rápido.
+// Elección de carrera y materia como texto, y el botón para empezar. Sin tarjetas, un formulario para crear una.
 export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: string; onStart: (run: ReviewRun) => void }) {
   const { degreeFilter } = useAppState();
   const degrees = useDegrees();
@@ -27,6 +25,7 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
   const [degreeOverride, setDegreeOverride] = useState<string | null>(null);
   const [subjectId, setSubjectId] = useState(initialSubjectId);
   const [todayOnly, setTodayOnly] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   // Por defecto: la carrera de la materia que llegó por URL, o el filtro global.
   const degreeId = degreeOverride ?? (initialSubjectId && subjectDegree ? subjectDegree : degreeFilter);
@@ -39,67 +38,63 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
   const limit = todayOnly ? endOfToday() : Date.now();
   const due = cards.filter((c) => scopeIds.has(c.subjectId) && new Date(c.due).getTime() <= limit);
 
+  const TEXT_SELECT = "cursor-pointer appearance-none bg-transparent text-text outline-none hover:text-primary-soft";
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="card grid gap-3 sm:grid-cols-2">
-        <label className="field">
-          <span>Carrera</span>
-          <select
-            className="input"
-            value={degreeId}
-            onChange={(e) => {
-              setDegreeOverride(e.target.value);
-              setSubjectId("");
-            }}
-          >
-            <option value="all">Todas mis carreras</option>
-            {degrees.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Materia</span>
-          <select className="input" value={selectedSubject} onChange={(e) => setSubjectId(e.target.value)}>
-            <option value="">Todas las materias</option>
-            {degreeSubjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="t-small flex items-center gap-2 text-muted sm:col-span-2">
-          <input type="checkbox" className="h-4 w-4 accent-primary" checked={todayOnly} onChange={(e) => setTodayOnly(e.target.checked)} />
-          Todo lo de hoy
+    <div className="flex flex-col items-center gap-8">
+      <div className="t-small flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted">
+        <select
+          aria-label="Carrera"
+          className={TEXT_SELECT}
+          value={degreeId}
+          onChange={(e) => {
+            setDegreeOverride(e.target.value);
+            setSubjectId("");
+          }}
+        >
+          <option value="all">Todas las carreras</option>
+          {degrees.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+        <span className="text-faint">/</span>
+        <select aria-label="Materia" className={TEXT_SELECT} value={selectedSubject} onChange={(e) => setSubjectId(e.target.value)}>
+          <option value="">Todas las materias</option>
+          {degreeSubjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <span className="text-faint">/</span>
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={todayOnly} onChange={(e) => setTodayOnly(e.target.checked)} />
+          Hasta hoy
         </label>
       </div>
 
       {due.length > 0 ? (
-        <div className="card flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col items-center gap-4 text-center">
           <p className="t-h2 num">
-            {plural(due.length, "tarjeta para hoy", "tarjetas para hoy")} · unos {plural(minutesFor(due.length), "minuto", "minutos")}
+            {plural(due.length, "tarjeta para hoy", "tarjetas para hoy")}
           </p>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => onStart({ cards: due, subjectIds: [...scopeIds] })}
-          >
+          <p className="t-small num text-faint">unos {plural(minutesFor(due.length), "minuto", "minutos")}</p>
+          <button type="button" className="btn btn-primary" onClick={() => onStart({ cards: due, subjectIds: [...scopeIds] })}>
             Empezar repaso
           </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          <EmptyState
-            icon={Layers}
-            title="No tenés tarjetas para hoy"
-            text="Generá flashcards desde tus apuntes con la IA o creá una a mano."
-          />
-          <QuickCardForm defaultSubjectId={selectedSubject} />
+        <div className="flex w-full flex-col items-center gap-4">
+          <p className="t-small text-faint">Sin tarjetas para hoy</p>
+          {adding ? (
+            <QuickCardForm defaultSubjectId={selectedSubject} />
+          ) : (
+            <button type="button" className="btn btn-sm" onClick={() => setAdding(true)}>
+              Nueva tarjeta
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -292,7 +292,6 @@ export function SubjectDialog({
                 ))
               )}
             </div>
-            <p className="t-small text-faint">Marcá las materias que hay que tener regulares o aprobadas.</p>
           </div>
 
           <FormField label="Mail del profesor" error={errors.professorEmail}>

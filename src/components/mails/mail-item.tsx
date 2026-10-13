@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Calendar, Check, Sparkles, Trash2 } from "lucide-react";
+import { Check, Sparkles, Trash2 } from "lucide-react";
 import { useLocalAI } from "@/lib/ai/use-local-ai";
 import { analyzeEmail } from "@/lib/ai/prompts";
 import { db } from "@/lib/db";
-import { relativeDays, shortDateTime } from "@/lib/format";
+import { relativeDays, shortDate } from "@/lib/format";
 import type { Subject, Task } from "@/lib/types";
+import { useContextMenu } from "@/components/ui/menu";
 
-// Un mail que llegó a la bandeja de entrada (status INBOX_EMAIL).
-// Se usa en la página Mails y en el panel de Inicio, con las mismas acciones.
+// Un mail de la bandeja (status INBOX_EMAIL). Dos líneas: remitente y asunto, y debajo el resumen de la IA.
+// Las acciones aparecen al pasar el mouse (y también con clic derecho).
 export function MailItem({ task, subjects }: { task: Task; subjects: Subject[] }) {
   const ai = useLocalAI();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const { open, menu } = useContextMenu();
 
   const subject = subjects.find((s) => s.id === task.subjectId);
 
@@ -45,58 +47,45 @@ export function MailItem({ task, subjects }: { task: Task; subjects: Subject[] }
     }
   }
 
-  async function discard() {
-    await db.tasks.delete(task.id);
-  }
+  const discard = () => void db.tasks.delete(task.id);
+  const addToKanban = () => void db.tasks.update(task.id, { status: "TODO" });
 
-  async function addToKanban() {
-    await db.tasks.update(task.id, { status: "TODO" });
-  }
+  const detail = error ?? (busy ? ai.progressText || "Analizando…" : task.aiSummary);
 
   return (
-    <article className="flex flex-col gap-2.5 rounded-md border border-border bg-surface p-3">
-      <div className="t-small truncate text-muted">{task.rawEmailFrom ?? "Remitente desconocido"}</div>
-      <div className="t-h3">{task.title}</div>
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        {subject && (
-          <span className="badge">
-            <BookOpen strokeWidth={1.75} />
-            {subject.name}
-          </span>
-        )}
+    <div
+      className="group flex flex-col gap-0.5 rounded-md px-2 py-1.5 hover:bg-surface-raised"
+      onContextMenu={(e) =>
+        open(e, [
+          { label: "Analizar con IA", icon: Sparkles, onSelect: () => void analyze(), disabled: busy },
+          { label: "Agregar al kanban", icon: Check, onSelect: addToKanban },
+          { type: "separator" },
+          { label: "Descartar", icon: Trash2, onSelect: discard, danger: true },
+        ])
+      }
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="t-small max-w-[180px] flex-none truncate text-muted">{task.rawEmailFrom ?? "Remitente desconocido"}</span>
+        <span className="t-small min-w-0 flex-1 truncate text-text">{task.title}</span>
         {task.dueDate && (
-          <span className="t-small num flex items-center gap-1.5 text-muted">
-            <Calendar className="h-4 w-4 flex-none" strokeWidth={1.75} />
-            {shortDateTime(task.dueDate)} · {relativeDays(task.dueDate)}
-          </span>
+          <span className="t-small num flex-none text-faint group-hover:hidden">{shortDate(task.dueDate)}</span>
         )}
+        <span className="flex flex-none items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+          <button type="button" className="icon-btn" onClick={() => void analyze()} disabled={busy} aria-label="Analizar con IA" title="Analizar con IA">
+            <Sparkles strokeWidth={1.75} />
+          </button>
+          <button type="button" className="icon-btn" onClick={addToKanban} aria-label="Agregar al kanban" title="Agregar al kanban">
+            <Check strokeWidth={1.75} />
+          </button>
+          <button type="button" className="icon-btn" onClick={discard} aria-label="Descartar" title="Descartar">
+            <Trash2 strokeWidth={1.75} />
+          </button>
+        </span>
       </div>
-
-      {task.aiSummary && (
-        <p className="t-small flex items-start gap-2">
-          <Sparkles className="mt-0.5 h-4 w-4 flex-none text-primary-soft" strokeWidth={1.75} />
-          <span>{task.aiSummary}</span>
-        </p>
-      )}
-
-      {error && <p className="t-small text-rose">{error}</p>}
-      {busy && <p className="t-small text-faint">{ai.progressText || "Analizando el mail…"}</p>}
-
-      <div className="flex flex-wrap gap-2 pt-1">
-        <button className="btn btn-ai btn-sm" onClick={analyze} disabled={busy}>
-          <Sparkles strokeWidth={1.75} />
-          Analizar mail
-        </button>
-        <button className="btn btn-sm" onClick={addToKanban}>
-          <Check strokeWidth={1.75} />
-          Agregar al kanban
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={discard}>
-          <Trash2 strokeWidth={1.75} />
-          Descartar
-        </button>
+      <div className={`t-small truncate ${error ? "text-rose" : "text-faint"}`}>
+        {detail || subject?.name || (task.dueDate ? `Vence ${relativeDays(task.dueDate)}` : "Sin analizar")}
       </div>
-    </article>
+      {menu}
+    </div>
   );
 }

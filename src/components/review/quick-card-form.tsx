@@ -48,39 +48,29 @@ export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }
   const sorted = [...subjects].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <form onSubmit={onSubmit} className="card flex flex-col gap-4">
-      <div className="t-h3">Nueva tarjeta</div>
+    <form onSubmit={onSubmit} className="flex w-full max-w-xl flex-col gap-2">
+      <select
+        className="input h-8 w-auto self-start"
+        value={subjectId}
+        onChange={(e) => setSubjectId(e.target.value)}
+        aria-label="Materia"
+        disabled={subjects.length === 0}
+      >
+        <option value="">{subjects.length === 0 ? "Sin materias" : "Elegí una materia"}</option>
+        {sorted.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
 
-      {subjects.length === 0 ? (
-        <p className="t-small text-muted">Primero creá una materia en Mis carreras.</p>
-      ) : (
-        <label className="field">
-          <span>Materia</span>
-          <select className="input" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-            <option value="">Elegí una materia</option>
-            {sorted.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      <label className="field">
-        <span>Frente</span>
-        <textarea className="input" rows={2} value={front} onChange={(e) => setFront(e.target.value)} placeholder="La pregunta" />
-      </label>
-
-      <label className="field">
-        <span>Dorso</span>
-        <textarea className="input" rows={3} value={back} onChange={(e) => setBack(e.target.value)} placeholder="La respuesta" />
-      </label>
+      <textarea className="input" rows={2} value={front} onChange={(e) => setFront(e.target.value)} placeholder="Pregunta" aria-label="Pregunta" />
+      <textarea className="input" rows={3} value={back} onChange={(e) => setBack(e.target.value)} placeholder="Respuesta" aria-label="Respuesta" />
 
       {error && <p className="t-small text-rose">{error}</p>}
 
-      <div>
-        <button type="submit" className="btn" disabled={saving || subjects.length === 0}>
+      <div className="flex justify-end">
+        <button type="submit" className="btn btn-sm" disabled={saving || subjects.length === 0}>
           Guardar tarjeta
         </button>
       </div>

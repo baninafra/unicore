@@ -19,9 +19,6 @@ interface AppState {
   taskDialog: { open: boolean; task?: Partial<Task> };
   openTaskDialog: (task?: Partial<Task>) => void;
   closeTaskDialog: () => void;
-  // Buscador Ctrl+K
-  searchOpen: boolean;
-  setSearchOpen: (open: boolean) => void;
   theme: Theme;
   toggleTheme: () => void;
 }
@@ -46,7 +43,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [currentSubjectId, setCurrentSubjectId] = useState<string>();
   const [taskDialog, setTaskDialog] = useState<{ open: boolean; task?: Partial<Task> }>({ open: false });
-  const [searchOpen, setSearchOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
@@ -70,17 +66,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Atajos globales: Ctrl+J abre la IA, Ctrl+K el buscador
+  // Atajo global: Ctrl+J abre la IA
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
-      const k = e.key.toLowerCase();
-      if (k === "j") {
+      if (e.key.toLowerCase() === "j") {
         e.preventDefault();
         setAiOpen((o) => !o);
-      } else if (k === "k") {
-        e.preventDefault();
-        setSearchOpen((o) => !o);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -99,8 +91,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         taskDialog,
         openTaskDialog: (task) => setTaskDialog({ open: true, task }),
         closeTaskDialog: () => setTaskDialog({ open: false }),
-        searchOpen,
-        setSearchOpen,
         theme,
         toggleTheme,
       }}

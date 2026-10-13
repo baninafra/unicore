@@ -69,9 +69,6 @@ export function FlashcardsReviewModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="t-small text-muted">
-          Editá lo que haga falta y destildá las que no quieras. Después las guardamos en la materia.
-        </p>
         {rows.map((row, i) => (
           <div
             key={i}

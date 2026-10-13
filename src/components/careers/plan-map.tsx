@@ -10,22 +10,25 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type NodeMouseHandler,
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
 import { useMemo, type CSSProperties } from "react";
 import { degreeBadgeClass } from "@/lib/format";
 import type { Degree, Subject } from "@/lib/types";
+import { useOpen } from "@/components/workspace/use-open";
 import { isRequirementMet, periodIndex, sortSubjects } from "./plan";
-import { SubjectCardBody, subjectCardClass, subjectCardStyle, subjectState, type SubjectState } from "./subject-card";
+import { subjectState, type SubjectState } from "./subject-state";
+import { useSubjectMenu } from "./subject-menu";
 
 // Layout: columnas por cuatrimestre, filas por orden dentro de la columna.
-const NODE_W = 220;
-const NODE_H = 152;
-const COL_STEP = NODE_W + 64;
-const ROW_STEP = NODE_H + 20;
-const LABEL_H = 56;
-const BLOCK_GAP = 72;
+const NODE_W = 200;
+const NODE_H = 56;
+const COL_STEP = NODE_W + 56;
+const ROW_STEP = NODE_H + 12;
+const LABEL_H = 48;
+const BLOCK_GAP = 56;
 
 const HIDDEN_HANDLE: CSSProperties = { opacity: 0, width: 1, height: 1, minWidth: 0, minHeight: 0, border: 0 };
 
@@ -47,11 +50,36 @@ type SubjectFlowNode = Node<{ subject: Subject; state: SubjectState }, "subject"
 type LabelFlowNode = Node<{ degree: Degree }, "label">;
 type FlowNode = SubjectFlowNode | LabelFlowNode;
 
+function stateText(state: SubjectState) {
+  switch (state.kind) {
+    case "aprobada":
+      return "Aprobada";
+    case "habilitada":
+      return "Habilitada";
+    case "cursando":
+      return "Cursando";
+    case "regular":
+      return "Regular";
+    case "bloqueada":
+      return "Bloqueada";
+  }
+}
+
 function SubjectNode({ data }: NodeProps<SubjectFlowNode>) {
+  const blocked = data.state.kind === "bloqueada";
   return (
-    <div className={subjectCardClass(data.state)} style={{ ...subjectCardStyle(data.state), width: NODE_W, height: NODE_H }}>
+    <div
+      className="flex flex-col justify-center gap-0.5 rounded-md border bg-surface px-2.5"
+      style={{
+        width: NODE_W,
+        height: NODE_H,
+        borderColor: data.state.kind === "habilitada" ? "var(--primary)" : "var(--border)",
+        borderStyle: blocked ? "dashed" : "solid",
+      }}
+    >
       <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      <SubjectCardBody subject={data.subject} state={data.state} href={`/materia?id=${data.subject.id}`} />
+      <span className="t-small truncate text-text">{data.subject.name}</span>
+      <span className="t-small text-faint">{stateText(data.state)}</span>
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </div>
   );
@@ -61,7 +89,7 @@ function DegreeLabelNode({ data }: NodeProps<LabelFlowNode>) {
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
       <span className={degreeBadgeClass(data.degree)}>{data.degree.shortName}</span>
-      <span className="t-h3">{data.degree.name}</span>
+      <span className="t-small text-muted">{data.degree.name}</span>
     </div>
   );
 }
@@ -132,11 +160,27 @@ function buildGraph(degrees: Degree[], subjects: Subject[]) {
 }
 
 // Mapa de correlativas de las carreras visibles. Carga con next/dynamic (ssr: false).
-export function PlanMap({ degrees, subjects }: { degrees: Degree[]; subjects: Subject[] }) {
+export function PlanMap({
+  degrees,
+  subjects,
+  onEdit,
+  onDelete,
+}: {
+  degrees: Degree[];
+  subjects: Subject[];
+  onEdit: (subject: Subject) => void;
+  onDelete: (subject: Subject) => void;
+}) {
   const { nodes, edges } = useMemo(() => buildGraph(degrees, subjects), [degrees, subjects]);
+  const open = useOpen();
+  const { show, menu } = useSubjectMenu({ onEdit, onDelete });
+
+  const onNodeClick: NodeMouseHandler<FlowNode> = (e, node) => {
+    if (node.type === "subject") open({ type: "materia", id: node.id }, e);
+  };
 
   return (
-    <div className="h-[560px] w-full overflow-hidden rounded-lg border border-border" style={THEME}>
+    <div className="h-[560px] w-full overflow-hidden rounded-md border border-border" style={THEME}>
       <ReactFlow<FlowNode, Edge>
         nodes={nodes}
         edges={edges}
@@ -147,11 +191,16 @@ export function PlanMap({ degrees, subjects }: { degrees: Degree[]; subjects: Su
         maxZoom={1.5}
         nodesDraggable={false}
         nodesConnectable={false}
+        onNodeClick={onNodeClick}
+        onNodeContextMenu={(e, node) => {
+          if (node.type === "subject") show(e, node.data.subject);
+        }}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {menu}
     </div>
   );
 }

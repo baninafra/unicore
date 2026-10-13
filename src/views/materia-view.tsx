@@ -1,173 +1,498 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import clsx from "clsx";
-import { BookOpen, ExternalLink, Sparkles } from "lucide-react";
+import { ExternalLink, FilePlus, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
-import { useWorkspace } from "@/lib/workspace";
-import { db } from "@/lib/db";
-import { degreeBadgeClass } from "@/lib/format";
-import { useDegreeMap } from "@/lib/hooks";
-import { SUBJECT_STATUS_LABEL, type SubjectStatus } from "@/lib/types";
-import { EmptyState } from "@/components/ui/empty-state";
-import { FlashcardsTab } from "@/components/flashcards/flashcards-tab";
-import { NotesWorkspace } from "@/components/notes/notes-workspace";
-import { createNote, paragraphBlocks } from "@/components/notes/note-utils";
+import { useWorkspace, type ViewState } from "@/lib/workspace";
+import { db, newId, nowIso } from "@/lib/db";
+import { useAllSubjects, useDegrees } from "@/lib/hooks";
+import { SUBJECT_STATUS_LABEL, type Note, type SubjectDocument, type SubjectStatus, type Subject } from "@/lib/types";
+import { ConfirmDialog } from "@/components/careers/confirm-dialog";
+import { saveSubject, type SubjectInput } from "@/components/careers/actions";
+import { FlashcardFormModal } from "@/components/flashcards/flashcard-form-modal";
+import { PdfImportButton } from "@/components/pdf/pdf-import-button";
+import { createNote, paragraphBlocks, sortNotes } from "@/components/notes/note-utils";
+import { useNow } from "@/components/dashboard/use-now";
+import { TaskRow } from "@/components/tasks/task-row";
+import { byDueDate } from "@/components/tasks/task-meta";
+import { useContextMenu, type MenuItem } from "@/components/ui/menu";
+import { useOpen } from "@/components/workspace/use-open";
 
-// La bibliografía trae el lector de PDF: se carga sólo al abrir la pestaña.
-const Bibliography = dynamic(() => import("@/components/pdf/bibliography").then((m) => m.Bibliography), {
-  ssr: false,
-  loading: () => <div className="t-small text-muted">Cargando la bibliografía…</div>,
-});
+const CONTROL = "input h-7 min-w-0 border-transparent bg-transparent px-2 hover:bg-surface-raised";
 
-type Tab = "apuntes" | "bibliografia" | "flashcards";
+// Propiedad "nombre · control", como en las propiedades de una nota.
+function Prop({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="prop-row min-h-[30px]">
+      <span>{label}</span>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "apuntes", label: "Apuntes" },
-  { key: "bibliografia", label: "Bibliografía" },
-  { key: "flashcards", label: "Flashcards" },
-];
+function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-0.5">
+      <div className="mb-1 flex items-center justify-between pr-1">
+        <h2 className="section-label">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
-const STATUS_BADGE: Record<SubjectStatus, string> = {
-  PENDIENTE: "badge",
-  CURSANDO: "badge badge-primary",
-  REGULAR: "badge badge-mint",
-  APROBADA: "badge badge-mint",
-};
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="t-small px-2 py-1 text-faint">{children}</p>;
+}
 
+// Fila de lista con clic (abre), clic derecho (abrir en pestaña nueva y acciones extra).
+function ListRow({
+  title,
+  meta,
+  view,
+  extra = [],
+  onDelete,
+}: {
+  title: string;
+  meta?: string;
+  view: ViewState;
+  extra?: MenuItem[];
+  onDelete?: () => void;
+}) {
+  const { openView } = useWorkspace();
+  const openFromEvent = useOpen();
+  const { open, menu } = useContextMenu();
+
+  const items: MenuItem[] = [
+    { label: "Abrir", onSelect: () => openView(view) },
+    { label: "Abrir en pestaña nueva", onSelect: () => openView(view, "tab") },
+    ...extra,
+  ];
+  if (onDelete) items.push({ type: "separator" }, { label: "Eliminar", icon: Trash2, danger: true, onSelect: onDelete });
+
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        className="row"
+        onClick={(e) => openFromEvent(view, e)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") openView(view);
+        }}
+        onContextMenu={(e) => open(e, items)}
+      >
+        <span className="min-w-0 flex-1 truncate text-text">{title}</span>
+        {meta && <span className="t-small num flex-none text-faint">{meta}</span>}
+      </div>
+      {menu}
+    </>
+  );
+}
+
+// Fila con el valor de un link (Campus, Drive): input editable y un ícono para abrirlo.
+function LinkField({ value, onSave, placeholder }: { value?: string; onSave: (v?: string) => void; placeholder: string }) {
+  return (
+    <>
+      <input
+        key={value ?? ""}
+        type="url"
+        defaultValue={value ?? ""}
+        placeholder={placeholder}
+        className={`${CONTROL} flex-1`}
+        onBlur={(e) => {
+          const v = e.target.value.trim();
+          if (v !== (value ?? "")) onSave(v || undefined);
+        }}
+        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        aria-label={placeholder}
+      />
+      {value && (
+        <a href={value} target="_blank" rel="noopener noreferrer" className="icon-btn" aria-label="Abrir enlace" title="Abrir enlace">
+          <ExternalLink strokeWidth={1.75} />
+        </a>
+      )}
+    </>
+  );
+}
+
+// Materia: título y propiedades editables, y secciones con notas, lienzos, bibliografía, flashcards y tareas.
 export function MateriaView({ id }: { id: string }) {
-  // key: al cambiar de materia se reinician las pestañas y el apunte elegido.
+  // key: al cambiar de materia se reinician los diálogos y los campos.
   return <MateriaContent key={id} subjectId={id} />;
 }
 
+function inputOf(s: Subject): SubjectInput {
+  return {
+    degreeId: s.degreeId,
+    name: s.name,
+    year: s.year,
+    semester: s.semester,
+    status: s.status,
+    finalGrade: s.finalGrade,
+    correlatives: s.correlatives,
+    professorEmail: s.professorEmail,
+    campusUrl: s.campusUrl,
+    driveUrl: s.driveUrl,
+  };
+}
+
 function MateriaContent({ subjectId }: { subjectId: string }) {
-  const { setCurrentSubjectId, setAiOpen } = useAppState();
+  const { setCurrentSubjectId, setAiOpen, openTaskDialog } = useAppState();
   const { openView } = useWorkspace();
-  const degrees = useDegreeMap();
+  const now = useNow();
+  const degrees = useDegrees();
+  const allSubjects = useAllSubjects();
   // null = no existe; undefined = todavía cargando
   const subject = useLiveQuery(async () => (await db.subjects.get(subjectId)) ?? null, [subjectId]);
-  const [tab, setTab] = useState<Tab>("apuntes");
-  const [noteId, setNoteId] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const notes = useLiveQuery(() => db.notes.where("subjectId").equals(subjectId).toArray(), [subjectId]);
+  const docs = useLiveQuery(() => db.documents.where("subjectId").equals(subjectId).toArray(), [subjectId]);
+  const canvases = useLiveQuery(() => db.canvases.where("subjectId").equals(subjectId).toArray(), [subjectId]);
+  const cards = useLiveQuery(() => db.flashcards.where("subjectId").equals(subjectId).toArray(), [subjectId]);
+  const tasks = useLiveQuery(() => db.tasks.where("subjectId").equals(subjectId).toArray(), [subjectId]);
+
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [cardForm, setCardForm] = useState(false);
 
   useEffect(() => {
     setCurrentSubjectId(subjectId);
     return () => setCurrentSubjectId(undefined);
   }, [subjectId, setCurrentSubjectId]);
 
-  // Desde la bibliografía: el texto del PDF pasa a un apunte nuevo, que se abre enseguida.
-  const openDocumentAsNote = async (documentId: string) => {
-    const doc = await db.documents.get(documentId);
-    if (!doc) return;
-    try {
-      const id = await createNote({
-        subjectId,
-        title: doc.fileName,
-        unitNumber: doc.unitNumber,
-        content: paragraphBlocks(doc.extractedText),
-        plainTextCache: doc.extractedText,
-      });
-      setNotice(undefined);
-      setNoteId(id);
-      setTab("apuntes");
-    } catch {
-      setNotice("No pudimos abrir el documento como apunte. Probá de nuevo.");
-    }
-  };
+  const sortedNotes = useMemo(() => sortNotes(notes ?? []), [notes]);
+  const notesByUnit = useMemo(() => {
+    const map = new Map<number, Note[]>();
+    for (const n of sortedNotes) map.set(n.unitNumber, [...(map.get(n.unitNumber) ?? []), n]);
+    return [...map.entries()];
+  }, [sortedNotes]);
 
-  if (subject === undefined) {
-    return <div className="p-6 t-small text-muted">Cargando la materia…</div>;
-  }
+  if (subject === undefined) return null;
 
   if (subject === null) {
     return (
-      <div className="p-6">
-        <EmptyState
-          icon={BookOpen}
-          title="No encontramos esta materia"
-          text="Puede que se haya borrado o que el enlace esté mal."
-          action={
-            <button type="button" className="btn btn-sm" onClick={() => openView({ type: "carreras" })}>
-              Ir a Mis carreras
-            </button>
-          }
-        />
+      <div className="view-readable">
+        <p className="t-small text-faint">No encontramos esta materia</p>
+        <button type="button" className="btn btn-sm mt-3" onClick={() => openView({ type: "carreras" })}>
+          Mis carreras
+        </button>
       </div>
     );
   }
 
-  const degree = degrees[subject.degreeId];
+  const save = (changes: Partial<SubjectInput>) => saveSubject({ ...inputOf(subject), ...changes }, subject);
+
+  const yearOptions = Array.from({ length: Math.max(degrees.find((d) => d.id === subject.degreeId)?.totalYears ?? 0, subject.year, 1) }, (_, i) => i + 1);
+  const correlatives = subject.correlatives
+    .map((cid) => allSubjects.find((s) => s.id === cid))
+    .filter((s): s is Subject => !!s);
+  const candidates = allSubjects
+    .filter((s) => s.degreeId === subject.degreeId && s.id !== subject.id && !subject.correlatives.includes(s.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const sortedTasks = (tasks ?? []).filter((t) => t.status !== "DONE" && t.status !== "INBOX_EMAIL").sort(byDueDate);
+  const totalCards = cards?.length ?? 0;
+  const dueCards = now && cards ? cards.filter((c) => new Date(c.due).getTime() <= now.getTime()).length : 0;
+
+  async function createNewNote() {
+    const unit = sortedNotes.length ? sortedNotes[sortedNotes.length - 1].unitNumber : 1;
+    const id = await createNote({ subjectId, title: "", unitNumber: unit });
+    openView({ type: "nota", id });
+  }
+
+  async function createCanvas() {
+    const id = newId();
+    const stamp = nowIso();
+    await db.canvases.add({ id, name: "Lienzo sin título", subjectId, data: { nodes: [], edges: [] }, createdAt: stamp, updatedAt: stamp });
+    openView({ type: "canvas", id });
+  }
+
+  async function docAsNote(doc: SubjectDocument) {
+    const id = await createNote({
+      subjectId,
+      title: doc.fileName,
+      unitNumber: doc.unitNumber,
+      content: paragraphBlocks(doc.extractedText),
+      plainTextCache: doc.extractedText,
+    });
+    openView({ type: "nota", id });
+  }
+
+  async function confirmDeleteNote() {
+    if (!noteToDelete) return;
+    const noteId = noteToDelete.id;
+    await db.snapshots.where("noteId").equals(noteId).delete();
+    await db.bookmarks.where("targetId").equals(noteId).delete();
+    await db.notes.delete(noteId);
+    setNoteToDelete(null);
+  }
+
+  // Gramos: "8,5" → 8.5. Vacío borra la nota.
+  function saveGrade(raw: string) {
+    const clean = raw.trim().replace(",", ".");
+    if (clean === "") return save({ finalGrade: undefined });
+    const n = Number(clean);
+    if (Number.isFinite(n) && n >= 0 && n <= 10) return save({ finalGrade: n });
+  }
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="t-h1">{subject.name}</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            {degree && <span className={degreeBadgeClass(degree)}>{degree.shortName}</span>}
-            <span className={STATUS_BADGE[subject.status]}>{SUBJECT_STATUS_LABEL[subject.status]}</span>
-            <span className="t-small text-muted">
-              {subject.year}.º año · {subject.semester}C
-            </span>
-            {subject.campusUrl && (
-              <a
-                href={subject.campusUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-ghost btn-sm"
-              >
-                Campus
-                <ExternalLink />
-              </a>
-            )}
-            {subject.driveUrl && (
-              <a
-                href={subject.driveUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-ghost btn-sm"
-              >
-                Drive
-                <ExternalLink />
-              </a>
-            )}
-          </div>
-        </div>
-        <button type="button" className="btn btn-ai btn-sm" onClick={() => setAiOpen(true)}>
-          <Sparkles />
-          Preguntarle a la IA
+    <div className="view-readable flex flex-col gap-7">
+      <div className="flex items-start gap-3">
+        <input
+          key={subject.name}
+          defaultValue={subject.name}
+          aria-label="Nombre de la materia"
+          className="min-w-0 flex-1 bg-transparent text-[26px] font-semibold leading-tight text-text outline-none"
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v && v !== subject.name) void save({ name: v });
+            else e.target.value = subject.name;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+        />
+        <button type="button" className="icon-btn mt-1" onClick={() => setAiOpen(true)} aria-label="Preguntarle a la IA" title="Preguntarle a la IA">
+          <Sparkles strokeWidth={1.75} />
         </button>
-      </header>
-
-      <nav role="tablist" className="flex gap-1 border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={clsx(
-              "-mb-px border-b-2 px-3 py-2 t-small font-medium transition-colors",
-              tab === t.key ? "border-primary text-text" : "border-transparent text-muted hover:text-text",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {notice && <p className="t-small text-rose">{notice}</p>}
-
-      <div role="tabpanel">
-        {tab === "apuntes" && <NotesWorkspace subjectId={subjectId} selectedId={noteId} onSelect={setNoteId} />}
-        {tab === "bibliografia" && (
-          <Bibliography subjectId={subjectId} onOpenAsNote={(documentId) => void openDocumentAsNote(documentId)} />
-        )}
-        {tab === "flashcards" && <FlashcardsTab subjectId={subjectId} />}
       </div>
+
+      <div className="flex flex-col">
+        <Prop label="Carrera">
+          <select className={CONTROL} value={subject.degreeId} onChange={(e) => {
+            const degreeId = e.target.value;
+            void save({
+              degreeId,
+              correlatives: subject.correlatives.filter((cid) => allSubjects.some((s) => s.id === cid && s.degreeId === degreeId)),
+            });
+          }}>
+            {degrees.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </Prop>
+
+        <Prop label="Año">
+          <select className={CONTROL} value={subject.year} onChange={(e) => void save({ year: Number(e.target.value) })}>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}.º año
+              </option>
+            ))}
+          </select>
+          <select className={CONTROL} value={subject.semester} onChange={(e) => void save({ semester: Number(e.target.value) as 1 | 2 })} aria-label="Cuatrimestre">
+            <option value={1}>1.º cuatrimestre</option>
+            <option value={2}>2.º cuatrimestre</option>
+          </select>
+        </Prop>
+
+        <Prop label="Estado">
+          <select className={CONTROL} value={subject.status} onChange={(e) => void save({ status: e.target.value as SubjectStatus })}>
+            {(Object.keys(SUBJECT_STATUS_LABEL) as SubjectStatus[]).map((st) => (
+              <option key={st} value={st}>
+                {SUBJECT_STATUS_LABEL[st]}
+              </option>
+            ))}
+          </select>
+        </Prop>
+
+        <Prop label="Nota">
+          <input
+            key={subject.finalGrade ?? "sin-nota"}
+            defaultValue={subject.finalGrade === undefined ? "" : String(subject.finalGrade).replace(".", ",")}
+            placeholder="–"
+            inputMode="decimal"
+            aria-label="Nota final"
+            className={`${CONTROL} w-20`}
+            onBlur={(e) => saveGrade(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+          />
+        </Prop>
+
+        <Prop label="Correlativas">
+          {correlatives.map((c) => (
+            <span key={c.id} className="tag gap-1 pr-1">
+              {c.name}
+              <button
+                type="button"
+                aria-label={`Quitar ${c.name}`}
+                className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-surface-raised"
+                onClick={() => void save({ correlatives: subject.correlatives.filter((x) => x !== c.id) })}
+              >
+                <X className="h-3 w-3" strokeWidth={2} />
+              </button>
+            </span>
+          ))}
+          {candidates.length > 0 && (
+            <select
+              className={`${CONTROL} w-auto text-faint`}
+              value=""
+              aria-label="Agregar correlativa"
+              onChange={(e) => {
+                if (e.target.value) void save({ correlatives: [...subject.correlatives, e.target.value] });
+              }}
+            >
+              <option value="">Agregar</option>
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Prop>
+
+        <Prop label="Profesor">
+          <input
+            key={subject.professorEmail ?? ""}
+            type="email"
+            defaultValue={subject.professorEmail ?? ""}
+            placeholder="–"
+            aria-label="Profesor"
+            className={`${CONTROL} flex-1`}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v !== (subject.professorEmail ?? "")) void save({ professorEmail: v || undefined });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+          />
+        </Prop>
+
+        <Prop label="Campus">
+          <LinkField value={subject.campusUrl} placeholder="Campus" onSave={(v) => void save({ campusUrl: v })} />
+        </Prop>
+
+        <Prop label="Drive">
+          <LinkField value={subject.driveUrl} placeholder="Drive" onSave={(v) => void save({ driveUrl: v })} />
+        </Prop>
+      </div>
+
+      <Section
+        title="Notas"
+        action={
+          <button type="button" className="icon-btn" onClick={() => void createNewNote()} aria-label="Nueva nota" title="Nueva nota">
+            <Plus strokeWidth={1.75} />
+          </button>
+        }
+      >
+        {notes === undefined ? null : sortedNotes.length === 0 ? (
+          <Empty>Sin notas</Empty>
+        ) : (
+          notesByUnit.map(([unit, list]) => (
+            <div key={unit} className="flex flex-col">
+              <div className="t-small px-2 pt-2 text-faint">Unidad {unit}</div>
+              {list.map((note) => (
+                <ListRow
+                  key={note.id}
+                  title={note.title || "Sin título"}
+                  view={{ type: "nota", id: note.id }}
+                  onDelete={() => setNoteToDelete(note)}
+                />
+              ))}
+            </div>
+          ))
+        )}
+      </Section>
+
+      <Section
+        title="Lienzos"
+        action={
+          <button type="button" className="icon-btn" onClick={() => void createCanvas()} aria-label="Nuevo lienzo" title="Nuevo lienzo">
+            <Plus strokeWidth={1.75} />
+          </button>
+        }
+      >
+        {canvases && canvases.length > 0 ? (
+          canvases
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+            .map((c) => <ListRow key={c.id} title={c.name} view={{ type: "canvas", id: c.id }} />)
+        ) : (
+          <Empty>Sin lienzos</Empty>
+        )}
+      </Section>
+
+      <Section title="Bibliografía" action={<PdfImportButton subjectId={subjectId} label="Subir PDF" onImported={() => undefined} />}>
+        {docs && docs.length > 0 ? (
+          [...docs]
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .map((doc) => (
+              <ListRow
+                key={doc.id}
+                title={doc.fileName}
+                meta={`${doc.pageCount} p`}
+                view={{ type: "pdf", id: doc.id }}
+                extra={[{ label: "Abrir como apunte", icon: FilePlus, onSelect: () => void docAsNote(doc) }]}
+              />
+            ))
+        ) : (
+          <Empty>Sin PDFs</Empty>
+        )}
+      </Section>
+
+      <Section
+        title="Flashcards"
+        action={
+          <button type="button" className="icon-btn" onClick={() => setCardForm(true)} aria-label="Nueva flashcard" title="Nueva flashcard">
+            <Plus strokeWidth={1.75} />
+          </button>
+        }
+      >
+        <div className="row justify-between">
+          <span className="t-small num text-muted">
+            {totalCards} {totalCards === 1 ? "tarjeta" : "tarjetas"} · {dueCards} para hoy
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={totalCards === 0}
+            onClick={() => openView({ type: "repaso", subjectId })}
+          >
+            Repasar
+          </button>
+        </div>
+      </Section>
+
+      <Section
+        title="Tareas"
+        action={
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => openTaskDialog({ subjectId, degreeId: subject.degreeId })}
+            aria-label="Nueva tarea"
+            title="Nueva tarea"
+          >
+            <Plus strokeWidth={1.75} />
+          </button>
+        }
+      >
+        {sortedTasks.length === 0 ? (
+          <Empty>Sin tareas pendientes</Empty>
+        ) : (
+          sortedTasks.map((t) => <TaskRow key={t.id} task={t} />)
+        )}
+      </Section>
+
+      {cardForm && <FlashcardFormModal subjectId={subjectId} onClose={() => setCardForm(false)} />}
+
+      {noteToDelete && (
+        <ConfirmDialog
+          title="Eliminar nota"
+          message={`Se borra "${noteToDelete.title || "Sin título"}". No se puede deshacer.`}
+          confirmLabel="Eliminar nota"
+          onConfirm={confirmDeleteNote}
+          onClose={() => setNoteToDelete(null)}
+        />
+      )}
     </div>
   );
 }

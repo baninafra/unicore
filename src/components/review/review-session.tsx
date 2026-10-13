@@ -6,10 +6,10 @@ import { previewIntervals, rateCard, type Calificacion } from "@/lib/fsrs";
 import { useSubjectMap } from "@/lib/hooks";
 import type { Flashcard } from "@/lib/types";
 
-const OPCIONES: { rating: Calificacion; label: string; textClass: string; sugerida?: boolean }[] = [
+const OPCIONES: { rating: Calificacion; label: string; textClass: string }[] = [
   { rating: 1, label: "Otra vez", textClass: "text-rose" },
   { rating: 2, label: "Difícil", textClass: "" },
-  { rating: 3, label: "Bien", textClass: "", sugerida: true },
+  { rating: 3, label: "Bien", textClass: "" },
   { rating: 4, label: "Fácil", textClass: "text-mint" },
 ];
 
@@ -85,58 +85,51 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
   const pct = total ? (graduated / total) * 100 : 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="t-small truncate text-muted">{subjectName}</span>
-        <span className="t-small num flex-none text-muted">
+        <span className="t-small truncate text-faint">{subjectName}</span>
+        <span className="t-small num flex-none text-faint">
           {graduated} de {total}
         </span>
       </div>
-      <div className="progress">
+      <div className="progress" style={{ height: 2 }}>
         <i style={{ width: `${pct}%` }} />
       </div>
 
-      <div className="card p-6 sm:p-8">
-        <div className="t-label">Pregunta</div>
-        <div className="t-h2 mt-2 whitespace-pre-wrap">{current.front}</div>
+      <div className="flex min-h-[220px] flex-col items-center justify-center gap-6 rounded-md border border-border bg-surface px-8 py-10 text-center">
+        <div className="t-h2 whitespace-pre-wrap">{current.front}</div>
 
         {!revealed ? (
-          <button type="button" className="btn mt-8 w-full" onClick={() => setRevealed(true)}>
+          <button type="button" className="btn btn-sm" onClick={() => setRevealed(true)}>
             Mostrar respuesta
             <span className="kbd">Espacio</span>
           </button>
         ) : (
           <>
-            <div className="my-6 border-t border-border" />
-            <div className="t-label">Respuesta</div>
-            <div className="t-body mt-2 whitespace-pre-wrap text-muted">{current.back}</div>
+            <div className="h-px w-full bg-border" />
+            <div className="t-body whitespace-pre-wrap text-muted">{current.back}</div>
           </>
         )}
       </div>
 
       {revealed && (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {OPCIONES.map((o) => (
               <button
                 key={o.rating}
                 type="button"
                 disabled={busy}
                 onClick={() => void rate(o.rating)}
-                className={clsx(
-                  "flex flex-col items-center gap-1 rounded-md border bg-surface px-2 py-3 transition-colors hover:bg-surface-raised disabled:opacity-50",
-                  o.sugerida ? "!border-primary" : "border-border-strong",
-                )}
+                className={clsx("btn gap-2", o.rating === 3 && "border-primary")}
               >
-                <span className={clsx("flex items-center gap-2 text-sm font-medium", o.textClass)}>
-                  {o.label}
-                  <span className="kbd">{o.rating}</span>
-                </span>
+                <span className={o.textClass}>{o.label}</span>
                 <span className="t-small num text-faint">{previews?.[o.rating]}</span>
+                <span className="kbd">{o.rating}</span>
               </button>
             ))}
           </div>
-          {error && <p className="t-small text-rose">{error}</p>}
+          {error && <p className="t-small text-center text-rose">{error}</p>}
         </>
       )}
     </div>

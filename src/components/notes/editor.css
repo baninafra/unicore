@@ -1,0 +1,33 @@
+/* Editor de apuntes: toma los tokens de globals.css, así sigue al tema claro u oscuro. */
+.unicore-editor .bn-container[data-color-scheme] {
+  --bn-colors-editor-text: var(--text);
+  --bn-colors-editor-background: var(--surface);
+  --bn-colors-menu-text: var(--text);
+  --bn-colors-menu-background: var(--surface-raised);
+  --bn-colors-tooltip-text: var(--text);
+  --bn-colors-tooltip-background: var(--surface-raised);
+  --bn-colors-hovered-text: var(--text);
+  --bn-colors-hovered-background: var(--surface-raised);
+  --bn-colors-selected-text: var(--primary-soft);
+  --bn-colors-selected-background: var(--primary-tint);
+  --bn-colors-disabled-text: var(--text-faint);
+  --bn-colors-disabled-background: var(--surface-raised);
+  --bn-colors-side-menu: var(--text-faint);
+  --bn-colors-border: var(--border);
+  --bn-colors-shadow: rgba(0, 0, 0, 0.35);
+}
+
+.unicore-editor .bn-default-styles {
+  font-family: var(--font-outfit), system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+}
+
+.unicore-editor .bn-editor {
+  padding-inline: 28px;
+}
+
+@media (max-width: 640px) {
+  .unicore-editor .bn-editor {
+    padding-inline: 12px;
+  }
+}

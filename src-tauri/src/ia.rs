@@ -175,7 +175,7 @@ pub fn ia_log() -> String {
 
 /// GET o POST a una URL de internet (búsqueda web de la IA). Devuelve el cuerpo como texto.
 #[tauri::command]
-pub async fn web_get(url: String) -> Result<String, String> {
+pub async fn web_get(url: String, body: Option<String>) -> Result<String, String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("URL inválida".into());
     }
@@ -183,8 +183,12 @@ pub async fn web_get(url: String) -> Result<String, String> {
         let mut cmd = Command::new("curl.exe");
         cmd.args(["-sL", "--compressed", "--max-time", "15", "--max-filesize", "4000000"])
             .args(["-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"])
-            .args(["-H", "Accept-Language: es-AR,es;q=0.9,en;q=0.6"])
-            .arg(&url);
+            .args(["-H", "Accept-Language: es-AR,es;q=0.9,en;q=0.6"]);
+        // Con cuerpo es un POST JSON (lo usa la transcripción de YouTube).
+        if let Some(b) = &body {
+            cmd.args(["-X", "POST", "-H", "Content-Type: application/json", "--data-binary", b]);
+        }
+        cmd.arg(&url);
         #[cfg(windows)]
         cmd.creation_flags(CREATE_NO_WINDOW);
         let out = cmd.output().map_err(|e| e.to_string())?;

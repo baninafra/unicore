@@ -176,3 +176,12 @@
   padding-inline: 10px !important;
   min-height: 180px;
 }
+
+/* Video embebido (YouTube, Vimeo, Drive): ocupa el ancho de la nota. */
+.unicore-editor .bn-block-content[data-content-type="videoEmbed"] {
+  width: 100%;
+}
+.unicore-editor .bn-block-content[data-content-type="videoEmbed"] > * {
+  flex: 1;
+  max-width: 720px;
+}

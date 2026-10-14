@@ -128,7 +128,7 @@ export function RightSidebar() {
   const [width, setWidth] = useWidth("uc-right-width", 320, 240, 760);
   if (!rightOpen) return null;
   return (
-    <aside className="relative flex flex-none flex-col border-l border-border bg-bg" style={{ width }}>
+    <aside className="relative flex min-w-[220px] flex-[0_1_auto] flex-col border-l border-border bg-bg" style={{ width }}>
       <ResizeHandle side="right" width={width} onResize={setWidth} onReset={() => setWidth(320)} />
       <div className="flex h-9 flex-none items-center gap-0.5 px-2">
         {RIGHT.map((v) => (

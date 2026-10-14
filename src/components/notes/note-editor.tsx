@@ -20,6 +20,7 @@ import { FindBar } from "./find-bar";
 import { noteSchema, slashMenuItems, type NoteBlockEditor } from "./note-schema";
 import { wikilinkMenuItems } from "./wikilink";
 import { startImageDrag } from "./image-drag";
+import { parseVideoUrl } from "@/lib/video";
 
 const AUTOSAVE_MS = 1500;
 
@@ -55,6 +56,18 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
     initialContent: note.content.length ? (note.content as PartialBlock[]) : undefined,
     uploadFile: (file) => saveFile(file),
     resolveFileUrl: (url) => resolveFileUrl(url),
+    // Pegar sólo un link de YouTube o Vimeo lo inserta como video.
+    pasteHandler: ({ event, editor: ed, defaultPasteHandler }) => {
+      const text = event.clipboardData?.getData("text/plain")?.trim() ?? "";
+      const video = !/\s/.test(text) ? parseVideoUrl(text) : null;
+      if (!video) return defaultPasteHandler();
+      const at = ed.getTextCursorPosition().block;
+      const empty = Array.isArray(at.content) && at.content.length === 0;
+      const block = { type: "videoEmbed" as const, props: { url: video.url } };
+      if (empty) ed.replaceBlocks([at], [block]);
+      else ed.insertBlocks([block], at, "after");
+      return true;
+    },
   });
 
   const [saveState, setSaveState] = useState<SaveState>("saved");

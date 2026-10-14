@@ -11,6 +11,7 @@ import { folderForView } from "@/lib/nav/actions";
 import { importFileAsNote, fileKind } from "@/lib/import/import-file";
 import { saveFile } from "@/lib/db";
 import { toast } from "@/lib/undo";
+import { isVideoFile } from "@/lib/video";
 
 export function GlobalFiles() {
   const { activeView, openView } = useWorkspace();
@@ -24,15 +25,20 @@ export function GlobalFiles() {
 
     async function handle(files: File[]) {
       const { activeView: view, openView: open } = ctx.current;
-      // Nota abierta + sólo imágenes: van a la nota.
-      if (view.type === "nota" && files.every((f) => f.type.startsWith("image/"))) {
+      // Nota abierta + sólo imágenes o videos: van a la nota.
+      if (view.type === "nota" && files.every((f) => f.type.startsWith("image/") || isVideoFile(f))) {
         const blocks = [];
-        for (const f of files) blocks.push({ type: "image", props: { url: await saveFile(f), name: f.name } });
+        for (const f of files)
+          blocks.push({ type: isVideoFile(f) ? "video" : "image", props: { url: await saveFile(f), name: f.name } });
         window.dispatchEvent(new CustomEvent("uc:insert-blocks", { detail: { blocks } }));
         return;
       }
       const folder = await folderForView(view);
       for (const f of files) {
+        if (isVideoFile(f)) {
+          toast("Para guardar un video, abrí una nota y soltalo ahí.", { tone: "error" });
+          continue;
+        }
         if (!fileKind(f)) {
           toast(`No sabemos leer «${f.name}».`, { tone: "error" });
           continue;

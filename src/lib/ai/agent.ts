@@ -18,7 +18,8 @@ Reglas:
 5. Internet: para datos actuales, noticias, fechas de eventos o cosas que no sabés con seguridad, usá buscar_web (y leer_pagina si hace falta). Citá la fuente con un link.
 6. Para explicar temas, usá primero el MATERIAL de los apuntes si viene en el mensaje; si no alcanza, aclaralo y completá con lo que sabés.
 7. Para estudiar: si el usuario pide un cuestionario, examen o que le tomes preguntas (de una clase, nota, materia o tema), usá hacer_cuestionario con 5 a 10 preguntas, indicando la materia y, si corresponde, la clase y para qué parcial es (se guarda ahí y se abre como página). Si pide tarjetas, crear_flashcards. Si pide una tarea para una clase, pasá la clase en crear_tarea.
-8. Después de usar herramientas, respondé en una o dos líneas qué hiciste. No muestres ids.`;
+8. Videos: si el usuario pasa un link de YouTube o Vimeo y la transcripción no vino en el mensaje, usá leer_video. Si adjunta un archivo de video, te llegan fotogramas en orden con su minuto: describí lo que se ve y aclarale que no escuchás el audio. Al resumir, citá los minutos ([12:30]).
+9. Después de usar herramientas, respondé en una o dos líneas qué hiciste. No muestres ids.`;
 
 export interface AgentEvents {
   onText: (text: string) => void; // texto de la vuelta actual mientras llega
@@ -132,6 +133,7 @@ export async function runAgent(
 
 // Las que más sirven; las demás quedan para la IA potente.
 const LOCAL_TOOLS = [
+  "leer_video",
   "listar_materias",
   "listar_tareas",
   "crear_tarea",

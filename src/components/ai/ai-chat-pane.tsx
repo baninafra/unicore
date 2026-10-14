@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDownToLine, Brain, Check, FileText, Globe, Image as ImageIcon, Paperclip, Send, Square, SquarePen, X } from "lucide-react";
+import { ArrowDownToLine, Brain, Check, FileText, Film, Image as ImageIcon, Paperclip, Send, Settings2, Square, SquarePen, X } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { db, newId } from "@/lib/db";
 import { useLocalAI, type ChatMessage } from "@/lib/ai/use-local-ai";
@@ -19,6 +19,7 @@ import { AGENT_SYSTEM, runAgent, runAgentLocal } from "@/lib/ai/agent";
 import { situationText } from "@/lib/ai/tools";
 import type { ApiMessage, ContentPart } from "@/lib/ai/server";
 import { convertFile, fileKind, IMPORT_ACCEPT } from "@/lib/import/import-file";
+import { fmtTime, isVideoFile, videoFrames, videoInfo, videoInfoText, videoLinksIn } from "@/lib/video";
 import { Markdown } from "./markdown";
 import { Select } from "@/components/ui/select";
 
@@ -28,7 +29,7 @@ function ModelPicker() {
   return (
     <Select
       aria-label="Modelo de IA"
-      className="h-7 min-w-0 max-w-[170px] cursor-pointer truncate rounded-md border border-transparent bg-transparent px-1.5 text-[13px] text-muted outline-none hover:border-border hover:bg-surface-raised focus:border-primary"
+      className="h-7 min-w-0 max-w-full cursor-pointer truncate rounded-md border border-transparent bg-transparent px-1.5 text-[13px] text-muted outline-none hover:border-border hover:bg-surface-raised focus:border-primary"
       value={s.localModel}
       onChange={(e) => writeAISettings({ localModel: e.target.value as LocalModel })}
     >
@@ -44,10 +45,12 @@ function ModelPicker() {
 interface Attachment {
   id: string;
   name: string;
-  kind: "image" | "doc";
+  kind: "image" | "doc" | "video";
   status: "reading" | "ready" | "error";
   text?: string;
   dataUrl?: string;
+  frames?: { t: number; dataUrl: string }[]; // video: fotogramas repartidos
+  duration?: number;
   error?: string;
 }
 
@@ -84,6 +87,7 @@ const AGENT_KEEP = 40; // mensajes de la conversación que se le mandan a la IA 
 const TOOL_WORKING: Record<string, string> = {
   buscar_web: "Buscando en internet…",
   leer_pagina: "Leyendo la página…",
+  leer_video: "Leyendo el video…",
   cargar_cronograma: "Cargando el cronograma…",
   buscar_notas: "Buscando en tus apuntes…",
   listar_tareas: "Revisando tu agenda…",
@@ -152,6 +156,19 @@ function compactHistory(msgs: ApiMessage[], keep = AGENT_KEEP): ApiMessage[] {
         : m,
     ),
   ];
+}
+
+// Links de los videos embebidos en una nota.
+function videosOfNote(blocks: unknown[]): string[] {
+  const out: string[] = [];
+  const walk = (list: unknown[]) => {
+    for (const b of list as { type?: string; props?: { url?: string }; children?: unknown[] }[]) {
+      if (b.type === "videoEmbed" && b.props?.url) out.push(b.props.url);
+      if (b.children?.length) walk(b.children);
+    }
+  };
+  walk(blocks);
+  return out;
 }
 
 export function AIChatPane() {
@@ -226,14 +243,24 @@ export function AIChatPane() {
 
   function addFiles(files: File[]) {
     for (const file of files) {
-      const kind = fileKind(file);
-      const att: Attachment = { id: newId(), name: file.name || "imagen", kind: kind === "image" ? "image" : "doc", status: "reading" };
+      const kind = isVideoFile(file) ? "video" : fileKind(file);
+      const att: Attachment = {
+        id: newId(),
+        name: file.name || "imagen",
+        kind: kind === "image" ? "image" : kind === "video" ? "video" : "doc",
+        status: "reading",
+      };
       setAttachments((prev) => [...prev, att]);
       const done = (patch: Partial<Attachment>) => setAttachments((prev) => prev.map((a) => (a.id === att.id ? { ...a, ...patch } : a)));
       (async () => {
         if (kind === "image") {
           const dataUrl = await imageToDataUrl(file);
           done({ status: "ready", dataUrl });
+          return;
+        }
+        if (kind === "video") {
+          const { duration, frames } = await videoFrames(file, 8);
+          done({ status: "ready", frames, duration, dataUrl: frames[0]?.dataUrl });
           return;
         }
         const c = await convertFile(file);
@@ -279,16 +306,49 @@ export function AIChatPane() {
       sources = [noteTitle(note), ...sources];
     }
 
+    // Links de video en el mensaje: se lee la transcripción antes de preguntar.
+    const videoTexts: string[] = [];
+    for (const v of videoLinksIn(text).slice(0, 2)) {
+      patchTurn(aiId, { working: "Leyendo el video…" });
+      try {
+        const info = await videoInfo(v, powerful ? 20000 : 3500);
+        videoTexts.push(videoInfoText(info));
+        const label = info.transcripcion ? `Leí el video «${info.titulo}»` : `«${info.titulo}» no tiene transcripción`;
+        patchTurn(aiId, (t) => ({ steps: [...(t.steps ?? []), { label, ok: !!info.transcripcion }] }));
+      } catch {
+        // la IA puede intentar con leer_video
+      }
+    }
+    patchTurn(aiId, { working: undefined });
+    const noteVideos = note ? videosOfNote(note.content) : [];
+
     const parts: string[] = [];
     if (contextName) parts.push(`[El usuario está viendo: ${note ? `la nota «${noteTitle(note)}»` : ""}${note && subjectName ? " de " : ""}${subjectName ?? ""}]`);
+    if (noteVideos.length) parts.push(`[La nota abierta tiene estos videos (usá leer_video si te preguntan por ellos): ${noteVideos.join(" ")}]`);
+    parts.push(...videoTexts);
+    for (const a of atts.filter((a) => a.kind === "video")) {
+      parts.push(
+        powerful && a.frames?.length
+          ? `[Video adjunto: ${a.name}, dura ${fmtTime(a.duration ?? 0)}. Van ${a.frames.length} fotogramas en orden, de los minutos ${a.frames.map((f) => fmtTime(f.t)).join(", ")}. No tenés el audio.]`
+          : `[Video adjunto: ${a.name}, dura ${fmtTime(a.duration ?? 0)}. Esta IA no puede verlo: decile que elija la IA potente o que pegue el link de YouTube.]`,
+      );
+    }
     for (const a of atts.filter((a) => a.kind === "doc" && a.text)) parts.push(`[Archivo adjunto: ${a.name}]\n"""\n${a.text!.slice(0, docChars)}\n"""`);
     if (material) parts.push(`MATERIAL de los apuntes (usalo si sirve para la pregunta):\n${material}`);
     parts.push(text || "(mirá el adjunto)");
     const textPart = parts.join("\n\n");
-    const images = powerful ? atts.filter((a) => a.kind === "image" && a.dataUrl) : [];
-    const content: string | ContentPart[] = images.length
-      ? [...images.map((a) => ({ type: "image_url" as const, image_url: { url: a.dataUrl! } })), { type: "text" as const, text: textPart }]
-      : textPart;
+    const images: ContentPart[] = [];
+    if (powerful) {
+      for (const a of atts) {
+        if (a.kind === "image" && a.dataUrl) images.push({ type: "image_url", image_url: { url: a.dataUrl } });
+        if (a.kind === "video")
+          for (const f of a.frames ?? []) {
+            images.push({ type: "text", text: `[${a.name} · ${fmtTime(f.t)}]` });
+            images.push({ type: "image_url", image_url: { url: f.dataUrl } });
+          }
+      }
+    }
+    const content: string | ContentPart[] = images.length ? [...images, { type: "text" as const, text: textPart }] : textPart;
 
     apiRef.current.push({ role: "user", content });
     const messages = compactHistory(apiRef.current, powerful ? AGENT_KEEP : 10);
@@ -480,18 +540,9 @@ export function AIChatPane() {
         );
       case "idle":
         return (
-          <span className="flex items-center gap-3">
-            <button type="button" onClick={activate} className="text-[13px] text-primary-soft underline underline-offset-2">
-              Activar IA
-            </button>
-            <button
-              type="button"
-              onClick={() => openView({ type: "ajustes", section: "ia" }, "tab")}
-              className="text-[13px] text-faint underline underline-offset-2 hover:text-text"
-            >
-              Descargar o elegir IA
-            </button>
-          </span>
+          <button type="button" onClick={activate} className="btn btn-ai btn-sm flex-none whitespace-nowrap">
+            Activar
+          </button>
         );
       case "generating":
         return <span className="text-[13px] text-faint">Trabajando…</span>;
@@ -522,8 +573,10 @@ export function AIChatPane() {
         </div>
       )}
 
-      <div className="flex min-h-9 flex-none items-center gap-1 px-3 py-1.5">
-        <ModelPicker />
+      <div className="flex min-h-9 flex-none items-center gap-1 px-2 py-1.5">
+        <div className="min-w-0 flex-[0_1_auto]">
+          <ModelPicker />
+        </div>
         {agentMode && (
           <>
             {powerful && <button
@@ -535,12 +588,18 @@ export function AIChatPane() {
             >
               <Brain strokeWidth={1.75} />
             </button>}
-            <span title="Puede buscar en internet" className="flex-none text-faint">
-              <Globe className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </span>
           </>
         )}
         <div className="flex min-w-0 flex-1 items-center justify-end">{renderStatus()}</div>
+        <button
+          type="button"
+          className="icon-btn flex-none"
+          onClick={() => openView({ type: "ajustes", section: "ia" }, "tab")}
+          aria-label="Descargar o elegir IA"
+          title="Descargar o elegir IA"
+        >
+          <Settings2 strokeWidth={1.75} />
+        </button>
         <button
           type="button"
           className="icon-btn flex-none disabled:opacity-40"
@@ -571,7 +630,18 @@ export function AIChatPane() {
               {t.attachments && (
                 <div className="flex max-w-[88%] flex-wrap justify-end gap-1">
                   {t.attachments.map((a) =>
-                    a.kind === "image" && a.dataUrl ? (
+                    a.kind === "video" ? (
+                      <span key={a.id} className="flex flex-col items-end gap-1">
+                        {a.dataUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={a.dataUrl} alt={a.name} className="max-h-28 rounded-md border border-border" />
+                        )}
+                        <span className="tag">
+                          <Film className="h-3 w-3" strokeWidth={1.75} />
+                          {a.name}
+                        </span>
+                      </span>
+                    ) : a.kind === "image" && a.dataUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img key={a.id} src={a.dataUrl} alt={a.name} className="max-h-28 rounded-md border border-border" />
                     ) : (
@@ -649,7 +719,7 @@ export function AIChatPane() {
           <div className="mb-2 flex flex-wrap gap-1">
             {attachments.map((a) => (
               <span key={a.id} className={clsx("tag max-w-full", a.status === "error" && "text-rose")} title={a.error ?? a.name}>
-                {a.kind === "image" ? <ImageIcon className="h-3 w-3" strokeWidth={1.75} /> : <FileText className="h-3 w-3" strokeWidth={1.75} />}
+                {a.kind === "image" ? <ImageIcon className="h-3 w-3" strokeWidth={1.75} /> : a.kind === "video" ? <Film className="h-3 w-3" strokeWidth={1.75} /> : <FileText className="h-3 w-3" strokeWidth={1.75} />}
                 <span className="min-w-0 truncate">{a.status === "reading" ? `Leyendo ${a.name}…` : a.status === "error" ? (a.error ?? "Error") : a.name}</span>
                 <button type="button" aria-label={`Quitar ${a.name}`} onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))}>
                   <X className="h-3 w-3" strokeWidth={1.75} />
@@ -658,8 +728,8 @@ export function AIChatPane() {
             ))}
           </div>
         )}
-        {!powerful && attachments.some((a) => a.kind === "image") && (
-          <p className="mb-1 text-[12px] text-amber">La IA liviana no ve imágenes. Elegí Qwen3.5 35B arriba.</p>
+        {!powerful && attachments.some((a) => a.kind === "image" || a.kind === "video") && (
+          <p className="mb-1 text-[12px] text-amber">La IA liviana no ve imágenes ni videos. Elegí la IA potente arriba.</p>
         )}
         <div className="flex items-end gap-2">
           <input
@@ -667,7 +737,7 @@ export function AIChatPane() {
             type="file"
             multiple
             hidden
-            accept={`${IMPORT_ACCEPT},image/*`}
+            accept={`${IMPORT_ACCEPT},image/*,video/*`}
             onChange={(e) => {
               addFiles([...(e.target.files ?? [])]);
               e.target.value = "";
@@ -678,7 +748,7 @@ export function AIChatPane() {
             className="btn btn-sm btn-icon btn-ghost flex-none"
             onClick={() => fileRef.current?.click()}
             aria-label="Adjuntar archivo o imagen"
-            title="Adjuntar (PDF, Excel, PowerPoint, Word, imagen)"
+            title="Adjuntar (PDF, Excel, PowerPoint, Word, imagen, video)"
           >
             <Paperclip strokeWidth={1.75} />
           </button>
@@ -692,7 +762,7 @@ export function AIChatPane() {
             disabled={unavailable}
             placeholder={agentMode ? "Pedí o preguntá algo" : "Preguntá algo"}
             aria-label="Pregunta para el asistente"
-            className="min-h-[32px] flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[13px] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
+            className="min-h-[32px] min-w-0 flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[13px] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
           />
           {busy ? (
             <button type="button" className="btn btn-sm btn-icon flex-none" onClick={stopAll} aria-label="Detener" title="Detener">

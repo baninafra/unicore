@@ -17,6 +17,7 @@ import { deleteWithUndo } from "../undo";
 import type { ViewState } from "../workspace";
 import type { ApiTool } from "./server";
 import { readPage, webSearch } from "./web";
+import { parseVideoUrl, videoInfo } from "../video";
 
 export interface ToolContext {
   confirm: (title: string, detail: string) => Promise<boolean>;
@@ -519,6 +520,15 @@ export const TOOL_DEFS: ApiTool[] = [
   {
     type: "function",
     function: {
+      name: "leer_video",
+      description:
+        "Lee un video de YouTube, Vimeo o Drive: título, descripción y transcripción con marcas de minuto. Usala para resumir, sacar apuntes, flashcards o preguntas de un video.",
+      parameters: obj({ url: S("Link del video") }, ["url"]),
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "abrir",
       description: "Abre en pantalla una nota, materia, el calendario, el inicio o el repaso.",
       parameters: obj(
@@ -1014,6 +1024,17 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
         return { ok: true, content: json(page), label: `Leí ${new URL(url).hostname}` };
       } catch (err) {
         return fail(err instanceof Error ? err.message : "No se pudo abrir.", "No pude abrir la página");
+      }
+    }
+
+    case "leer_video": {
+      const v = parseVideoUrl(str(a.url) ?? "");
+      if (!v) return fail("Ese link no es de YouTube, Vimeo ni Drive.");
+      try {
+        const info = await videoInfo(v);
+        return { ok: true, content: json(info), label: info.transcripcion ? `Leí el video «${info.titulo}»` : `Vi el título de «${info.titulo}» (sin transcripción)` };
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : "No se pudo leer el video.", "No pude leer el video");
       }
     }
 

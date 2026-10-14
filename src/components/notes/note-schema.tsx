@@ -3,8 +3,9 @@
 import type { CSSProperties } from "react";
 import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, insertOrUpdateBlockForSlashMenu, type BlockNoteEditor } from "@blocknote/core";
 import { createReactBlockSpec, createReactInlineContentSpec, getDefaultReactSlashMenuItems, type DefaultReactSuggestionItem } from "@blocknote/react";
-import { Info, Lightbulb, NotebookPen, Quote, Star, TriangleAlert, CircleHelp, Heading2 } from "lucide-react";
+import { Info, Lightbulb, NotebookPen, Quote, Star, TriangleAlert, CircleHelp, Heading2, MonitorPlay } from "lucide-react";
 import { WikilinkChip } from "./wikilink";
+import { VideoEmbedView } from "./video-embed";
 
 // Tipos de callout (como los admoniciones de Obsidian). Cada uno tiene ícono y color suave.
 export const CALLOUT_TIPOS = ["nota", "info", "aviso", "importante", "pregunta", "cita"] as const;
@@ -100,8 +101,26 @@ const WikilinkInline = createReactInlineContentSpec(
   },
 );
 
+// Video de YouTube o Vimeo embebido (se crea al pegar el link o desde el menú "/").
+const VideoEmbedBlock = createReactBlockSpec(
+  {
+    type: "videoEmbed",
+    propSchema: { url: { default: "" } },
+    content: "none",
+  },
+  {
+    render: (props) => (
+      <VideoEmbedView
+        url={props.block.props.url}
+        editable={props.editor.isEditable}
+        onUrl={(url) => props.editor.updateBlock(props.block, { props: { url } })}
+      />
+    ),
+  },
+);
+
 export const noteSchema = BlockNoteSchema.create({
-  blockSpecs: { ...defaultBlockSpecs, callout: CalloutBlock() },
+  blockSpecs: { ...defaultBlockSpecs, callout: CalloutBlock(), videoEmbed: VideoEmbedBlock() },
   inlineContentSpecs: { ...defaultInlineContentSpecs, wikilink: WikilinkInline },
 });
 
@@ -122,6 +141,15 @@ export function slashMenuItems(editor: NoteBlockEditor): DefaultReactSuggestionI
       icon: <Lightbulb className="h-4 w-4" strokeWidth={1.75} />,
       onItemClick: () => {
         insertOrUpdateBlockForSlashMenu(editor, { type: "callout" });
+      },
+    },
+    {
+      title: "Video (YouTube, Drive)",
+      aliases: ["youtube", "vimeo", "drive", "video", "embed", "link"],
+      subtext: "Pegá el link y se ve en la nota",
+      icon: <MonitorPlay className="h-4 w-4" strokeWidth={1.75} />,
+      onItemClick: () => {
+        insertOrUpdateBlockForSlashMenu(editor, { type: "videoEmbed" });
       },
     },
     {

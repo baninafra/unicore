@@ -11,12 +11,15 @@ export interface WebResult {
   fragmento: string;
 }
 
-async function get(url: string): Promise<string> {
+export async function get(url: string, body?: string): Promise<string> {
   if (isDesktop()) {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<string>("web_get", { url });
+    return invoke<string>("web_get", { url, body: body ?? null });
   }
-  const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const r = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+    ...(body ? { method: "POST", body, headers: { "Content-Type": "application/json" } } : {}),
+  });
   if (!r.ok) throw new Error(`La página respondió ${r.status}`);
   return r.text();
 }

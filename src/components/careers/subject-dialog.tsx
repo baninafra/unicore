@@ -46,17 +46,19 @@ export function SubjectDialog({
   allSubjects,
   subject,
   defaultDegreeId,
+  defaultYear,
   onClose,
 }: {
   degrees: Degree[];
   allSubjects: Subject[];
   subject?: Subject;
   defaultDegreeId?: string;
+  defaultYear?: number;
   onClose: () => void;
 }) {
   const [name, setName] = useState(subject?.name ?? "");
   const [degreeId, setDegreeId] = useState(subject?.degreeId ?? defaultDegreeId ?? degrees[0]?.id ?? "");
-  const [year, setYear] = useState(subject?.year ?? 1);
+  const [year, setYear] = useState(subject?.year ?? defaultYear ?? 1);
   const [semester, setSemester] = useState<1 | 2>(subject?.semester ?? 1);
   const [status, setStatus] = useState<SubjectStatus>(subject?.status ?? "PENDIENTE");
   const [grade, setGrade] = useState(subject?.finalGrade !== undefined ? String(subject.finalGrade).replace(".", ",") : "");

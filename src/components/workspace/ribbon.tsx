@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { CalendarDays, CalendarCheck, FolderOpen, GitFork, GraduationCap, Inbox, Layers, LayoutDashboard, PanelLeft, Settings, Terminal, type LucideIcon, Lightbulb, Bell } from "lucide-react";
+import { CalendarDays, CalendarCheck, FolderOpen, GitFork, GraduationCap, Inbox, Layers, LayoutDashboard, PanelLeft, Settings, Terminal, type LucideIcon, Lightbulb, Bell, LayoutTemplate } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace";
 import { isDesktop, openDataFolder } from "@/lib/desktop";
 import { useNotifications } from "@/lib/notifications";
@@ -46,6 +46,7 @@ export function Ribbon() {
       <RibbonButton icon={CalendarCheck} label="Nota del día" onClick={() => runCommand("diario:hoy")} />
       <RibbonButton icon={CalendarDays} label="Calendario" active={activeView.type === "calendario"} onClick={() => openView({ type: "calendario" })} />
       <RibbonButton icon={GraduationCap} label="Mis carreras" active={activeView.type === "carreras"} onClick={() => openView({ type: "carreras" })} />
+      <RibbonButton icon={LayoutTemplate} label="Plantillas" active={activeView.type === "plantillas"} onClick={() => openView({ type: "plantillas" })} />
       <RibbonButton icon={Lightbulb} label="Ideas" active={activeView.type === "ideas"} onClick={() => openView({ type: "ideas" })} />
       <RibbonButton icon={Layers} label="Repaso" active={activeView.type === "repaso"} onClick={() => openView({ type: "repaso" })} />
       <RibbonButton icon={Inbox} label="Mails" active={activeView.type === "mails"} onClick={() => openView({ type: "mails" })} />

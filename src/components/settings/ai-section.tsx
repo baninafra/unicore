@@ -9,6 +9,7 @@ import { isDesktop } from "@/lib/desktop";
 import { useLocalAI } from "@/lib/ai/use-local-ai";
 import { useAISettings, writeAISettings } from "@/lib/ai/ai-settings";
 import { serverInfo, stopServer, type ServerInfo } from "@/lib/ai/server";
+import { readCacheKind } from "@/lib/ai/ai-provider";
 
 const BASIC_MODEL = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
 const GB = 1e9;
@@ -80,7 +81,7 @@ export function AISection() {
     void refresh();
     if (desktop) invoke<number>("ia_free_space").then(setFree).catch(() => undefined);
     import("@mlc-ai/web-llm")
-      .then((w) => w.hasModelInCache(BASIC_MODEL))
+      .then((w) => w.hasModelInCache(BASIC_MODEL, { ...w.prebuiltAppConfig, cacheBackend: readCacheKind() ? "indexeddb" : "cache" }))
       .then(setBasicCached)
       .catch(() => setBasicCached(false));
   }, [desktop, refresh]);
@@ -122,7 +123,7 @@ export function AISection() {
 
   async function removeBasic() {
     const w = await import("@mlc-ai/web-llm");
-    await w.deleteModelAllInfoInCache(BASIC_MODEL).catch(() => undefined);
+    await w.deleteModelAllInfoInCache(BASIC_MODEL, { ...w.prebuiltAppConfig, cacheBackend: readCacheKind() ? "indexeddb" : "cache" }).catch(() => undefined);
     setBasicCached(false);
     if (settings.localModel === BASIC_MODEL) writeAISettings({ localModel: "auto" });
   }
@@ -201,7 +202,7 @@ export function AISection() {
       <Card
         title="IA básica"
         size="Qwen 2.5 7B · 4,5 GB · corre dentro de la app"
-        text="Más liviana y rápida de bajar. Responde preguntas y arma resúmenes, tarjetas y exámenes, pero no puede hacer cambios en la app ni buscar en internet."
+        text="Más liviana y rápida de bajar. También actúa en la app (tareas, notas, ideas, cronogramas, cuestionarios, búsqueda web), pero con menos memoria: conviene para pedidos cortos. No ve imágenes."
         status={
           usingBasic && ai.status === "loading" ? (
             <div className="space-y-1">

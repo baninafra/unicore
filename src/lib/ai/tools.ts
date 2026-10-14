@@ -6,7 +6,7 @@
 import * as chrono from "chrono-node";
 import { db, newId, nowIso } from "../db";
 import type { Degree, Subject, SubjectStatus, Task, TaskPriority, TaskStatus, TaskType } from "../types";
-import { LOOSE_FOLDER, SUBJECT_STATUS_LABEL, TASK_TYPE_LABEL } from "../types";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, SUBJECT_STATUS_LABEL, TASK_TYPE_LABEL, TEMPLATES_FOLDER } from "../types";
 import { createNote } from "@/components/notes/note-utils";
 import { deleteDegreeCascade, deleteSubjectCascade, saveDegree, saveSubject } from "@/components/careers/actions";
 import { newFlashcardRecord } from "@/components/flashcards/fsrs-card";
@@ -21,6 +21,33 @@ import { readPage, webSearch } from "./web";
 export interface ToolContext {
   confirm: (title: string, detail: string) => Promise<boolean>;
   openView: (view: ViewState) => void;
+  userText?: string; // último mensaje del usuario (para corregir fechas)
+}
+
+const WEEKDAYS: [RegExp, number][] = [
+  [/\bdomingo\b/i, 0],
+  [/\blunes\b/i, 1],
+  [/\bmartes\b/i, 2],
+  [/\bmi[eé]rcoles\b/i, 3],
+  [/\bjueves\b/i, 4],
+  [/\bviernes\b/i, 5],
+  [/\bs[aá]bado\b/i, 6],
+];
+
+// Si el usuario dijo un solo día ("el jueves") y la fecha que eligió la IA cae otro día,
+// la corregimos al próximo de ese día (los modelos chicos se equivocan con el calendario).
+function fixWeekday(due: Date | undefined, userText: string | undefined): Date | undefined {
+  if (!due || !userText || /\d{1,2}[/-]\d{1,2}|\d{4}-\d{2}-\d{2}/.test(userText)) return due;
+  const said = WEEKDAYS.filter(([re]) => re.test(userText)).map(([, d]) => d);
+  if (said.length !== 1 || due.getDay() === said[0]) return due;
+  const fixed = new Date(due);
+  const now = new Date();
+  fixed.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+  let add = (said[0] - now.getDay() + 7) % 7;
+  if (add === 0) add = 7;
+  if (/que viene|pr[oó]xim/i.test(userText) && add < 7 && /semana que viene/i.test(userText)) add += 7;
+  fixed.setDate(fixed.getDate() + add);
+  return fixed;
 }
 
 export interface ToolResult {
@@ -252,14 +279,18 @@ export const TOOL_DEFS: ApiTool[] = [
     function: {
       name: "eliminar",
       description:
-        "Elimina una tarea, nota, materia, carrera, lienzo o flashcard. La app le pide confirmación al usuario con un botón; no hace falta que preguntes antes por texto.",
-      parameters: obj(
-        {
-          tipo: { type: "string", enum: ["tarea", "nota", "materia", "carrera", "lienzo", "flashcard"] },
-          id: S("Id del elemento (buscalo antes con las herramientas de listar)"),
+        "Elimina uno o varios elementos (tareas, notas, lienzos, ideas, materias, carreras, flashcards) en UNA sola llamada: la app le muestra al usuario un único botón para confirmar todo junto. No pidas confirmación por texto. Para borrar 'todos los X', usá titulo (+ carpeta) o pasá la lista completa en elementos.",
+      parameters: obj({
+        elementos: {
+          type: "array",
+          description: "Lista de lo que hay que borrar (ids sacados de listar_elementos, listar_tareas, etc.)",
+          items: obj({ tipo: { type: "string", enum: ["tarea", "nota", "materia", "carrera", "lienzo", "flashcard"] }, id: S("Id") }, ["tipo", "id"]),
         },
-        ["tipo", "id"],
-      ),
+        tipo: { type: "string", enum: ["tarea", "nota", "materia", "carrera", "lienzo", "flashcard"], description: "Para un solo elemento, o para filtrar por título" },
+        id: S("Id de un solo elemento"),
+        titulo: S("Borra TODAS las notas/lienzos/tareas con este título exacto (ej. 'Sin título')"),
+        carpeta: S("Con titulo: limitar a una materia o carpeta (Notas, Diario, Ideas, Plantillas)"),
+      }),
     },
   },
   {
@@ -315,6 +346,19 @@ export const TOOL_DEFS: ApiTool[] = [
         },
         ["materia"],
       ),
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_elementos",
+      description:
+        "Lista las notas y lienzos (dibujos/tableros) de una carpeta o materia, con id, tipo, título y si están vacíos. Usala antes de borrar o mover, porque en el explorador hay notas Y lienzos.",
+      parameters: obj({
+        carpeta: S("Materia o carpeta: Notas, Diario, Ideas, Plantillas (opcional: todas)"),
+        titulo: S("Filtrar por título (opcional)"),
+        tipo: { type: "string", enum: ["nota", "lienzo", "todos"] },
+      }),
     },
   },
   {
@@ -502,12 +546,12 @@ async function findClassNote(subjectId: string, q: string): Promise<string | und
   return notes.find((n) => norm(n.title).includes(norm(q)) || wordsMatch(q, n.title) >= 0.75)?.id;
 }
 
-async function createTask(a: Args, extra: Partial<Task> = {}): Promise<{ task?: Task; error?: string }> {
+async function createTask(a: Args, extra: Partial<Task> = {}, userText?: string): Promise<{ task?: Task; error?: string }> {
   const title = str(a.titulo);
   if (!title) return { error: "Falta el título de la tarea." };
   const place = await resolvePlace(str(a.materia));
   if (place.error) return { error: place.error };
-  const due = parseFecha(a.fecha, a.hora);
+  const due = fixWeekday(parseFecha(a.fecha, a.hora), userText);
   if (str(a.fecha) && !due) return { error: `No entendí la fecha "${a.fecha}". Usá YYYY-MM-DD.` };
   const task: Task = clean({
     id: newId(),
@@ -526,6 +570,87 @@ async function createTask(a: Args, extra: Partial<Task> = {}): Promise<{ task?: 
   });
   await db.tasks.add(task);
   return { task };
+}
+
+const FOLDER_LABEL: Record<string, string> = { [LOOSE_FOLDER]: "Notas", [DAILY_FOLDER]: "Diario", [IDEAS_FOLDER]: "Ideas", [TEMPLATES_FOLDER]: "Plantillas" };
+
+// Notas y lienzos de una carpeta (o de todas), para listar o borrar.
+async function listItems(carpeta: string | undefined, titulo: string | undefined, tipo: "nota" | "lienzo" | "todos", exact: boolean) {
+  let folderId: string | undefined;
+  if (carpeta) {
+    const c = norm(carpeta);
+    const special: Record<string, string> = { notas: LOOSE_FOLDER, "notas sueltas": LOOSE_FOLDER, sueltas: LOOSE_FOLDER, diario: DAILY_FOLDER, ideas: IDEAS_FOLDER, plantillas: TEMPLATES_FOLDER };
+    folderId = special[c] ?? (await resolvePlace(carpeta)).subject?.id;
+  }
+  const t = titulo ? norm(titulo) : "";
+  const match = (name: string) => !t || (exact ? norm(name || "Sin título") === t : norm(name || "Sin título").includes(t));
+  const subjects = new Map((await db.subjects.toArray()).map((x) => [x.id, x.name]));
+  const where = (sid?: string) => (sid ? (subjects.get(sid) ?? FOLDER_LABEL[sid] ?? "Notas") : "Notas");
+  // Lo que no tiene materia válida se ve en "Notas" en el explorador.
+  const inFolder = (sid?: string) =>
+    !folderId || (sid ?? LOOSE_FOLDER) === folderId || (folderId === LOOSE_FOLDER && !!sid && !subjects.has(sid) && !FOLDER_LABEL[sid]);
+  const out: { tipo: "nota" | "lienzo"; id: string; titulo: string; carpeta: string; vacia: boolean }[] = [];
+  if (tipo !== "lienzo")
+    for (const n of await db.notes.toArray())
+      if (inFolder(n.subjectId) && match(n.title)) out.push({ tipo: "nota", id: n.id, titulo: n.title || "Sin título", carpeta: where(n.subjectId), vacia: !n.plainTextCache.trim() });
+  if (tipo !== "nota")
+    for (const c of await db.canvases.toArray())
+      if (inFolder(c.subjectId) && match(c.name))
+        out.push({ tipo: "lienzo", id: c.id, titulo: c.name || "Sin título", carpeta: where(c.subjectId), vacia: !(c.data?.nodes?.length ?? 0) });
+  return out;
+}
+
+// Busca por título exacto cuando la IA pasa un nombre en lugar del id.
+async function findByTitle(tipo: string, title: string): Promise<Deletable[]> {
+  const t = norm(title);
+  if (!t) return [];
+  const out: Deletable[] = [];
+  if (!tipo || tipo === "tarea")
+    for (const x of await db.tasks.toArray()) if (norm(x.title) === t) out.push({ tipo: "tarea", id: x.id, title: x.title, run: () => db.tasks.delete(x.id) });
+  if (!tipo || tipo === "nota" || tipo === "lienzo") {
+    for (const x of await db.notes.toArray()) if (norm(x.title || "Sin título") === t) out.push({ tipo: "nota", id: x.id, title: x.title || "Sin título", run: () => deleteNote(x.id) });
+    for (const x of await db.canvases.toArray()) if (norm(x.name || "Sin título") === t) out.push({ tipo: "lienzo", id: x.id, title: x.name || "Sin título", run: () => deleteCanvas(x.id) });
+  }
+  return out.slice(0, 50);
+}
+
+interface Deletable {
+  tipo: string;
+  id: string;
+  title: string;
+  run: () => Promise<unknown>;
+}
+
+async function resolveDeletable(tipo: string, id: string): Promise<Deletable | null> {
+  if (tipo === "tarea") {
+    const t = await db.tasks.get(id);
+    return t ? { tipo, id, title: t.title, run: () => db.tasks.delete(id) } : null;
+  }
+  if (tipo === "nota" || tipo === "lienzo") {
+    // El modelo a veces confunde nota con lienzo: buscamos en los dos.
+    const n = await db.notes.get(id);
+    if (n) return { tipo: n.subjectId === IDEAS_FOLDER ? "idea" : "nota", id, title: n.title || "Sin título", run: () => deleteNote(id) };
+    const c = await db.canvases.get(id);
+    return c ? { tipo: "lienzo", id, title: c.name || "Sin título", run: () => deleteCanvas(id) } : null;
+  }
+  if (tipo === "materia") {
+    const x = await db.subjects.get(id);
+    return x ? { tipo, id, title: x.name, run: () => deleteSubjectCascade(id) } : null;
+  }
+  if (tipo === "carrera") {
+    const x = await db.degrees.get(id);
+    return x ? { tipo, id, title: x.name, run: () => deleteDegreeCascade(id) } : null;
+  }
+  if (tipo === "flashcard") {
+    const x = await db.flashcards.get(id);
+    return x ? { tipo, id, title: x.front, run: () => db.flashcards.delete(id) } : null;
+  }
+  // Sin tipo: probamos en todas las tablas.
+  for (const tt of ["nota", "tarea", "flashcard"]) {
+    const r = await resolveDeletable(tt, id);
+    if (r) return r;
+  }
+  return null;
 }
 
 export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<ToolResult> {
@@ -565,7 +690,7 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
     }
 
     case "crear_tarea": {
-      const { task, error } = await createTask(a);
+      const { task, error } = await createTask(a, {}, ctx.userText);
       if (error || !task) return fail(error ?? "No se pudo crear", "No pude crear la tarea");
       const subj = task.subjectId ? (await db.subjects.get(task.subjectId))?.name : undefined;
       return {
@@ -602,41 +727,54 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
     }
 
     case "eliminar": {
-      const id = String(a.id ?? "");
-      const tipo = String(a.tipo ?? "");
-      let title: string | undefined;
-      let run: (() => Promise<unknown>) | undefined;
-      if (tipo === "tarea") {
-        const t = await db.tasks.get(id);
-        title = t?.title;
-        run = () => db.tasks.delete(id);
-      } else if (tipo === "nota") {
-        const n = await db.notes.get(id);
-        title = n?.title;
-        run = () => deleteNote(id);
-      } else if (tipo === "materia") {
-        const s = await db.subjects.get(id);
-        title = s?.name;
-        run = () => deleteSubjectCascade(id);
-      } else if (tipo === "carrera") {
-        const d = await db.degrees.get(id);
-        title = d?.name;
-        run = () => deleteDegreeCascade(id);
-      } else if (tipo === "lienzo") {
-        const c = await db.canvases.get(id);
-        title = c?.name;
-        run = () => deleteCanvas(id);
-      } else if (tipo === "flashcard") {
-        const f = await db.flashcards.get(id);
-        title = f?.front;
-        run = () => db.flashcards.delete(id);
+      const targets: { tipo: string; id: string }[] = [];
+      if (Array.isArray(a.elementos)) for (const e of a.elementos as Args[]) if (e?.id) targets.push({ tipo: String(e.tipo ?? ""), id: String(e.id) });
+      if (a.id) targets.push({ tipo: String(a.tipo ?? ""), id: String(a.id) });
+      if (str(a.titulo)) {
+        const kind = a.tipo === "nota" || a.tipo === "lienzo" ? a.tipo : "todos";
+        if (a.tipo !== "tarea") for (const f of await listItems(str(a.carpeta), str(a.titulo), kind, true)) targets.push({ tipo: f.tipo, id: f.id });
+        if (a.tipo === "tarea" || !a.tipo) {
+          const t = norm(String(a.titulo));
+          for (const task of await db.tasks.toArray()) if (norm(task.title) === t) targets.push({ tipo: "tarea", id: task.id });
+        }
       }
-      if (!title || !run) return fail(`No existe ${tipo} con ese id. Buscalo primero.`, "No encontré qué eliminar");
-      const extra = tipo === "materia" ? " Se borran también sus tareas, apuntes, PDFs y flashcards." : tipo === "carrera" ? " Se borran también todas sus materias y lo que tengan adentro." : "";
-      const yes = await ctx.confirm(`¿Eliminar ${tipo} «${title}»?`, extra.trim());
-      if (!yes) return { ok: false, content: json({ cancelado: true, motivo: "El usuario no confirmó. No lo borres." }), label: `No eliminé «${title}»` };
-      await deleteWithUndo(`Se eliminó ${tipo} «${title}»`, run);
-      return { ok: true, content: json({ eliminado: true }), label: `Eliminé ${tipo} «${title}»` };
+      const unique = [...new Map(targets.map((t) => [`${t.tipo}:${t.id}`, t])).values()];
+      const resolved: Deletable[] = [];
+      for (const { tipo, id } of unique) {
+        const r = await resolveDeletable(tipo, id);
+        if (r) {
+          if (!resolved.some((x) => x.id === r.id)) resolved.push(r);
+          continue;
+        }
+        // Los modelos chicos a veces pasan el nombre en lugar del id ("TP 2").
+        for (const f of await findByTitle(tipo, id)) if (!resolved.some((x) => x.id === f.id)) resolved.push(f);
+      }
+      if (!resolved.length) return fail("No encontré nada para eliminar con esos datos. Buscalo con listar_elementos o listar_tareas.", "No encontré qué eliminar");
+      const heavy = resolved.some((r) => r.tipo === "materia" || r.tipo === "carrera");
+      const names = resolved.map((r) => `${r.tipo} «${r.title}»`);
+      const title = resolved.length === 1 ? `¿Eliminar ${names[0]}?` : `¿Eliminar ${resolved.length} elementos?`;
+      const detail = [
+        resolved.length > 1 ? names.slice(0, 12).join(", ") + (names.length > 12 ? ` y ${names.length - 12} más` : "") : "",
+        heavy ? "Las materias y carreras se borran con todo lo que tienen adentro." : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const yes = await ctx.confirm(title, detail);
+      if (!yes) return { ok: false, content: json({ cancelado: true, motivo: "El usuario no confirmó. No lo borres." }), label: "No eliminé nada" };
+      await deleteWithUndo(resolved.length === 1 ? `Se eliminó ${names[0]}` : `Se eliminaron ${resolved.length} elementos`, async () => {
+        for (const r of resolved) await r.run();
+      });
+      return {
+        ok: true,
+        content: json({ eliminados: resolved.length }),
+        label: resolved.length === 1 ? `Eliminé ${names[0]}` : `Eliminé ${resolved.length} elementos`,
+      };
+    }
+
+    case "listar_elementos": {
+      // Siempre devolvemos notas y lienzos: en el explorador se ven iguales y la IA los confunde.
+      const items = await listItems(str(a.carpeta), str(a.titulo), "todos", false);
+      return { ok: true, content: json(items.slice(0, 80)), label: "Revisé tus notas y lienzos" };
     }
 
     case "crear_carrera": {
@@ -907,10 +1045,12 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
 // Resumen de la situación para el sistema: fecha, días que vienen y materias.
 export async function situationText(): Promise<string> {
   const now = new Date();
+  const DAY = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   const days = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(now);
     d.setDate(now.getDate() + i);
-    return `${i === 0 ? "hoy " : i === 1 ? "mañana " : ""}${fmtDate(d, false)} (${dateKey(d)})`;
+    const tag = i === 0 ? " (hoy)" : i === 1 ? " (mañana)" : i >= 7 ? " (la semana que viene)" : "";
+    return `- ${DAY[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}${tag} = ${dateKey(d)}`;
   });
   const [degrees, subjects] = await Promise.all([db.degrees.toArray(), db.subjects.toArray()]);
   const lines = degrees.map(
@@ -923,7 +1063,7 @@ export async function situationText(): Promise<string> {
   );
   return [
     `Fecha y hora actual: ${fmtDate(now)} (zona horaria del usuario). El año actual es ${now.getFullYear()}.`,
-    `Próximos días: ${days.join("; ")}.`,
+    `Próximos días (usá esta tabla para "el jueves", "mañana", etc.):\n${days.join("\n")}`,
     `Carreras y materias en curso:\n${lines.join("\n") || "(todavía no cargó carreras)"}`,
   ].join("\n");
 }

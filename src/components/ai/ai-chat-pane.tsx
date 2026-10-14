@@ -11,11 +11,11 @@ import { useAppState } from "@/lib/app-state";
 import { db, newId } from "@/lib/db";
 import { useLocalAI, type ChatMessage } from "@/lib/ai/use-local-ai";
 import { buildSubjectContext } from "@/lib/ai/rag";
-import { useWorkspace } from "@/lib/workspace";
+import { useWorkspace, type ViewState } from "@/lib/workspace";
 import { noteTitle, specialFolderName } from "@/lib/panes/note-data";
 import { useActiveNoteId, useNote } from "@/lib/panes/hooks";
 import { LOCAL_MODELS, useAISettings, writeAISettings, type LocalModel } from "@/lib/ai/ai-settings";
-import { AGENT_SYSTEM, runAgent } from "@/lib/ai/agent";
+import { AGENT_SYSTEM, runAgent, runAgentLocal } from "@/lib/ai/agent";
 import { situationText } from "@/lib/ai/tools";
 import type { ApiMessage, ContentPart } from "@/lib/ai/server";
 import { convertFile, fileKind, IMPORT_ACCEPT } from "@/lib/import/import-file";
@@ -139,9 +139,9 @@ async function imageToDataUrl(file: Blob): Promise<string> {
 }
 
 // Las imágenes viejas de la conversación se reemplazan por texto para no gastar contexto.
-function compactHistory(msgs: ApiMessage[]): ApiMessage[] {
+function compactHistory(msgs: ApiMessage[], keep = AGENT_KEEP): ApiMessage[] {
   const [system, ...rest] = msgs;
-  const tail = rest.slice(-AGENT_KEEP);
+  const tail = rest.slice(-keep);
   while (tail.length && tail[0].role === "tool") tail.shift();
   const lastUser = tail.map((m) => m.role).lastIndexOf("user");
   return [
@@ -159,7 +159,9 @@ export function AIChatPane() {
   const { activeView, openView } = useWorkspace();
   const ai = useLocalAI();
   const settings = useAISettings();
-  const agentMode = ai.engine === "servidor";
+  // Las dos IAs actúan en la app; la potente además ve imágenes y razona.
+  const powerful = ai.engine === "servidor";
+  const agentMode = true;
 
   // Contexto: la materia de la vista activa, o la de la nota abierta.
   const noteId = useActiveNoteId();
@@ -259,16 +261,19 @@ export function AIChatPane() {
     // Material de los apuntes (si hay una materia o nota en pantalla).
     let material = "";
     let sources: string[] = [];
+    // La IA básica tiene poca memoria: menos material.
+    const docChars = powerful ? DOC_CHARS : 5000;
+    const noteChars = powerful ? NOTE_CHARS : 700;
     if (subjectId && text.length > 3) {
       try {
-        const found = await buildSubjectContext(subjectId, text, 3);
+        const found = await buildSubjectContext(subjectId, text, powerful ? 3 : 1);
         material = found.context;
         sources = found.sources.map((s) => s.label);
       } catch {
         // seguimos sin material
       }
     }
-    const noteBody = note?.plainTextCache.trim().slice(0, NOTE_CHARS) ?? "";
+    const noteBody = note?.plainTextCache.trim().slice(0, noteChars) ?? "";
     if (note && noteBody) {
       material = [`[Fuente: ${noteTitle(note)} (nota abierta)]\n${noteBody}`, material].filter(Boolean).join("\n\n");
       sources = [noteTitle(note), ...sources];
@@ -276,17 +281,17 @@ export function AIChatPane() {
 
     const parts: string[] = [];
     if (contextName) parts.push(`[El usuario está viendo: ${note ? `la nota «${noteTitle(note)}»` : ""}${note && subjectName ? " de " : ""}${subjectName ?? ""}]`);
-    for (const a of atts.filter((a) => a.kind === "doc" && a.text)) parts.push(`[Archivo adjunto: ${a.name}]\n"""\n${a.text}\n"""`);
+    for (const a of atts.filter((a) => a.kind === "doc" && a.text)) parts.push(`[Archivo adjunto: ${a.name}]\n"""\n${a.text!.slice(0, docChars)}\n"""`);
     if (material) parts.push(`MATERIAL de los apuntes (usalo si sirve para la pregunta):\n${material}`);
     parts.push(text || "(mirá el adjunto)");
     const textPart = parts.join("\n\n");
-    const images = atts.filter((a) => a.kind === "image" && a.dataUrl);
+    const images = powerful ? atts.filter((a) => a.kind === "image" && a.dataUrl) : [];
     const content: string | ContentPart[] = images.length
       ? [...images.map((a) => ({ type: "image_url" as const, image_url: { url: a.dataUrl! } })), { type: "text" as const, text: textPart }]
       : textPart;
 
     apiRef.current.push({ role: "user", content });
-    const messages = compactHistory(apiRef.current);
+    const messages = compactHistory(apiRef.current, powerful ? AGENT_KEEP : 10);
     const sent = messages.length;
 
     const ctrl = new AbortController();
@@ -294,16 +299,18 @@ export function AIChatPane() {
     await ai.load();
     ai.setBusy(true);
     try {
-      const final = await runAgent(messages, {
+      const common = {
         signal: ctrl.signal,
-        think: settings.think,
-        ctx: { confirm: (title, detail) => askConfirm(aiId, title, detail), openView: (v) => openView(v, "tab") },
+        ctx: { confirm: (title: string, detail: string) => askConfirm(aiId, title, detail), openView: (v: ViewState) => openView(v, "tab"), userText: text },
         events: {
-          onText: (t) => patchTurn(aiId, { content: t, working: undefined }),
-          onToolStart: (name) => patchTurn(aiId, { working: TOOL_WORKING[name] ?? "Trabajando…" }),
-          onTool: (label, ok) => patchTurn(aiId, (t) => ({ steps: [...(t.steps ?? []), { label, ok }], working: undefined })),
+          onText: (t: string) => patchTurn(aiId, { content: t, working: undefined }),
+          onToolStart: (name: string) => patchTurn(aiId, { working: TOOL_WORKING[name] ?? "Trabajando…" }),
+          onTool: (label: string, ok: boolean) => patchTurn(aiId, (t) => ({ steps: [...(t.steps ?? []), { label, ok }], working: undefined })),
         },
-      });
+      };
+      const final = powerful
+        ? await runAgent(messages, { ...common, think: settings.think })
+        : await runAgentLocal(messages, { ...common, ai });
       // Lo nuevo (respuestas y resultados) queda en la conversación.
       apiRef.current.push(...messages.slice(sent));
       patchTurn(aiId, (t) => ({
@@ -519,7 +526,7 @@ export function AIChatPane() {
         <ModelPicker />
         {agentMode && (
           <>
-            <button
+            {powerful && <button
               type="button"
               className={clsx("icon-btn flex-none", settings.think && "text-primary-soft")}
               onClick={() => writeAISettings({ think: !settings.think })}
@@ -527,7 +534,7 @@ export function AIChatPane() {
               title={settings.think ? "Razona antes de responder (más lento)" : "Responde directo (más rápido)"}
             >
               <Brain strokeWidth={1.75} />
-            </button>
+            </button>}
             <span title="Puede buscar en internet" className="flex-none text-faint">
               <Globe className="h-3.5 w-3.5" strokeWidth={1.75} />
             </span>
@@ -651,7 +658,7 @@ export function AIChatPane() {
             ))}
           </div>
         )}
-        {!agentMode && attachments.some((a) => a.kind === "image") && (
+        {!powerful && attachments.some((a) => a.kind === "image") && (
           <p className="mb-1 text-[12px] text-amber">La IA liviana no ve imágenes. Elegí Qwen3.5 35B arriba.</p>
         )}
         <div className="flex items-end gap-2">

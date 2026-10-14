@@ -68,6 +68,20 @@ function readStoredModel(): string | undefined {
   }
 }
 
+// Dónde quedó guardado el modelo básico (para saber si ya está descargado).
+export function readCacheKind(): boolean {
+  try {
+    return localStorage.getItem("uc-ai-idb") === "1";
+  } catch {
+    return false;
+  }
+}
+function writeCacheKind(idb: boolean) {
+  try {
+    localStorage.setItem("uc-ai-idb", idb ? "1" : "0");
+  } catch {}
+}
+
 function writeStoredModel(modelId: string) {
   try {
     localStorage.setItem(MODEL_STORAGE_KEY, modelId);
@@ -195,27 +209,42 @@ export function AIProvider({ children }: { children: ReactNode }) {
     // En automático, si el 7B no carga (casi siempre por memoria), reintentamos con el 3B.
     const candidates = wanted === "auto" && chosen === MODEL_7B ? [MODEL_7B, MODEL_3B_F16] : [chosen];
 
-    for (const modelId of candidates) {
+    // Primero se guarda en la caché del navegador; si falla (pasa en algunas ventanas), en IndexedDB.
+    const attempts = candidates.flatMap((modelId) => [
+      { modelId, idb: false },
+      { modelId, idb: true },
+    ]);
+    for (const { modelId, idb } of attempts) {
       const worker = new Worker(new URL("./webllm.worker.ts", import.meta.url), { type: "module" });
       try {
-        const engine = await webllm.CreateWebWorkerMLCEngine(worker, modelId, {
-          initProgressCallback: (report) => {
-            const d = describeProgress(report);
-            setProgress(d.progress);
-            setProgressText(d.text);
+        const engine = await webllm.CreateWebWorkerMLCEngine(
+          worker,
+          modelId,
+          {
+            appConfig: { ...webllm.prebuiltAppConfig, cacheBackend: idb ? "indexeddb" : "cache" },
+            initProgressCallback: (report) => {
+              const d = describeProgress(report);
+              setProgress(d.progress);
+              setProgressText(d.text);
+            },
           },
-        });
+          // 8192 tokens de memoria: entran las herramientas y la conversación.
+          { context_window_size: 8192 },
+        );
         engineRef.current = engine;
         workerRef.current = worker;
         loadedModelRef.current = modelId;
         if (wanted === "auto") writeStoredModel(modelId);
+        writeCacheKind(idb);
         setProgress(1);
         setProgressText("");
         setLocalStatus("ready");
         return;
       } catch (err) {
         worker.terminate();
-        console.warn("[IA] no se pudo cargar el modelo", modelId, err);
+        console.warn("[IA] no se pudo cargar el modelo", modelId, idb ? "(IndexedDB)" : "(caché)", err);
+        // Si no fue un problema de guardado, no tiene sentido reintentar con IndexedDB.
+        if (!idb && !/cache|quota|storage/i.test(String(err))) break;
       }
     }
 

@@ -41,7 +41,7 @@ export function Menu({ x, y, items, onClose }: { x: number; y: number; items: Me
     <div
       ref={ref}
       role="menu"
-      className="fixed z-[60] min-w-[180px] rounded-md border border-border bg-surface p-1 shadow-pop"
+      className="fixed z-[60] max-h-[75vh] min-w-[180px] overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-pop"
       style={{ left: pos.x, top: pos.y }}
       onContextMenu={(e) => e.preventDefault()}
     >

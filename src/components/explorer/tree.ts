@@ -2,7 +2,7 @@
 
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CalendarDays, FileText, Folder, GraduationCap, LayoutTemplate, Lightbulb, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, FileText, Folder, GraduationCap, Lightbulb, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
@@ -20,7 +20,7 @@ export interface ExplorerData {
 export type NodeItem =
   | { kind: "folder"; folder: string }
   | { kind: "degree"; id: string }
-  | { kind: "year" }
+  | { kind: "year"; degreeId: string; year: number }
   | { kind: "subject"; id: string }
   | { kind: "unit"; subjectId: string; unit: number }
   | { kind: "note"; id: string; subjectId: string }
@@ -121,11 +121,6 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
   const daily = data.notes
     .filter((n) => n.subjectId === DAILY_FOLDER)
     .sort((a, b) => (b.dailyDate ?? "").localeCompare(a.dailyDate ?? ""));
-  const templates = sortItems(
-    data.notes.filter((n) => n.subjectId === TEMPLATES_FOLDER),
-    (n) => n.title,
-    "nombre",
-  );
   const isLoose = (sid: string | undefined) => !sid || sid === LOOSE_FOLDER || (!subjectIds.has(sid) && sid !== DAILY_FOLDER && sid !== TEMPLATES_FOLDER && sid !== IDEAS_FOLDER);
   const looseNotes = sortItems(
     data.notes.filter((n) => isLoose(n.subjectId)),
@@ -166,15 +161,6 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         (n) => n.title,
         sort,
       ).map(noteNode),
-    },
-    {
-      key: "f:plantillas",
-      label: "Plantillas",
-      icon: LayoutTemplate,
-      view: { type: "plantillas" },
-      item: { kind: "folder", folder: TEMPLATES_FOLDER },
-      drop: { subjectId: TEMPLATES_FOLDER },
-      children: templates.map(noteNode),
     },
   ];
 
@@ -228,7 +214,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         children: years.map((y): TreeNode => ({
           key: `y:${d.id}:${y}`,
           label: `${y}.º año`,
-          item: { kind: "year" },
+          item: { kind: "year", degreeId: d.id, year: y },
           children: subjects
             .filter((s) => s.year === y)
             .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, "es"))

@@ -4,7 +4,6 @@
 // "Usar" crea una nota nueva con ese contenido en la materia que elijas.
 // {{fecha}}, {{hora}} y {{titulo}} se reemplazan al usarla.
 
-import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { FilePlus, LayoutTemplate, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -12,9 +11,9 @@ import { addNote, cloneBlocks, deleteNote, listTemplates, templateVars } from "@
 import { markdownToBlocks } from "@/lib/notes/md-blocks";
 import { plainTextOf } from "@/lib/notes/index-note";
 import { useOpen } from "@/components/workspace/use-open";
-import { Select } from "@/components/ui/select";
+import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { deleteWithUndo, toast } from "@/lib/undo";
-import { LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
+import { IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
 import { createNote } from "@/components/notes/note-utils";
 
 const SUGGESTED: { title: string; md: string }[] = [
@@ -123,13 +122,27 @@ export async function addSuggestedTemplates(): Promise<number> {
 export function PlantillasView() {
   const templates = useLiveQuery(() => listTemplates(), []);
   const subjects = useLiveQuery(() => db.subjects.toArray(), []) ?? [];
-  const [target, setTarget] = useState<string>(LOOSE_FOLDER);
   const open = useOpen();
+  const menu = useContextMenu();
 
-  async function use(t: Note, e?: React.MouseEvent) {
+  async function createFrom(t: Note, folder: string) {
     const blocks = cloneBlocks(t.content, templateVars(new Date(), t.title));
-    const id = await addNote(target, { title: t.title, content: blocks, plainTextCache: plainTextOf(blocks as Parameters<typeof plainTextOf>[0]) });
-    open({ type: "nota", id }, e);
+    const id = await addNote(folder, { title: t.title, content: blocks, plainTextCache: plainTextOf(blocks as Parameters<typeof plainTextOf>[0]) });
+    open({ type: "nota", id }, { ctrlKey: true });
+  }
+
+  // "Usar" pregunta dónde crear la nota: materias que cursás primero, después el resto.
+  function chooseWhere(t: Note, e: React.MouseEvent) {
+    const sorted = [...subjects].sort(
+      (a, b) => Number(b.status === "CURSANDO") - Number(a.status === "CURSANDO") || a.name.localeCompare(b.name, "es"),
+    );
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    menu.open({ clientX: r.left, clientY: r.bottom + 4 }, [
+      { label: "Notas sueltas", icon: FilePlus, onSelect: () => void createFrom(t, LOOSE_FOLDER) },
+      { label: "Ideas", icon: FilePlus, onSelect: () => void createFrom(t, IDEAS_FOLDER) },
+      { type: "separator" },
+      ...sorted.map((s): MenuItem => ({ label: s.name, hint: s.status === "CURSANDO" ? "cursando" : undefined, onSelect: () => void createFrom(t, s.id) })),
+    ]);
   }
 
   const preview = (t: Note) => t.plainTextCache.replace(/\s+/g, " ").trim().slice(0, 160);
@@ -150,24 +163,11 @@ export function PlantillasView() {
           </button>
         </div>
         <p className="t-body max-w-[680px] text-muted">
-          Son notas modelo para no empezar de cero. Tocá <b className="text-text">Usar</b> y se crea una nota nueva con ese formato. Dentro de una nota también podés
+          Son notas modelo para no empezar de cero. Tocá <b className="text-text">Usar en…</b>, elegí la materia y se crea una nota nueva con ese formato. Dentro de una nota también podés
           insertarlas con <span className="kbd">Alt</span>+<span className="kbd">T</span>. Si escribís {"{{fecha}}"}, {"{{hora}}"} o {"{{titulo}}"}, se completan solos.
         </p>
       </header>
 
-      <div className="flex items-center gap-2">
-        <span className="t-small text-muted">Crear las notas en</span>
-        <Select value={target} onChange={(e) => setTarget(e.target.value)} className="min-w-[220px]" aria-label="Dónde crear la nota">
-          <option value={LOOSE_FOLDER}>Notas sueltas</option>
-          {subjects
-            .sort((a, b) => a.name.localeCompare(b.name, "es"))
-            .map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-        </Select>
-      </div>
 
       {templates && templates.length === 0 && (
         <div className="card flex flex-col items-start gap-3 p-5">
@@ -193,8 +193,8 @@ export function PlantillasView() {
               <p className="t-h3">{t.title}</p>
               <p className="line-clamp-4 flex-1 text-[12px] text-muted">{preview(t) || "Vacía"}</p>
               <div className="flex items-center gap-1">
-                <button type="button" className="btn btn-sm" onClick={(e) => void use(t, e)}>
-                  Usar
+                <button type="button" className="btn btn-sm" onClick={(e) => chooseWhere(t, e)} aria-haspopup="menu">
+                  Usar en…
                 </button>
                 <button type="button" className="icon-btn" title="Editar plantilla" onClick={(e) => open({ type: "nota", id: t.id }, e)}>
                   <Pencil strokeWidth={1.75} />
@@ -224,6 +224,7 @@ export function PlantillasView() {
           Agregar las plantillas sugeridas que falten
         </button>
       )}
+      {menu.menu}
     </div>
   );
 }

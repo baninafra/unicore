@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, Columns2, Copy, ExternalLink, FileDown, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, ExternalLink, FileDown, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
@@ -11,7 +11,7 @@ import { useOpen } from "@/components/workspace/use-open";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
-import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind } from "@/lib/types";
+import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Degree } from "@/lib/types";
 import {
   addCanvas,
   addNote,
@@ -28,6 +28,10 @@ import {
   type ModifierEvent,
 } from "@/lib/nav/actions";
 import { MoveDialog } from "./move-dialog";
+import { SubjectDialog } from "@/components/careers/subject-dialog";
+import { DegreeDialog } from "@/components/careers/degree-dialog";
+import { deleteDegreeCascade } from "@/components/careers/actions";
+import { deleteWithUndo } from "@/lib/undo";
 import { type ExportTarget } from "@/lib/export/export-pdf";
 import { exportAs, FORMAT_LABEL } from "@/lib/export/export-formats";
 import { allKeys, ancestorsOf, buildTree, defaultOpen, useBookmarkSet, useExplorerData, type SortMode, type TreeNode } from "./tree";
@@ -70,6 +74,7 @@ export function FileExplorer() {
   const [sort, setSort] = useState<SortMode>("nombre");
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [career, setCareer] = useState<{ type: "subject"; degreeId: string; year?: number } | { type: "degree"; degree: Degree } | null>(null);
   const [dropKey, setDropKey] = useState<string | null>(null);
 
   const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort) : []), [data, degreeFilter, sort]);
@@ -113,6 +118,9 @@ export function FileExplorer() {
   };
   const isOpen = (key: string) => openMap[key] ?? defaultOpen(key);
   const toggle = (key: string) => setOpenMap((prev) => saveOpen({ ...prev, [key]: !(prev[key] ?? defaultOpen(key)) }));
+  // Abre o cierra una carpeta con todo lo que tiene adentro.
+  const setOpenUnder = (node: TreeNode, open: boolean) =>
+    setOpenMap((prev) => saveOpen({ ...prev, ...Object.fromEntries(allKeys([node]).map((k) => [k, open])) }));
   const collapseAll = () => setOpenMap(saveOpen(Object.fromEntries(allKeys(tree).map((k) => [k, false]))));
 
   const changeSort = (mode: SortMode) => {
@@ -249,8 +257,35 @@ export function FileExplorer() {
         ];
       case "pdf":
         return [openTab(node.view!), sep, bm("document", item.id)];
-      case "degree":
-        return [...pdf({ kind: "degree", id: item.id })];
+      case "degree": {
+        const degree = data?.degrees.find((d) => d.id === item.id);
+        return [
+          { label: "Nueva materia", icon: FilePlus, onSelect: () => setCareer({ type: "subject", degreeId: item.id }) },
+          { label: "Nueva tarea de esta carrera", icon: ListPlus, onSelect: () => openTaskDialog({ degreeId: item.id }) },
+          { label: "Ver plan de estudios", icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
+          sep,
+          { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
+          { label: "Colapsar todo", icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
+          sep,
+          { label: "Editar carrera", icon: Pencil, onSelect: () => degree && setCareer({ type: "degree", degree }) },
+          ...pdf({ kind: "degree", id: item.id }),
+          sep,
+          {
+            label: "Eliminar carrera",
+            icon: Trash2,
+            danger: true,
+            onSelect: () => safe(() => deleteWithUndo(`Se eliminó «${node.label}»`, () => deleteDegreeCascade(item.id))),
+          },
+        ];
+      }
+      case "year":
+        return [
+          { label: `Nueva materia en ${node.label}`, icon: FilePlus, onSelect: () => setCareer({ type: "subject", degreeId: item.degreeId, year: item.year }) },
+          { label: "Nueva tarea de esta carrera", icon: ListPlus, onSelect: () => openTaskDialog({ degreeId: item.degreeId }) },
+          sep,
+          { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
+          { label: "Colapsar todo", icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
+        ];
       default:
         return [];
     }
@@ -325,6 +360,16 @@ export function FileExplorer() {
         }}
         onClose={() => setDialog(null)}
       />
+      {career?.type === "subject" && data && (
+        <SubjectDialog
+          degrees={data.degrees}
+          allSubjects={data.subjects}
+          defaultDegreeId={career.degreeId}
+          defaultYear={career.year}
+          onClose={() => setCareer(null)}
+        />
+      )}
+      {career?.type === "degree" && <DegreeDialog degree={career.degree} onClose={() => setCareer(null)} />}
       {menu.menu}
     </div>
   );

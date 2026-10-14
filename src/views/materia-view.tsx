@@ -18,6 +18,7 @@ import { TaskRow } from "@/components/tasks/task-row";
 import { byDueDate } from "@/components/tasks/task-meta";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { useOpen } from "@/components/workspace/use-open";
+import { Select } from "@/components/ui/select";
 
 const CONTROL = "input h-7 min-w-0 border-transparent bg-transparent px-2 hover:bg-surface-raised";
 
@@ -262,7 +263,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
 
       <div className="flex flex-col">
         <Prop label="Carrera">
-          <select className={CONTROL} value={subject.degreeId} onChange={(e) => {
+          <Select className={CONTROL} value={subject.degreeId} onChange={(e) => {
             const degreeId = e.target.value;
             void save({
               degreeId,
@@ -274,31 +275,31 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
                 {d.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Prop>
 
         <Prop label="Año">
-          <select className={CONTROL} value={subject.year} onChange={(e) => void save({ year: Number(e.target.value) })}>
+          <Select className={CONTROL} value={subject.year} onChange={(e) => void save({ year: Number(e.target.value) })}>
             {yearOptions.map((y) => (
               <option key={y} value={y}>
                 {y}.º año
               </option>
             ))}
-          </select>
-          <select className={CONTROL} value={subject.semester} onChange={(e) => void save({ semester: Number(e.target.value) as 1 | 2 })} aria-label="Cuatrimestre">
+          </Select>
+          <Select className={CONTROL} value={subject.semester} onChange={(e) => void save({ semester: Number(e.target.value) as 1 | 2 })} aria-label="Cuatrimestre">
             <option value={1}>1.º cuatrimestre</option>
             <option value={2}>2.º cuatrimestre</option>
-          </select>
+          </Select>
         </Prop>
 
         <Prop label="Estado">
-          <select className={CONTROL} value={subject.status} onChange={(e) => void save({ status: e.target.value as SubjectStatus })}>
+          <Select className={CONTROL} value={subject.status} onChange={(e) => void save({ status: e.target.value as SubjectStatus })}>
             {(Object.keys(SUBJECT_STATUS_LABEL) as SubjectStatus[]).map((st) => (
               <option key={st} value={st}>
                 {SUBJECT_STATUS_LABEL[st]}
               </option>
             ))}
-          </select>
+          </Select>
         </Prop>
 
         <Prop label="Nota">
@@ -331,7 +332,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             </span>
           ))}
           {candidates.length > 0 && (
-            <select
+            <Select
               className={`${CONTROL} w-auto text-faint`}
               value=""
               aria-label="Agregar correlativa"
@@ -345,7 +346,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         </Prop>
 

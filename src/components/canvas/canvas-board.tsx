@@ -22,6 +22,9 @@ import type { CanvasDoc } from "@/lib/types";
 import { useWorkspace } from "@/lib/workspace";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { PromptModal } from "@/components/ui/prompt-modal";
+import { importFileAsNote } from "@/lib/import/import-file";
+import { toast } from "@/lib/undo";
+import { LOOSE_FOLDER } from "@/lib/types";
 import { CanvasActionsCtx, canvasNodeTypes, type CanvasActions } from "./canvas-nodes";
 import { CanvasToolbar } from "./canvas-toolbar";
 import { ColorPopover, ItemPicker, type PickedItem } from "./canvas-pickers";
@@ -340,6 +343,44 @@ function Board({ doc }: { doc: CanvasDoc }) {
     else addAt("pdf", undefined, undefined, { documentId: item.id, fileName: item.name });
   };
 
+  // Soltar o pegar archivos en el lienzo: imágenes quedan como tarjeta libre; PDF, Excel, etc. se vuelven notas.
+  const addFilesAt = useCallback(
+    async (files: File[], clientX?: number, clientY?: number) => {
+      let dx = 0;
+      for (const file of files) {
+        const x = clientX !== undefined ? clientX + dx : undefined;
+        if (file.type.startsWith("image/")) {
+          const ref = await saveFile(file);
+          addAt("archivo", x, clientY, { fileRef: ref, fileName: file.name || "imagen", mime: file.type });
+        } else {
+          try {
+            const noteId = await importFileAsNote(file, doc.subjectId ?? LOOSE_FOLDER);
+            addAt("nota", x, clientY, { noteId });
+          } catch (err) {
+            toast(err instanceof Error ? err.message : "No pudimos importar el archivo.", { tone: "error" });
+          }
+        }
+        dx += 40;
+      }
+    },
+    [addAt, doc.subjectId],
+  );
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const onPaste = (e: ClipboardEvent) => {
+      if ((e.target as HTMLElement).closest("input, textarea, [contenteditable='true']")) return;
+      const files = [...(e.clipboardData?.files ?? [])];
+      if (!files.length) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      void addFilesAt(files, r.left + r.width / 2, r.top + r.height / 2);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [addFilesAt]);
+
   const onImageChosen = async (file: File | undefined) => {
     if (!file) return;
     const ref = await saveFile(file);
@@ -376,7 +417,19 @@ function Board({ doc }: { doc: CanvasDoc }) {
 
   return (
     <CanvasActionsCtx.Provider value={actions}>
-      <div ref={wrapRef} className="uc-canvas relative h-full w-full">
+      <div
+        ref={wrapRef}
+        className="uc-canvas relative h-full w-full"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          const files = [...e.dataTransfer.files];
+          if (!files.length) return;
+          e.preventDefault();
+          void addFilesAt(files, e.clientX, e.clientY);
+        }}
+      >
         <ReactFlow<CanvasNode, CanvasEdge>
           nodes={nodes}
           edges={edges}

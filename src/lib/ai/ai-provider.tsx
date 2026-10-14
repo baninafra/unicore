@@ -12,9 +12,12 @@ import {
   type ChatMessage,
   type GenerateOptions,
   type LocalAI,
+  type AIEngine,
 } from "./use-local-ai";
+import { useAISettings } from "./ai-settings";
+import { chatStream, ensureServer, serverInfo, type ServerInfo } from "./server";
 
-// Modelos (WebLLM). Nunca se muestran en la interfaz.
+// Modelos locales (WebLLM). En automático se elige según la placa de video.
 const MODEL_7B = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
 const MODEL_3B_F16 = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 const MODEL_3B_F32 = "Qwen2.5-3B-Instruct-q4f32_1-MLC";
@@ -89,53 +92,108 @@ function describeProgress(report: InitProgressReport): { progress: number; text:
 }
 
 export function AIProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AIStatus>("idle");
+  const settings = useAISettings();
+
+  const [localStatus, setLocalStatus] = useState<AIStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("");
   const [error, setError] = useState<string>();
 
+  // IA potente (llama-server en esta PC).
+  const [server, setServer] = useState<ServerInfo | null | undefined>(undefined);
+  const [serverStatus, setServerStatus] = useState<AIStatus>("idle");
+  const [serverError, setServerError] = useState<string>();
+  const [serverProgress, setServerProgress] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
+
+  const engine: AIEngine =
+    settings.localModel === "servidor" || (settings.localModel === "auto" && server?.installed) ? "servidor" : "navegador";
   const engineRef = useRef<WebWorkerMLCEngine | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const loadedModelRef = useRef<string | null>(null);
   const loadingRef = useRef<Promise<void> | null>(null);
-  // Cola simple: una generación por vez, para que no choquen las llamadas al motor.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const engineKindRef = useRef(engine);
+  engineKindRef.current = engine;
+  // Cola simple: una generación por vez, para que no choquen las llamadas.
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
 
-  // Sin WebGPU no hay nada que cargar: lo sabemos apenas montamos.
+  // ¿Está instalada la IA potente? ¿Ya corre?
   useEffect(() => {
     let alive = true;
-    requestAdapter().then((adapter) => {
-      if (alive && !adapter) setStatus("unsupported");
+    serverInfo().then((info) => {
+      if (!alive) return;
+      setServer(info);
+      if (info?.running) setServerStatus("ready");
     });
     return () => {
       alive = false;
     };
   }, []);
 
-  useEffect(
-    () => () => {
-      workerRef.current?.terminate();
-      workerRef.current = null;
-      engineRef.current = null;
-    },
-    [],
-  );
+  // Sin WebGPU no hay modelo del navegador: lo sabemos apenas montamos.
+  useEffect(() => {
+    let alive = true;
+    requestAdapter().then((adapter) => {
+      if (alive && !adapter) setLocalStatus("unsupported");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const unloadLocal = useCallback(() => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    engineRef.current = null;
+    loadedModelRef.current = null;
+  }, []);
+
+  useEffect(() => unloadLocal, [unloadLocal]);
+
+  // Si cambia el modelo elegido, se libera el anterior; el nuevo se carga al usarlo.
+  useEffect(() => {
+    const loaded = loadedModelRef.current;
+    if (loaded && (engine === "servidor" || (settings.localModel !== "auto" && loaded !== settings.localModel))) {
+      unloadLocal();
+      setLocalStatus((s) => (s === "unsupported" ? s : "idle"));
+    }
+  }, [settings.localModel, engine, unloadLocal]);
+
+  const loadServer = useCallback(async (): Promise<void> => {
+    setServerStatus((s) => (s === "ready" || s === "generating" ? s : "loading"));
+    setServerError(undefined);
+    try {
+      await ensureServer((t) => setServerProgress(t));
+      setServerStatus((s) => (s === "generating" ? s : "ready"));
+      setServerProgress("");
+      serverInfo().then((info) => info && setServer(info));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : MSG_LOAD_FAILED;
+      setServerStatus("error");
+      setServerError(msg);
+      throw new Error(msg);
+    }
+  }, []);
 
   const runLoad = useCallback(async (): Promise<void> => {
     const adapter = await requestAdapter();
     if (!adapter) {
-      setStatus("unsupported");
+      setLocalStatus("unsupported");
       throw new Error(MSG_UNSUPPORTED);
     }
 
-    setStatus("loading");
+    setLocalStatus("loading");
     setError(undefined);
     setProgress(0);
     setProgressText("Preparando la IA…");
 
     const webllm = await import("@mlc-ai/web-llm");
-    const chosen = chooseModel(adapter);
-    // Si el 7B no carga (casi siempre por memoria), reintentamos con el 3B.
-    const candidates = chosen === MODEL_7B ? [MODEL_7B, MODEL_3B_F16] : [chosen];
+    const wanted = settingsRef.current.localModel;
+    const chosen = wanted === "auto" || wanted === "servidor" ? chooseModel(adapter) : wanted;
+    // En automático, si el 7B no carga (casi siempre por memoria), reintentamos con el 3B.
+    const candidates = wanted === "auto" && chosen === MODEL_7B ? [MODEL_7B, MODEL_3B_F16] : [chosen];
 
     for (const modelId of candidates) {
       const worker = new Worker(new URL("./webllm.worker.ts", import.meta.url), { type: "module" });
@@ -149,10 +207,11 @@ export function AIProvider({ children }: { children: ReactNode }) {
         });
         engineRef.current = engine;
         workerRef.current = worker;
-        writeStoredModel(modelId);
+        loadedModelRef.current = modelId;
+        if (wanted === "auto") writeStoredModel(modelId);
         setProgress(1);
         setProgressText("");
-        setStatus("ready");
+        setLocalStatus("ready");
         return;
       } catch (err) {
         worker.terminate();
@@ -160,20 +219,21 @@ export function AIProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    setStatus("error");
+    setLocalStatus("error");
     setError(MSG_LOAD_FAILED);
     throw new Error(MSG_LOAD_FAILED);
   }, []);
 
-  const load = useCallback((): Promise<void> => {
-    if (engineRef.current) return Promise.resolve();
+  const load = useCallback(async (): Promise<void> => {
+    if (engineKindRef.current === "servidor") return loadServer();
+    if (engineRef.current) return;
     if (!loadingRef.current) {
       loadingRef.current = runLoad().finally(() => {
         loadingRef.current = null;
       });
     }
     return loadingRef.current;
-  }, [runLoad]);
+  }, [runLoad, loadServer]);
 
   const enqueue = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
     const run = queueRef.current.then(task);
@@ -185,10 +245,34 @@ export function AIProvider({ children }: { children: ReactNode }) {
     (messages: ChatMessage[], opts: GenerateOptions = {}): Promise<string> =>
       enqueue(async () => {
         await load();
+
+        if (engineKindRef.current === "servidor") {
+          setServerStatus("generating");
+          const ctrl = new AbortController();
+          abortRef.current = ctrl;
+          try {
+            const r = await chatStream(messages, {
+              temperature: opts.temperature,
+              maxTokens: opts.maxTokens ? Math.max(opts.maxTokens, 1024) : undefined,
+              json: opts.json,
+              think: settingsRef.current.think && !opts.json,
+              signal: ctrl.signal,
+              onDelta: (d) => opts.onToken?.(d.content),
+            });
+            return r.content;
+          } catch (err) {
+            console.warn("[IA] falló la generación", err);
+            throw new Error(MSG_GENERATE_FAILED);
+          } finally {
+            abortRef.current = null;
+            setServerStatus((s) => (s === "generating" ? "ready" : s));
+          }
+        }
+
         const engine = engineRef.current;
         if (!engine) throw new Error(MSG_LOAD_FAILED);
 
-        setStatus("generating");
+        setLocalStatus("generating");
         let full = "";
         try {
           const request: ChatCompletionRequestStreaming = {
@@ -211,20 +295,37 @@ export function AIProvider({ children }: { children: ReactNode }) {
           console.warn("[IA] falló la generación", err);
           throw new Error(MSG_GENERATE_FAILED);
         } finally {
-          setStatus((s) => (s === "generating" ? "ready" : s));
+          setLocalStatus((s) => (s === "generating" ? "ready" : s));
         }
       }),
     [enqueue, load],
   );
 
   const stop = useCallback(() => {
-    // En el engine de worker es síncrono; el stream termina y generate() devuelve lo que llegó.
+    abortRef.current?.abort();
     engineRef.current?.interruptGenerate();
   }, []);
 
+  const setBusy = useCallback((busy: boolean) => {
+    if (engineKindRef.current === "servidor") setServerStatus(busy ? "generating" : "ready");
+  }, []);
+
+  const isServer = engine === "servidor";
+  const status: AIStatus = isServer ? serverStatus : localStatus;
   const value = useMemo<LocalAI>(
-    () => ({ status, progress, progressText, error, load, generate, stop }),
-    [status, progress, progressText, error, load, generate, stop],
+    () => ({
+      engine,
+      vision: isServer && !!server?.vision,
+      status,
+      progress: isServer ? 0 : progress,
+      progressText: isServer ? serverProgress : progressText,
+      error: isServer ? serverError : error,
+      load,
+      generate,
+      stop,
+      setBusy,
+    }),
+    [engine, isServer, server?.vision, status, progress, serverProgress, progressText, serverError, error, load, generate, stop, setBusy],
   );
 
   return <AIContext.Provider value={value}>{children}</AIContext.Provider>;

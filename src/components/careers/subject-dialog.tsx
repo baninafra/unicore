@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { deleteWithUndo } from "@/lib/undo";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
@@ -8,6 +9,7 @@ import { SUBJECT_STATUS_LABEL, type Degree, type Subject, type SubjectStatus } f
 import { deleteSubjectCascade, saveSubject, type SubjectInput } from "./actions";
 import { FormField } from "./form-field";
 import { periodIndex, periodLabel, sortSubjects } from "./plan";
+import { Select } from "@/components/ui/select";
 
 type Errors = Partial<Record<"name" | "grade" | "professorEmail" | "campusUrl" | "driveUrl", string>>;
 
@@ -147,8 +149,9 @@ export function SubjectDialog({
     setSaving(true);
     setSaveError(undefined);
     try {
-      await deleteSubjectCascade(subject.id);
+      const { id, name } = subject;
       onClose();
+      await deleteWithUndo(`Se eliminó «${name}»`, () => deleteSubjectCascade(id));
     } catch {
       setSaveError("No pudimos eliminar la materia. Probá de nuevo.");
       setSaving(false);
@@ -167,7 +170,7 @@ export function SubjectDialog({
   ) : (
     <>
       {subject && (
-        <button type="button" className="btn btn-danger mr-auto" onClick={() => setConfirmingDelete(true)} disabled={saving}>
+        <button type="button" className="btn btn-danger mr-auto" onClick={() => void remove()} disabled={saving}>
           <Trash2 strokeWidth={1.75} />
           Eliminar
         </button>
@@ -202,44 +205,44 @@ export function SubjectDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Carrera">
-              <select className="input" value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
+              <Select className="input" value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
                 {degrees.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </FormField>
 
             <FormField label="Estado">
-              <select className="input" value={status} onChange={(e) => setStatus(e.target.value as SubjectStatus)}>
+              <Select className="input" value={status} onChange={(e) => setStatus(e.target.value as SubjectStatus)}>
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {SUBJECT_STATUS_LABEL[s]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </FormField>
 
             <FormField label="Año">
-              <select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <Select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     {y}.º año
                   </option>
                 ))}
-              </select>
+              </Select>
             </FormField>
 
             <FormField label="Cuatrimestre">
-              <select
+              <Select
                 className="input"
                 value={semester}
                 onChange={(e) => setSemester(Number(e.target.value) as 1 | 2)}
               >
                 <option value={1}>1.º cuatrimestre</option>
                 <option value={2}>2.º cuatrimestre</option>
-              </select>
+              </Select>
             </FormField>
           </div>
 

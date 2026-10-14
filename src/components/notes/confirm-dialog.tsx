@@ -1,11 +1,11 @@
 "use client";
 
-import { Modal } from "@/components/ui/modal";
+import { useEffect, useRef } from "react";
+import { deleteWithUndo } from "@/lib/undo";
 
-// Confirmación antes de borrar algo.
+// Antes preguntaba "¿Eliminar…?". Ahora borra al toque y muestra "Deshacer" (no pregunta dos veces).
 export function ConfirmDialog({
   open,
-  title,
   text,
   confirmLabel,
   onConfirm,
@@ -18,24 +18,17 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={title}
-      width={420}
-      footer={
-        <>
-          <button type="button" className="btn" onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="button" className="btn btn-danger" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </>
-      }
-    >
-      <p className="t-body text-muted">{text}</p>
-    </Modal>
-  );
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      fired.current = false;
+      return;
+    }
+    if (fired.current) return;
+    fired.current = true;
+    const name = text.match(/["«]([^"»]+)["»]/)?.[1];
+    void deleteWithUndo(name ? `Se eliminó «${name}»` : confirmLabel.replace(/^Eliminar\s*/i, "Se eliminó "), onConfirm).catch(() => undefined);
+    onClose();
+  }, [open, text, confirmLabel, onConfirm, onClose]);
+  return null;
 }

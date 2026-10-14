@@ -15,8 +15,7 @@ import {
   Settings,
   Shapes,
   Terminal,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, Lightbulb } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace";
 import { isDesktop, openDataFolder } from "@/lib/desktop";
 
@@ -47,6 +46,7 @@ export function Ribbon() {
       <RibbonButton icon={CalendarCheck} label="Nota del día" onClick={() => runCommand("diario:hoy")} />
       <RibbonButton icon={CalendarDays} label="Calendario" active={activeView.type === "calendario"} onClick={() => openView({ type: "calendario" })} />
       <RibbonButton icon={GraduationCap} label="Mis carreras" active={activeView.type === "carreras"} onClick={() => openView({ type: "carreras" })} />
+      <RibbonButton icon={Lightbulb} label="Ideas" active={activeView.type === "ideas"} onClick={() => openView({ type: "ideas" })} />
       <RibbonButton icon={Layers} label="Repaso" active={activeView.type === "repaso"} onClick={() => openView({ type: "repaso" })} />
       <RibbonButton icon={Inbox} label="Mails" active={activeView.type === "mails"} onClick={() => openView({ type: "mails" })} />
       <RibbonButton icon={GitFork} label="Grafo" active={activeView.type === "grafo"} onClick={() => openView({ type: "grafo" })} />

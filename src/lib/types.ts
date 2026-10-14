@@ -38,8 +38,10 @@ export interface Task {
   id: string;
   degreeId?: string;
   subjectId?: string;
+  noteId?: string; // clase o nota enlazada
   title: string;
-  description?: string;
+  description?: string; // texto plano (búsqueda, IA, vistas previas)
+  content?: unknown[]; // detalle completo en bloques (imágenes, listas, tablas…)
   aiSummary?: string;
   type: TaskType;
   status: TaskStatus;
@@ -55,6 +57,7 @@ export interface Task {
 export const DAILY_FOLDER = "__diario";
 export const TEMPLATES_FOLDER = "__plantillas";
 export const LOOSE_FOLDER = "__notas"; // notas sueltas, sin materia
+export const IDEAS_FOLDER = "__ideas"; // ideas (vista estilo Keep)
 
 export interface Note {
   id: string;

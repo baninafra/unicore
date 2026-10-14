@@ -5,7 +5,7 @@
 // (plainTextCache, links, tags, aliases).
 
 import { normalizeText } from "@/lib/ai/rag";
-import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
 
 type Obj = Record<string, unknown>;
 
@@ -119,6 +119,7 @@ export function specialFolderName(subjectId: string): string | undefined {
   if (subjectId === DAILY_FOLDER) return "Diario";
   if (subjectId === LOOSE_FOLDER) return "Notas sueltas";
   if (subjectId === TEMPLATES_FOLDER) return "Plantillas";
+  if (subjectId === IDEAS_FOLDER) return "Ideas";
   return undefined;
 }
 

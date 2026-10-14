@@ -13,6 +13,7 @@
 //! para que otras IAs lean y escriban en esta base. Lo que escribe el MCP se marca con
 //! `source = 'mcp'` y la app lo trae con `db_changes_since`.
 
+mod ia;
 mod mcp;
 
 use std::collections::HashMap;
@@ -224,6 +225,8 @@ pub fn run() {
         .setup(|app| {
             let store = open_store()?;
             app.manage(store);
+            app.manage(ia::Ia::default());
+            app.manage(ia::Downloads::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -236,8 +239,24 @@ pub fn run() {
             file_write,
             file_read,
             file_delete,
-            open_data_folder
+            open_data_folder,
+            ia::ia_info,
+            ia::ia_start,
+            ia::ia_stop,
+            ia::ia_log,
+            ia::web_get,
+            ia::ia_download,
+            ia::ia_download_status,
+            ia::ia_remove,
+            ia::ia_free_space,
+            ia::save_export
         ])
-        .run(tauri::generate_context!())
-        .expect("no se pudo iniciar UniCore");
+        .build(tauri::generate_context!())
+        .expect("no se pudo iniciar UniCore")
+        .run(|app, event| {
+            // Al cerrar la app se apaga también el servidor de IA.
+            if let tauri::RunEvent::Exit = event {
+                ia::ia_stop(app.state::<ia::Ia>());
+            }
+        });
 }

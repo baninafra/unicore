@@ -179,7 +179,7 @@ function byUnit(notes: Note[], prefix = ""): Section[] {
   return [...units.entries()].map(([u, ns]) => ({ title: `${prefix ? `${prefix} · ` : ""}Unidad ${u}`, notes: ns }));
 }
 
-async function collect(target: ExportTarget): Promise<{ title: string; subtitle?: string; sections: Section[] }> {
+export async function collect(target: ExportTarget): Promise<{ title: string; subtitle?: string; sections: Section[] }> {
   if (target.kind === "note") {
     const note = await db.notes.get(target.id);
     if (!note) throw new Error("No encontramos la nota.");

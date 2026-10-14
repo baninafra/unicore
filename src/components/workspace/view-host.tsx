@@ -12,6 +12,8 @@ import { MateriaView } from "@/views/materia-view";
 import { BusquedaView } from "@/views/busqueda-view";
 import { WebView } from "@/views/web-view";
 import { BaseView } from "@/views/base-view";
+import { IdeasView } from "@/views/ideas-view";
+import { PlantillasView } from "@/views/plantillas-view";
 import { AjustesView } from "@/views/ajustes-view";
 import { useWorkspace } from "@/lib/workspace";
 
@@ -80,6 +82,10 @@ export function ViewHost({ view }: { view: ViewState }) {
       return <SlidesView id={view.id} />;
     case "base":
       return <BaseView />;
+    case "ideas":
+      return <IdeasView />;
+    case "plantillas":
+      return <PlantillasView />;
     case "ajustes":
       return <AjustesView section={view.section} />;
     case "vacia":

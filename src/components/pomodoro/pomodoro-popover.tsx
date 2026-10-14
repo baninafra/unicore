@@ -21,6 +21,7 @@ import {
   type PomodoroMode,
   type PomodoroState,
 } from "./pomodoro-store";
+import { Select } from "@/components/ui/select";
 
 // Panel del reloj: se abre hacia arriba desde la barra de estado, alineado a la derecha.
 export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
@@ -60,14 +61,14 @@ export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
         <span className="t-small text-faint">{phaseLabel}</span>
       </div>
 
-      <select className="input h-7 px-2" value={s.subjectId ?? ""} onChange={(e) => setSubject(e.target.value || null)} aria-label="Materia">
+      <Select className="input h-7 px-2" value={s.subjectId ?? ""} onChange={(e) => setSubject(e.target.value || null)} aria-label="Materia">
         <option value="">Sin materia</option>
         {cursando.map((x) => (
           <option key={x.id} value={x.id}>
             {x.name}
           </option>
         ))}
-      </select>
+      </Select>
 
       <div className="num t-timer text-center" style={{ fontSize: 40, lineHeight: "44px" }}>
         {formatClock(remaining)}

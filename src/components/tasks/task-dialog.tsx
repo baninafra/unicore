@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
+import { deleteWithUndo } from "@/lib/undo";
 import { Sparkles, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import clsx from "clsx";
@@ -10,6 +11,18 @@ import { db, newId, nowIso } from "@/lib/db";
 import { useAllSubjects, useDegrees } from "@/lib/hooks";
 import { TASK_TYPE_LABEL, type Task, type TaskPriority, type TaskStatus, type TaskType } from "@/lib/types";
 import { END_OF_DAY, PRIORITY_LABEL, STATUS_LABEL, stripUndefined } from "./task-meta";
+import { Select } from "@/components/ui/select";
+import dynamic from "next/dynamic";
+import { markdownToBlocks } from "@/lib/notes/md-blocks";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useWorkspace } from "@/lib/workspace";
+import { subjectNotesForLinking } from "@/lib/tasks/class-tasks";
+import { plainTextOf, type BlockLike } from "@/lib/notes/index-note";
+
+const RichField = dynamic(() => import("@/components/notes/rich-field").then((m) => m.RichField), {
+  ssr: false,
+  loading: () => <div className="min-h-[200px]" />,
+});
 
 // Diálogo global de tarea: crear, editar y eliminar. Se monta sólo cuando está abierto,
 // así cada apertura arranca con el formulario limpio o con la tarea elegida.
@@ -50,11 +63,21 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
   const [type, setType] = useState<TaskType>(task?.type ?? "TAREA");
   const [degreeId, setDegreeId] = useState(task?.degreeId ?? (degreeFilter !== "all" ? degreeFilter : ""));
   const [subjectId, setSubjectId] = useState(task?.subjectId ?? "");
+  const [noteId, setNoteId] = useState(task?.noteId ?? "");
+  const linkable = useLiveQuery(() => (subjectId ? subjectNotesForLinking(subjectId) : Promise.resolve([])), [subjectId]) ?? [];
+  const { openView } = useWorkspace();
   const [date, setDate] = useState(task?.dueDate ? toDateInput(task.dueDate) : "");
   const [time, setTime] = useState(task?.dueDate ? toTimeInput(task.dueDate) : "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "MEDIUM");
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? "TODO");
   const [description, setDescription] = useState(task?.description ?? "");
+  // Detalle en bloques: si la tarea vieja sólo tenía texto, se convierte.
+  const [initialContent] = useState<unknown[]>(() => task?.content ?? (task?.description ? markdownToBlocks(task.description) : []));
+  const [content, setContent] = useState<unknown[]>(initialContent);
+  const onContent = useCallback((blocks: unknown[]) => {
+    setContent(blocks);
+    setDescription(plainTextOf(blocks as BlockLike[]));
+  }, []);
   const [error, setError] = useState<string>();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -96,10 +119,12 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
         type,
         degreeId: degreeId || undefined,
         subjectId: subjectId || undefined,
+        noteId: subjectId && noteId ? noteId : "",
         dueDate: buildDueIso(),
         priority,
         status,
         description: description.trim() || undefined,
+        content: description.trim() || content.some((b) => (b as { type?: string }).type === "image") ? content : [],
       };
       if (task?.id) {
         const current = await db.tasks.get(task.id);
@@ -129,8 +154,9 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
 
   async function onDelete() {
     if (!task?.id) return;
-    await db.tasks.delete(task.id);
+    const id = task.id;
     onClose();
+    await deleteWithUndo(`Se eliminó «${task.title ?? "la tarea"}»`, () => db.tasks.delete(id));
   }
 
   const footer = confirmingDelete ? (
@@ -146,7 +172,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
   ) : (
     <>
       {editing && (
-        <button className="btn btn-ghost btn-sm mr-auto" onClick={() => setConfirmingDelete(true)}>
+        <button className="btn btn-ghost btn-sm mr-auto" onClick={() => void onDelete()}>
           <Trash2 strokeWidth={1.75} />
           Eliminar
         </button>
@@ -161,7 +187,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
   );
 
   return (
-    <Modal open onClose={onClose} title={editing ? "Editar tarea" : "Nueva tarea"} footer={footer} width={520}>
+    <Modal open onClose={onClose} title={editing ? "Editar tarea" : "Nueva tarea"} footer={footer} width={760} className="max-h-[90vh]">
       <form id="task-form" className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
         <input
           className={clsx("w-full bg-transparent t-h2 outline-none placeholder:text-faint", error && "text-rose")}
@@ -182,36 +208,61 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
 
         <div className="flex flex-col">
           <Prop label="Tipo">
-            <select className={CONTROL} value={type} onChange={(e) => setType(e.target.value as TaskType)}>
+            <Select className={CONTROL} value={type} onChange={(e) => setType(e.target.value as TaskType)}>
               {(Object.keys(TASK_TYPE_LABEL) as TaskType[]).map((t) => (
                 <option key={t} value={t}>
                   {TASK_TYPE_LABEL[t]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Prop>
 
           <Prop label="Carrera">
-            <select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
+            <Select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
               <option value="">Sin carrera</option>
               {degrees.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Prop>
 
           <Prop label="Materia">
-            <select className={CONTROL} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+            <Select className={CONTROL} value={subjectId} onChange={(e) => { setSubjectId(e.target.value); setNoteId(""); }}>
               <option value="">Sin materia</option>
               {visibleSubjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {!degreeId && degreeName(s.degreeId) ? `${s.name} · ${degreeName(s.degreeId)}` : s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Prop>
+
+          {subjectId && (
+            <Prop label="Clase">
+              <Select className={CONTROL} value={noteId} onChange={(e) => setNoteId(e.target.value)} aria-label="Clase o nota enlazada">
+                <option value="">Sin enlazar</option>
+                {linkable.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.title || "Sin título"}
+                  </option>
+                ))}
+              </Select>
+              {noteId && (
+                <button
+                  type="button"
+                  className="flex-none text-[12px] text-primary-soft hover:underline"
+                  onClick={() => {
+                    onClose();
+                    openView({ type: "nota", id: noteId }, "tab");
+                  }}
+                >
+                  Abrir
+                </button>
+              )}
+            </Prop>
+          )}
 
           <Prop label="Vence">
             <input type="date" className={CONTROL} value={date} onChange={(e) => setDate(e.target.value)} aria-label="Fecha" />
@@ -227,34 +278,33 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
           </Prop>
 
           <Prop label="Prioridad">
-            <select className={CONTROL} value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+            <Select className={CONTROL} value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
               {(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABEL[p]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Prop>
 
           <Prop label="Estado">
-            <select className={CONTROL} value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
+            <Select className={CONTROL} value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
               {statusOptions.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABEL[s]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Prop>
         </div>
 
-        <textarea
-          className="input min-h-[72px] border-transparent bg-transparent px-2 py-1.5 hover:bg-surface-raised"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          placeholder="Descripción"
-          aria-label="Descripción"
-        />
+        <div className="rounded-md border border-border bg-bg/40 py-1 focus-within:border-primary">
+          <RichField
+            initial={initialContent}
+            onChange={onContent}
+            placeholder="Detalles, consignas, links, fotos… Escribí / para agregar listas, tablas o imágenes"
+          />
+        </div>
 
         {fromMail && (
           <details className="rounded-md border border-border px-3 py-2">

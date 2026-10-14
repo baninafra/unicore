@@ -12,6 +12,8 @@ const STATIC_TITLES: Partial<Record<ViewState["type"], string>> = {
   carreras: "Mis carreras",
   busqueda: "Búsqueda",
   base: "Base de notas",
+  ideas: "Ideas",
+  plantillas: "Plantillas",
   ajustes: "Ajustes",
   vacia: "Nueva pestaña",
 };

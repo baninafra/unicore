@@ -136,3 +136,43 @@
   background-color: var(--amber);
   color: #111;
 }
+
+/* Imágenes: se agarran y se mueven a cualquier parte de la nota */
+.unicore-editor [data-content-type="image"] img {
+  cursor: grab;
+}
+.uc-drop-line {
+  position: fixed;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--selection-node);
+  pointer-events: none;
+  z-index: 79;
+}
+/* Alineación de imágenes (izquierda, centro, derecha) */
+.unicore-editor .bn-block-content[data-content-type="image"] {
+  display: flex !important;
+  width: 100% !important;
+}
+.unicore-editor .bn-block-content[data-content-type="image"][data-text-alignment="center"] > .bn-file-block-content-wrapper {
+  margin-inline: auto;
+}
+.unicore-editor .bn-block-content[data-content-type="image"][data-text-alignment="right"] > .bn-file-block-content-wrapper {
+  margin-left: auto;
+}
+/* Editor dentro del detalle de una idea y de una tarea */
+.uc-idea-editor .bn-container,
+.uc-idea-editor .bn-editor,
+.uc-rich-field .bn-container,
+.uc-rich-field .bn-editor {
+  background: transparent !important;
+}
+.uc-idea-editor .bn-editor {
+  padding-inline: 16px !important;
+  font-size: 15px;
+}
+.uc-rich-field .bn-editor {
+  padding-inline: 10px !important;
+  min-height: 180px;
+}

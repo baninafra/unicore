@@ -16,6 +16,8 @@
   --on-primary: #ffffff;
   --primary-soft: #a5b4fc;
   --primary-tint: #25264a;
+  --selection: rgba(129, 140, 248, 0.42);
+  --selection-node: rgba(129, 140, 248, 0.18);
   --mint: #7dd3c0;
   --mint-tint: #1a3330;
   --rose: #fb7185;
@@ -42,6 +44,8 @@
   --primary-fill-hover: #4346d0;
   --primary-soft: #4338ca;
   --primary-tint: #eceeff;
+  --selection: rgba(99, 102, 241, 0.26);
+  --selection-node: rgba(99, 102, 241, 0.1);
   --mint: #0f766e;
   --mint-tint: #e3f6f1;
   --rose: #be123c;
@@ -100,8 +104,32 @@ body {
   border-color: var(--border);
 }
 
+/* Selección de texto: violeta translúcido, el texto conserva su color. */
+select { color-scheme: dark; }
+:root[data-theme="light"] select { color-scheme: light; }
+select option { background: var(--surface); color: var(--text); }
+
 ::selection {
-  background: var(--primary-tint);
+  background: var(--selection);
+  color: inherit;
+}
+input::selection,
+textarea::selection {
+  background: var(--selection);
+}
+/* Bloques e imágenes seleccionados en el editor */
+.ProseMirror-selectednode,
+.bn-block-outer:has(> .bn-block > .ProseMirror-selectednode) {
+  outline: none;
+}
+.ProseMirror-selectednode > *,
+.bn-editor .ProseMirror-selectednode {
+  background: var(--selection-node);
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.bn-editor .bn-block-content.ProseMirror-selectednode {
+  box-shadow: 0 0 0 2px var(--primary);
 }
 
 :focus-visible {
@@ -112,6 +140,25 @@ body {
 }
 
 @layer components {
+/* Selector propio (components/ui/select.tsx) */
+.uc-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.uc-select:hover:not(:disabled) { border-color: var(--border-strong); }
+.uc-select[aria-expanded="true"], .uc-select:focus-visible { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-tint); }
+.uc-select:disabled { opacity: 0.5; cursor: default; }
+
 /* Tipografía */
 .t-display { font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em; }
 .t-timer { font-size: 32px; line-height: 36px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }

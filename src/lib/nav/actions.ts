@@ -3,7 +3,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { db, newId, nowIso } from "@/lib/db";
 import { createNote, plainTextOf } from "@/components/notes/note-utils";
-import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Note } from "@/lib/types";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Note } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
 import { foldText } from "./fold";
 
@@ -24,11 +24,12 @@ export function runSafe(fn: () => Promise<unknown>): void {
 export const FOLDER_NAME: Record<string, string> = {
   [DAILY_FOLDER]: "Diario",
   [LOOSE_FOLDER]: "Notas",
+  [IDEAS_FOLDER]: "Ideas",
   [TEMPLATES_FOLDER]: "Plantillas",
 };
 
 export function isSpecialFolder(id: string) {
-  return id === DAILY_FOLDER || id === TEMPLATES_FOLDER || id === LOOSE_FOLDER;
+  return id === DAILY_FOLDER || id === TEMPLATES_FOLDER || id === LOOSE_FOLDER || id === IDEAS_FOLDER;
 }
 
 // ---------- Texto y plantillas ----------

@@ -32,6 +32,7 @@ import {
   type FilterOp,
 } from "@/lib/panes/base-query";
 import type { Note } from "@/lib/types";
+import { Select } from "@/components/ui/select";
 
 const FIELD_SELECT =
   "h-7 rounded-md border border-border bg-surface-raised px-2 text-[13px] text-text outline-none hover:border-border-strong focus:border-primary";
@@ -190,7 +191,7 @@ export function BaseView() {
           )}
         </div>
 
-        <select
+        <Select
           aria-label="Agrupar por"
           value={config.groupBy}
           onChange={(e) => setConfig((c) => ({ ...c, groupBy: e.target.value }))}
@@ -203,7 +204,7 @@ export function BaseView() {
               {p.key}
             </option>
           ))}
-        </select>
+        </Select>
 
         <span className="num ml-auto text-[12px] text-faint">
           {total} {total === 1 ? "nota" : "notas"}
@@ -213,7 +214,7 @@ export function BaseView() {
       {showFilters && (
         <div className="mb-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <Select
               aria-label="Campo del filtro"
               value={draft.field}
               onChange={(e) => setDraft({ ...draft, field: e.target.value })}
@@ -229,8 +230,8 @@ export function BaseView() {
                   {p.key}
                 </option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               aria-label="Operador"
               value={draft.op}
               onChange={(e) => setDraft({ ...draft, op: e.target.value as FilterOp })}
@@ -241,7 +242,7 @@ export function BaseView() {
                   {op}
                 </option>
               ))}
-            </select>
+            </Select>
             {needsValue && (
               <input
                 aria-label="Valor del filtro"

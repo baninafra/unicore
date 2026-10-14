@@ -4,7 +4,7 @@
 import { db, newId, nowIso } from "@/lib/db";
 import { syncInlineCards } from "./cards";
 import { indexNote, mapWikilinks, normalizeTag, type BlockLike } from "./index-note";
-import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note, type NoteSnapshot } from "@/lib/types";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note, type NoteSnapshot } from "@/lib/types";
 
 export const SNAPSHOT_EVERY_MS = 5 * 60 * 1000;
 export const MAX_SNAPSHOTS = 50;
@@ -109,6 +109,7 @@ export async function deleteNote(noteId: string): Promise<void> {
 export function noteLocationLabel(note: Pick<Note, "subjectId">): string {
   if (note.subjectId === DAILY_FOLDER) return "Diario";
   if (note.subjectId === LOOSE_FOLDER) return "Notas";
+  if (note.subjectId === IDEAS_FOLDER) return "Ideas";
   if (note.subjectId === TEMPLATES_FOLDER) return "Plantillas";
   return "";
 }

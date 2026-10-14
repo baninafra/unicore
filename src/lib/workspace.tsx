@@ -24,6 +24,8 @@ export type ViewState =
   | { type: "web"; url: string }
   | { type: "slides"; id: string }
   | { type: "base" } // tabla de notas filtrable por propiedades (Bases)
+  | { type: "ideas" } // ideas estilo Keep
+  | { type: "plantillas" }
   | { type: "ajustes"; section?: string }
   | { type: "vacia" };
 
@@ -51,6 +53,24 @@ export type LeftView = "explorer" | "search" | "bookmarks";
 export type RightView = "ia" | "backlinks" | "outgoing" | "outline" | "tags" | "properties";
 
 export type OpenMode = "current" | "tab" | "split";
+
+// Clic del medio: mientras corre `fn`, todo lo que se abra va a una pestaña nueva.
+let forcedMode: OpenMode | null = null;
+export function withOpenMode(mode: OpenMode, fn: () => void) {
+  forcedMode = mode;
+  try {
+    fn();
+  } finally {
+    forcedMode = null;
+  }
+}
+// Si durante el clic simulado se abrió algo (para saber si el clic del medio sirvió).
+let openedDuringForce = false;
+export function consumeOpened() {
+  const v = openedDuringForce;
+  openedDuringForce = false;
+  return v;
+}
 
 // ---------- Comandos ----------
 
@@ -171,7 +191,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setLayout((l) => ({ ...l, panes: l.panes.map((p) => (p.id === paneId ? fn(p) : p)) }));
   }, []);
 
-  const openView = useCallback((view: ViewState, mode: OpenMode = "current") => {
+  const openView = useCallback((view: ViewState, requested: OpenMode = "current") => {
+    const mode = forcedMode && requested === "current" ? forcedMode : requested;
+    if (forcedMode) openedDuringForce = true;
     setLayout((l) => {
       const pane = l.panes.find((p) => p.id === l.activePaneId) ?? l.panes[0];
       if (mode === "split") {

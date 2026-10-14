@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import type { QuizQuestion } from "@/lib/ai/prompts";
 
 // Examen de autoevaluación: corrige al elegir, muestra la explicación y el puntaje final.
-export function QuizModal({ questions, onClose }: { questions: QuizQuestion[]; onClose: () => void }) {
+export function QuizModal({ questions, onClose, title }: { questions: QuizQuestion[]; onClose: () => void; title?: string }) {
   const [answers, setAnswers] = useState<(number | undefined)[]>(() => questions.map(() => undefined));
 
   const answered = answers.filter((a) => a !== undefined).length;
@@ -24,7 +24,7 @@ export function QuizModal({ questions, onClose }: { questions: QuizQuestion[]; o
     <Modal
       open
       onClose={onClose}
-      title="Tomame examen"
+      title={title ? `Cuestionario: ${title}` : "Tomame examen"}
       width={640}
       footer={
         <>

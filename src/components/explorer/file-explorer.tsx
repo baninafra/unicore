@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, Columns2, Copy, ExternalLink, FileDown, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, Columns2, Copy, ExternalLink, FileDown, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
+import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
 import { useWorkspace, sameView, type ViewState } from "@/lib/workspace";
 import { useOpen } from "@/components/workspace/use-open";
@@ -27,7 +28,8 @@ import {
   type ModifierEvent,
 } from "@/lib/nav/actions";
 import { MoveDialog } from "./move-dialog";
-import { exportToPdf, type ExportTarget } from "@/lib/export/export-pdf";
+import { type ExportTarget } from "@/lib/export/export-pdf";
+import { exportAs, FORMAT_LABEL } from "@/lib/export/export-formats";
 import { allKeys, ancestorsOf, buildTree, defaultOpen, useBookmarkSet, useExplorerData, type SortMode, type TreeNode } from "./tree";
 
 const LS_OPEN = "uc-explorer-open";
@@ -60,7 +62,7 @@ const safe = runSafe;
 // Árbol del explorador (barra izquierda). Clic abre, Ctrl+clic pestaña nueva, Ctrl+Alt+clic dividir.
 export function FileExplorer() {
   const { activeView, openView } = useWorkspace();
-  const { degreeFilter } = useAppState();
+  const { degreeFilter, openTaskDialog } = useAppState();
   const open = useOpen();
   const data = useExplorerData();
   const bookmarks = useBookmarkSet();
@@ -166,7 +168,12 @@ export function FileExplorer() {
       onSelect: () => setDialog({ type: "delete", kind, id, title: node.label }),
     });
     const sep: MenuItem = { type: "separator" };
-    const pdf = (target: ExportTarget): MenuItem => ({ label: "Exportar a PDF", icon: FileDown, onSelect: () => safe(() => exportToPdf(target)) });
+    const pdf = (target: ExportTarget): MenuItem[] =>
+      (["pdf", "docx", "xlsx", "md"] as const).map((f) => ({
+        label: `Exportar a ${FORMAT_LABEL[f]}`,
+        icon: FileDown,
+        onSelect: () => safe(() => exportAs(f, target)),
+      }));
     const item = node.item;
 
     switch (item.kind) {
@@ -175,15 +182,18 @@ export function FileExplorer() {
           return [
             { label: "Nota del día", icon: CalendarDays, onSelect: () => safe(async () => openView({ type: "nota", id: await openDailyNote(new Date()) })) },
             sep,
-            pdf({ kind: "folder", folder: DAILY_FOLDER }),
+            ...pdf({ kind: "folder", folder: DAILY_FOLDER }),
           ];
         if (item.folder === TEMPLATES_FOLDER)
-          return [{ label: "Nueva plantilla", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(TEMPLATES_FOLDER) })) }];
+          return [
+            { label: "Ver plantillas", icon: FilePlus, onSelect: () => openView({ type: "plantillas" }) },
+            { label: "Nueva plantilla", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(TEMPLATES_FOLDER) })) },
+          ];
         return [
           { label: "Nueva nota", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(LOOSE_FOLDER) })) },
           { label: "Nuevo lienzo", icon: Shapes, onSelect: () => safe(async () => openView({ type: "canvas", id: await addCanvas(LOOSE_FOLDER) })) },
           sep,
-          pdf({ kind: "folder", folder: LOOSE_FOLDER }),
+          ...pdf({ kind: "folder", folder: LOOSE_FOLDER }),
         ];
       case "subject":
         return [
@@ -192,7 +202,7 @@ export function FileExplorer() {
           sep,
           ...(node.view ? [{ label: "Abrir materia", onSelect: () => open(node.view!) }] : []),
           rename("subject", item.id, node.label),
-          pdf({ kind: "subject", id: item.id }),
+          ...pdf({ kind: "subject", id: item.id }),
           sep,
           bm("subject", item.id),
         ];
@@ -211,9 +221,18 @@ export function FileExplorer() {
           sep,
           rename("note", item.id, node.label),
           { label: "Duplicar", icon: Copy, onSelect: () => safe(() => duplicateNote(item.id)) },
+          {
+            label: "Crear tarea desde esta nota",
+            icon: ListPlus,
+            onSelect: () =>
+              safe(async () => {
+                const n = await db.notes.get(item.id);
+                if (n) openTaskDialog(await taskFromNote(n));
+              }),
+          },
           { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "note", id: item.id }) },
           bm("note", item.id),
-          pdf({ kind: "note", id: item.id }),
+          ...pdf({ kind: "note", id: item.id }),
           sep,
           remove("note", item.id),
         ];
@@ -231,7 +250,7 @@ export function FileExplorer() {
       case "pdf":
         return [openTab(node.view!), sep, bm("document", item.id)];
       case "degree":
-        return [pdf({ kind: "degree", id: item.id })];
+        return [...pdf({ kind: "degree", id: item.id })];
       default:
         return [];
     }

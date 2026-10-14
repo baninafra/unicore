@@ -8,6 +8,7 @@ import { useAllSubjects, useDegrees } from "@/lib/hooks";
 import type { Flashcard } from "@/lib/types";
 import { QuickCardForm } from "./quick-card-form";
 import { endOfToday, minutesFor, plural } from "./review-utils";
+import { Select } from "@/components/ui/select";
 
 export interface ReviewRun {
   cards: Flashcard[];
@@ -43,7 +44,7 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
   return (
     <div className="flex flex-col items-center gap-8">
       <div className="t-small flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted">
-        <select
+        <Select
           aria-label="Carrera"
           className={TEXT_SELECT}
           value={degreeId}
@@ -58,16 +59,16 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
               {d.name}
             </option>
           ))}
-        </select>
+        </Select>
         <span className="text-faint">/</span>
-        <select aria-label="Materia" className={TEXT_SELECT} value={selectedSubject} onChange={(e) => setSubjectId(e.target.value)}>
+        <Select aria-label="Materia" className={TEXT_SELECT} value={selectedSubject} onChange={(e) => setSubjectId(e.target.value)}>
           <option value="">Todas las materias</option>
           {degreeSubjects.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
           ))}
-        </select>
+        </Select>
         <span className="text-faint">/</span>
         <label className="flex cursor-pointer items-center gap-1.5">
           <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={todayOnly} onChange={(e) => setTodayOnly(e.target.checked)} />

@@ -6,7 +6,7 @@ import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
 
 export type MenuItem =
-  | { type?: "item"; label: string; icon?: LucideIcon; hint?: string; danger?: boolean; disabled?: boolean; onSelect: () => void }
+  | { type?: "item"; label: string; icon?: LucideIcon; hint?: string; danger?: boolean; disabled?: boolean; onSelect: () => void | Promise<void> }
   | { type: "separator" };
 
 // Menú flotante (clic derecho o botón "…"). Se cierra con Esc, clic afuera o al elegir.
@@ -53,6 +53,8 @@ export function Menu({ x, y, items, onClose }: { x: number; y: number; items: Me
             key={i}
             role="menuitem"
             disabled={it.disabled}
+            // Mantiene el foco y la selección donde estaban (para Cortar, Copiar y Pegar).
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               onClose();
               it.onSelect();

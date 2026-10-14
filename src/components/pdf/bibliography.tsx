@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { deleteWithUndo } from "@/lib/undo";
 import { BookOpen, Check, Copy, Download, Eye, FileText, NotebookPen, Trash } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -70,10 +71,12 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
 
   async function removeDocument(doc: SubjectDocument) {
     try {
-      await db.transaction("rw", db.documents, db.files, async () => {
-        await db.documents.delete(doc.id);
-        if (doc.fileId) await db.files.delete(doc.fileId);
-      });
+      await deleteWithUndo(`Se eliminó «${doc.fileName}»`, () =>
+        db.transaction("rw", db.documents, db.files, async () => {
+          await db.documents.delete(doc.id);
+          if (doc.fileId) await db.files.delete(doc.fileId);
+        }),
+      );
       setConfirmingId(null);
     } catch {
       setError("No pudimos eliminar el documento. Probá de nuevo.");
@@ -146,7 +149,7 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
                       Abrir como apunte
                     </button>
                   )}
-                  <button className="btn btn-ghost btn-sm" onClick={() => setConfirmingId(doc.id)}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => void removeDocument(doc)}>
                     <Trash strokeWidth={1.75} />
                     Eliminar
                   </button>

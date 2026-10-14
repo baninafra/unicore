@@ -2,9 +2,9 @@
 
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CalendarDays, FileText, Folder, GraduationCap, LayoutTemplate, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, FileText, Folder, GraduationCap, LayoutTemplate, Lightbulb, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
-import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type Subject, type SubjectDocument } from "@/lib/types";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
 
 export type SortMode = "nombre" | "modificacion" | "creacion";
@@ -126,7 +126,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     (n) => n.title,
     "nombre",
   );
-  const isLoose = (sid: string | undefined) => !sid || sid === LOOSE_FOLDER || (!subjectIds.has(sid) && sid !== DAILY_FOLDER && sid !== TEMPLATES_FOLDER);
+  const isLoose = (sid: string | undefined) => !sid || sid === LOOSE_FOLDER || (!subjectIds.has(sid) && sid !== DAILY_FOLDER && sid !== TEMPLATES_FOLDER && sid !== IDEAS_FOLDER);
   const looseNotes = sortItems(
     data.notes.filter((n) => isLoose(n.subjectId)),
     (n) => n.title,
@@ -155,9 +155,23 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       children: [...looseNotes.map(noteNode), ...looseCanvases.map((c) => canvasNode(c, LOOSE_FOLDER))],
     },
     {
+      key: "f:ideas",
+      label: "Ideas",
+      icon: Lightbulb,
+      view: { type: "ideas" },
+      item: { kind: "folder", folder: IDEAS_FOLDER },
+      drop: { subjectId: IDEAS_FOLDER },
+      children: sortItems(
+        data.notes.filter((n) => n.subjectId === IDEAS_FOLDER),
+        (n) => n.title,
+        sort,
+      ).map(noteNode),
+    },
+    {
       key: "f:plantillas",
       label: "Plantillas",
       icon: LayoutTemplate,
+      view: { type: "plantillas" },
       item: { kind: "folder", folder: TEMPLATES_FOLDER },
       drop: { subjectId: TEMPLATES_FOLDER },
       children: templates.map(noteNode),

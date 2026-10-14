@@ -6,6 +6,7 @@ import { db, nowIso } from "@/lib/db";
 import { indexNote, normalizeTag, type BlockLike } from "@/lib/notes/index-note";
 import { useOpen } from "@/components/workspace/use-open";
 import type { Note } from "@/lib/types";
+import { Select } from "@/components/ui/select";
 
 type PropValue = string | number | boolean | string[];
 type PropType = "texto" | "numero" | "fecha" | "casilla" | "lista";
@@ -252,7 +253,7 @@ export function NoteProperties({ note }: { note: Note }) {
                 }}
               />
               <div className="flex min-w-0 items-center gap-2">
-                <select
+                <Select
                   className="h-6 rounded-sm border-0 bg-transparent text-[12px] text-faint outline-none"
                   value={typeOf(value)}
                   onChange={(e) => setProp(key, coerce(value, e.target.value as PropType))}
@@ -263,7 +264,7 @@ export function NoteProperties({ note }: { note: Note }) {
                       {t.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <div className="min-w-0 flex-1">
                   <ValueInput value={value} type={typeOf(value)} onCommit={(v) => setProp(key, v)} />
                 </div>
@@ -292,7 +293,7 @@ export function NoteProperties({ note }: { note: Note }) {
                 }}
               />
               <div className="flex min-w-0 items-center gap-2">
-                <select
+                <Select
                   className="h-6 rounded-sm border-0 bg-transparent text-[12px] text-faint outline-none"
                   value={newType}
                   onChange={(e) => setNewType(e.target.value as PropType)}
@@ -303,7 +304,7 @@ export function NoteProperties({ note }: { note: Note }) {
                       {t.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <input
                   className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
                   placeholder="Valor"

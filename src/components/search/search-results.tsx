@@ -9,6 +9,7 @@ import { plainTextOf } from "@/components/notes/note-utils";
 import { foldText } from "@/lib/nav/fold";
 import { gotoBlock, type ModifierEvent } from "@/lib/nav/actions";
 import { type Fragment, type Mark, type SearchHit, type SortMode } from "@/lib/nav/search";
+import { Select } from "@/components/ui/select";
 
 const KIND_ICON: Record<SearchHit["doc"]["kind"], LucideIcon> = {
   note: NotebookPen,
@@ -49,11 +50,11 @@ export function Highlighted({ text, marks }: { text: string; marks: Mark[] }) {
 
 export function SortSelect({ value, onChange }: { value: SortMode; onChange: (v: SortMode) => void }) {
   return (
-    <select className="input" aria-label="Ordenar resultados" value={value} onChange={(e) => onChange(e.target.value as SortMode)}>
+    <Select className="input" aria-label="Ordenar resultados" value={value} onChange={(e) => onChange(e.target.value as SortMode)}>
       <option value="relevancia">Más coincidencias</option>
       <option value="nombre">Nombre</option>
       <option value="modificacion">Modificación</option>
-    </select>
+    </Select>
   );
 }
 

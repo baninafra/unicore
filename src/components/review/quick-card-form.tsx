@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { db, newId, nowIso } from "@/lib/db";
 import { newCardFields } from "@/lib/fsrs";
 import { useAllSubjects } from "@/lib/hooks";
+import { Select } from "@/components/ui/select";
 
 // Formulario rápido para crear una tarjeta a mano. Vence ya, así que aparece en el repaso de hoy.
 export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }) {
@@ -49,7 +50,7 @@ export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }
 
   return (
     <form onSubmit={onSubmit} className="flex w-full max-w-xl flex-col gap-2">
-      <select
+      <Select
         className="input h-8 w-auto self-start"
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}
@@ -62,7 +63,7 @@ export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }
             {s.name}
           </option>
         ))}
-      </select>
+      </Select>
 
       <textarea className="input" rows={2} value={front} onChange={(e) => setFront(e.target.value)} placeholder="Pregunta" aria-label="Pregunta" />
       <textarea className="input" rows={3} value={back} onChange={(e) => setBack(e.target.value)} placeholder="Respuesta" aria-label="Respuesta" />

@@ -27,8 +27,7 @@ import {
   Sparkles,
   Square,
   Trash2,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, ListPlus } from "lucide-react";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
 import { FlashcardsReviewModal } from "@/components/flashcards/flashcards-review-modal";
 import { HistoryModal } from "@/components/notes/history-modal";
@@ -36,6 +35,8 @@ import { ListPicker, type PickItem } from "@/components/notes/list-picker";
 import { NoteEditor } from "@/components/notes/note-editor";
 import type { NoteBlockEditor } from "@/components/notes/note-schema";
 import { NoteProperties } from "@/components/notes/note-properties";
+import { NoteTasks } from "@/components/tasks/note-tasks";
+import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { MIN_CHARS_FOR_AI, createNote } from "@/components/notes/note-utils";
 import { QuizModal } from "@/components/notes/quiz-modal";
 import { PromptModal } from "@/components/ui/prompt-modal";
@@ -161,7 +162,7 @@ export function NotaView({ id }: { id: string }) {
 
   const { activeView, activePane, activeTab, openView, closeTab } = useWorkspace();
   const open = useOpen();
-  const { setCurrentSubjectId } = useAppState();
+  const { setCurrentSubjectId, openTaskDialog } = useAppState();
   const ai = useLocalAI();
   const menu = useContextMenu();
 
@@ -405,6 +406,7 @@ export function NotaView({ id }: { id: string }) {
         { id: cid("pdf"), name: "Importar PDF", icon: FileUp, run: () => pdfInput.current?.click() },
         { id: cid("audio"), name: recording ? "Detener grabación" : "Grabar audio", icon: recording ? Square : Mic, run: () => void toggleRecording() },
         { id: cid("flashcards"), name: "Generar flashcards", icon: Sparkles, run: () => void runAI("cards") },
+        { id: cid("tarea"), name: "Crear tarea desde esta nota", icon: ListPlus, run: () => void taskFromNote(note).then(openTaskDialog) },
         { id: cid("examen"), name: "Tomame examen", icon: ClipboardCheck, run: () => void runAI("quiz") },
         { sep: true },
         { id: cid("presentacion"), name: "Presentación", icon: Presentation, run: () => openView({ type: "slides", id }) },
@@ -512,6 +514,7 @@ export function NotaView({ id }: { id: string }) {
         <div className="group flex flex-col gap-4">
           <TitleField key={id} noteId={id} title={note.title} onEnter={saveTitleFromBar} />
           <NoteProperties note={note} />
+          <NoteTasks note={note} />
         </div>
 
         {(notice || busy) && (

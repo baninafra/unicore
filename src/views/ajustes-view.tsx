@@ -8,10 +8,12 @@ import { getDataFolder, isDesktop, openDataFolder } from "@/lib/desktop";
 import { useWorkspace } from "@/lib/workspace";
 import { useOpen } from "@/components/workspace/use-open";
 import { useSettings } from "@/components/settings/apply-settings";
+import { AISection } from "@/components/settings/ai-section";
 
 const SECTIONS = [
   { key: "apariencia", label: "Apariencia" },
   { key: "editor", label: "Editor" },
+  { key: "ia", label: "IA" },
   { key: "atajos", label: "Atajos" },
   { key: "carreras", label: "Carreras" },
   { key: "datos", label: "Datos" },
@@ -232,6 +234,7 @@ function Acerca() {
 const CONTENT: Record<SectionKey, () => React.ReactElement> = {
   apariencia: Apariencia,
   editor: Editor,
+  ia: AISection,
   atajos: Atajos,
   carreras: Carreras,
   datos: Datos,

@@ -19,6 +19,7 @@ import { notesDecorations } from "./decorations";
 import { FindBar } from "./find-bar";
 import { noteSchema, slashMenuItems, type NoteBlockEditor } from "./note-schema";
 import { wikilinkMenuItems } from "./wikilink";
+import { startImageDrag } from "./image-drag";
 
 const AUTOSAVE_MS = 1500;
 
@@ -145,6 +146,17 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
     if (!text) return;
     openView({ type: "busqueda", query: `tag:${text}` }, modeFromEvent(e));
   };
+
+  // Las imágenes se arrastran agarrándolas (ver image-drag.ts).
+  useEffect(() => {
+    const root = editorRef.current;
+    if (!root) return;
+    const onDown = (e: PointerEvent) => {
+      if (startImageDrag(e, editor, root)) e.preventDefault();
+    };
+    root.addEventListener("pointerdown", onDown, true);
+    return () => root.removeEventListener("pointerdown", onDown, true);
+  }, [editor]);
 
   const linkCtx = { noteId: note.id, subjectId: note.subjectId, unitNumber: note.unitNumber };
 

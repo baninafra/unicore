@@ -766,6 +766,21 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
         // Los modelos chicos a veces pasan el nombre en lugar del id ("TP 2").
         for (const f of await findByTitle(tipo, id)) if (!resolved.some((x) => x.id === f.id)) resolved.push(f);
       }
+      // Plan B (modelos chicos): cualquier título que haya mencionado, en todas las carpetas y tipos.
+      if (!resolved.length) {
+        const titles = new Set<string>();
+        for (const v of [a.titulo, a.id, a.nombre]) if (str(v)) titles.add(str(v)!);
+        if (Array.isArray(a.elementos))
+          for (const e of a.elementos as Args[]) for (const v of [e?.titulo, e?.nombre, e?.id]) if (str(v)) titles.add(str(v)!);
+        if (/sin titulo/.test(norm(ctx.userText ?? ""))) titles.add("Sin título");
+        for (const t of titles) {
+          for (const f of await listItems(undefined, t, "todos", true)) {
+            const r = await resolveDeletable(f.tipo, f.id);
+            if (r && !resolved.some((x) => x.id === r.id)) resolved.push(r);
+          }
+          for (const f of await findByTitle("tarea", t)) if (!resolved.some((x) => x.id === f.id)) resolved.push(f);
+        }
+      }
       if (!resolved.length) return fail("No encontré nada para eliminar con esos datos. Buscalo con listar_elementos o listar_tareas.", "No encontré qué eliminar");
       const heavy = resolved.some((r) => r.tipo === "materia" || r.tipo === "carrera");
       const names = resolved.map((r) => `${r.tipo} «${r.title}»`);

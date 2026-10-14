@@ -4,12 +4,14 @@ import { useState } from "react";
 import clsx from "clsx";
 import { format, isSameMonth, isToday } from "date-fns";
 import { useAppState } from "@/lib/app-state";
-import type { Task, TaskType } from "@/lib/types";
+import type { CalendarColor, CalendarEvent, Task, TaskType } from "@/lib/types";
+import { CALENDAR_BORDER } from "@/lib/calendars/sync";
 import { TASK_TYPE_LABEL } from "@/lib/types";
 import { endOfDayIso } from "@/components/tasks/task-meta";
 import { useTaskMenu } from "@/components/tasks/task-menu";
 
 const WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+const WEEKDAYS_SUNDAY_FIRST = ["dom", ...WEEKDAYS.slice(0, 6)];
 const VISIBLE_EVENTS = 3;
 
 export function dayKey(date: Date) {
@@ -21,6 +23,30 @@ function borderFor(type: TaskType) {
   if (type === "PARCIAL" || type === "FINAL") return "border-rose";
   if (type === "TP" || type === "FORO") return "border-amber";
   return "border-border-strong";
+}
+
+export type ExternalEvent = CalendarEvent & { color: CalendarColor; calendarName: string };
+
+// Evento de un calendario externo: sólo se mira (se edita en su calendario de origen).
+function ExternalLine({ event }: { event: ExternalEvent }) {
+  const time = event.allDay ? "" : `${format(new Date(event.start), "HH:mm")} `;
+  const detail = [event.calendarName, event.location].filter(Boolean).join(" · ");
+  return (
+    <div
+      title={`${event.title}
+${detail}`}
+      onClick={(e) => e.stopPropagation()}
+      className={clsx(
+        "flex w-full min-w-0 cursor-default items-center border-l-2 pl-1.5 text-left text-xs leading-5 text-muted",
+        CALENDAR_BORDER[event.color],
+      )}
+    >
+      <span className="truncate">
+        {time && <span className="num text-faint">{time}</span>}
+        {event.title}
+      </span>
+    </div>
+  );
 }
 
 function EventLine({ task }: { task: Task }) {
@@ -54,7 +80,19 @@ function EventLine({ task }: { task: Task }) {
 }
 
 // Grilla de mes lunes a domingo con líneas finas. Clic en un día vacío crea una tarea con esa fecha.
-export function MonthGrid({ days, month, tasksByDay }: { days: Date[]; month: Date; tasksByDay: Map<string, Task[]> }) {
+export function MonthGrid({
+  days,
+  month,
+  tasksByDay,
+  eventsByDay,
+  weekStart = "lun",
+}: {
+  days: Date[];
+  month: Date;
+  tasksByDay: Map<string, Task[]>;
+  eventsByDay?: Map<string, ExternalEvent[]>;
+  weekStart?: "lun" | "dom";
+}) {
   const { openTaskDialog } = useAppState();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -70,7 +108,7 @@ export function MonthGrid({ days, month, tasksByDay }: { days: Date[]; month: Da
   return (
     <div className="min-w-[640px] overflow-x-auto">
       <div className="grid grid-cols-7">
-        {WEEKDAYS.map((d) => (
+        {(weekStart === "dom" ? WEEKDAYS_SUNDAY_FIRST : WEEKDAYS).map((d) => (
           <div key={d} className="t-label px-2 pb-1.5">
             {d}
           </div>
@@ -81,9 +119,13 @@ export function MonthGrid({ days, month, tasksByDay }: { days: Date[]; month: Da
         {days.map((day) => {
           const key = dayKey(day);
           const dayTasks = tasksByDay.get(key) ?? [];
+          const dayEvents = eventsByDay?.get(key) ?? [];
+          const total = dayEvents.length + dayTasks.length;
           const isExpanded = expanded.has(key);
-          const shown = isExpanded ? dayTasks : dayTasks.slice(0, VISIBLE_EVENTS);
-          const hidden = dayTasks.length - shown.length;
+          const limit = isExpanded ? total : VISIBLE_EVENTS;
+          const shownEvents = dayEvents.slice(0, limit);
+          const shown = dayTasks.slice(0, Math.max(0, limit - shownEvents.length));
+          const hidden = total - shownEvents.length - shown.length;
           const today = isToday(day);
           const inMonth = isSameMonth(day, month);
 
@@ -102,11 +144,15 @@ export function MonthGrid({ days, month, tasksByDay }: { days: Date[]; month: Da
                 {format(day, "d")}
               </span>
 
+              {shownEvents.map((event) => (
+                <ExternalLine key={event.id} event={event} />
+              ))}
+
               {shown.map((task) => (
                 <EventLine key={task.id} task={task} />
               ))}
 
-              {dayTasks.length > VISIBLE_EVENTS && (
+              {total > VISIBLE_EVENTS && (
                 <button
                   type="button"
                   className="px-1.5 text-left text-xs text-faint hover:text-text"

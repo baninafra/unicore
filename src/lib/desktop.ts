@@ -20,6 +20,7 @@ const TABLES = [
   "canvases",
   "snapshots",
   "bookmarks",
+  "calendars", // calendarEvents no se espeja: es una copia que se regenera al sincronizar
 ] as const;
 type TableName = (typeof TABLES)[number];
 type Row = { id: string } & Record<string, unknown>;

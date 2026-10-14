@@ -4,6 +4,8 @@ import Dexie, { type EntityTable } from "dexie";
 import { nanoid } from "nanoid";
 import type {
   Bookmark,
+  CalendarEvent,
+  CalendarSource,
   CanvasDoc,
   NoteSnapshot,
   Degree,
@@ -29,6 +31,8 @@ export const db = new Dexie("unicore") as Dexie & {
   canvases: EntityTable<CanvasDoc, "id">;
   snapshots: EntityTable<NoteSnapshot, "id">;
   bookmarks: EntityTable<Bookmark, "id">;
+  calendars: EntityTable<CalendarSource, "id">;
+  calendarEvents: EntityTable<CalendarEvent, "id">;
 };
 
 db.version(1).stores({
@@ -48,6 +52,12 @@ db.version(2).stores({
   canvases: "id, subjectId, updatedAt",
   snapshots: "id, noteId, createdAt",
   bookmarks: "id, kind, targetId, order",
+});
+
+// v3: calendarios externos y su copia local de eventos
+db.version(3).stores({
+  calendars: "id, createdAt",
+  calendarEvents: "id, calendarId, start",
 });
 
 export const newId = () => nanoid(12);

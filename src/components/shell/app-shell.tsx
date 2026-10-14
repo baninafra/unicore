@@ -17,6 +17,7 @@ import { TaskDialog } from "@/components/tasks/task-dialog";
 import { CommandPalette } from "@/components/palette/command-palette";
 import { ExportCommands } from "@/components/export/export-commands";
 import { ApplySettings } from "@/components/settings/apply-settings";
+import { CalendarSync } from "@/components/calendar/calendar-sync";
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalMouse } from "./global-mouse";
 import { GlobalFiles } from "./global-files";
@@ -111,6 +112,7 @@ export function AppShell() {
           <CommandPalette />
           <ExportCommands />
           <ApplySettings />
+          <CalendarSync />
           <Toaster />
           <GlobalMouse />
           <GlobalFiles />

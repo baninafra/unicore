@@ -168,6 +168,34 @@ export interface StudySession {
   completedAt: string;
 }
 
+// Calendarios externos (Google Calendar, Outlook, iCloud, el campus…) conectados por enlace iCal o archivo .ics.
+export type CalendarColor = "primary" | "cyan" | "mint" | "amber" | "rose";
+
+export interface CalendarSource {
+  id: string;
+  name: string;
+  url?: string; // enlace iCal (https o webcal)
+  ics?: string; // texto del archivo .ics cuando se importó un archivo
+  color: CalendarColor;
+  enabled: boolean; // visible en el calendario
+  lastSync?: string;
+  error?: string;
+  eventCount?: number;
+  createdAt: string;
+}
+
+// Copia local de los eventos de un calendario externo. Se vuelve a generar al sincronizar.
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  title: string;
+  start: string; // ISO
+  end?: string; // ISO (en eventos de día completo es exclusivo)
+  allDay: boolean;
+  location?: string;
+  description?: string;
+}
+
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {
   PARCIAL: "Parcial",
   FINAL: "Final",

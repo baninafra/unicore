@@ -10,6 +10,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import { SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
 import { modeFromEvent } from "@/components/workspace/use-open";
 import { useAppState } from "@/lib/app-state";
+import { useSettings } from "@/components/settings/apply-settings";
 import { resolveFileUrl, saveFile } from "@/lib/db";
 import { plainTextOf, type BlockLike } from "@/lib/notes/index-note";
 import { saveNoteContent } from "@/lib/notes/note-ops";
@@ -47,6 +48,7 @@ interface NoteEditorProps {
 export function NoteEditor({ note, active = true, editable = true, findMode = null, onFindClose, onEditor }: NoteEditorProps) {
   const { theme } = useAppState();
   const { openView } = useWorkspace();
+  const [settings] = useSettings();
   const editorRef = useRef<HTMLDivElement>(null);
 
   const editor = useCreateBlockNote({
@@ -124,7 +126,7 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
   const saveLabel = saveState === "saved" ? "Guardado" : saveState === "pending" ? "Guardando…" : "No se guardó";
   const statsNode = useMemo(() => <span>{statsText}</span>, [statsText]);
   const saveNode = useMemo(() => <span>{saveLabel}</span>, [saveLabel]);
-  useStatusItem("nota-palabras", active ? statsNode : null);
+  useStatusItem("nota-palabras", active && settings.wordCount ? statsNode : null);
   useStatusItem("nota-guardado", active ? saveNode : null);
 
   // Eventos de otros módulos: ir a un bloque y pegar bloques en el cursor.

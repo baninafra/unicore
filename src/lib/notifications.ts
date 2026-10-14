@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
+import { useSettings } from "@/components/settings/apply-settings";
 import { db } from "./db";
 import { shortDateTime } from "./format";
 import { TASK_TYPE_LABEL, type Task } from "./types";
@@ -46,6 +47,7 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 export function useNotifications(): { items: Notif[]; unread: number } {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [, tick] = useState(0);
+  const [settings] = useSettings();
   useEffect(() => {
     setDismissed(readDismissed());
     const on = () => setDismissed(readDismissed());
@@ -59,12 +61,19 @@ export function useNotifications(): { items: Notif[]; unread: number } {
   }, []);
 
   const data = useLiveQuery(async () => {
-    const [tasks, subjects, dueCards] = await Promise.all([
+    const from = startOfDay(new Date());
+    const [tasks, subjects, dueCards, calendars, events] = await Promise.all([
       db.tasks.filter((t) => t.status !== "DONE" && !!t.dueDate).toArray(),
       db.subjects.toArray(),
       db.flashcards.where("due").belowOrEqual(new Date().toISOString()).count(),
+      db.calendars.toArray(),
+      db.calendarEvents
+        .where("start")
+        .between(from.toISOString(), new Date(from.getTime() + 2 * 86_400_000).toISOString())
+        .toArray(),
     ]);
-    return { tasks, subjects, dueCards };
+    const visible = new Map(calendars.filter((c) => c.enabled).map((c) => [c.id, c.name]));
+    return { tasks, subjects, dueCards, events: events.filter((e) => visible.has(e.calendarId)).map((e) => ({ ...e, calendarName: visible.get(e.calendarId)! })) };
   }, []);
 
   const items: Notif[] = [];
@@ -83,6 +92,10 @@ export function useNotifications(): { items: Notif[]; unread: number } {
       else if (exam && d <= today + 7 * day) level = "semana";
       else if (!exam && d <= today + 3 * day) level = "semana";
       if (!level) continue;
+      if (level === "vencida" && !settings.notifOverdue) continue;
+      if (level === "hoy" && !settings.notifToday) continue;
+      if (level === "manana" && !settings.notifTomorrow) continue;
+      if (level === "semana" && !settings.notifUpcoming) continue;
       const hour = format(due, "HH:mm");
       items.push({
         id: `${t.id}:${level}`,
@@ -95,7 +108,21 @@ export function useNotifications(): { items: Notif[]; unread: number } {
         subjectId: t.subjectId,
       });
     }
-    if (data.dueCards > 0) {
+    if (settings.notifEvents) {
+      for (const e of data.events) {
+        const start = new Date(e.start);
+        const d = startOfDay(start).getTime();
+        const level: NotifLevel | null = d === today ? "hoy" : d === today + day ? "manana" : null;
+        if (!level || (!e.allDay && start.getTime() < Date.now() - 3_600_000)) continue;
+        items.push({
+          id: `ev:${e.id}:${level}`,
+          level,
+          title: e.title,
+          detail: [e.calendarName, e.allDay ? "Todo el día" : format(start, "HH:mm"), e.location].filter(Boolean).join(" · "),
+        });
+      }
+    }
+    if (data.dueCards > 0 && settings.notifReview) {
       const key = new Date().toISOString().slice(0, 10);
       items.push({
         id: `repaso:${key}`,

@@ -11,6 +11,17 @@ export interface AppSettings {
   readableWidth: boolean; // limita el ancho de las vistas de lectura
   spellcheck: boolean; // corrector ortográfico
   wordCount: boolean; // conteo de palabras en el editor
+  editorFamily: "sans" | "serif" | "mono"; // tipografía del editor
+  editorSpacing: "compacto" | "normal" | "amplio"; // altura de línea del editor
+  weekStart: "lun" | "dom"; // primer día de la semana en el calendario
+  showDoneTasks: boolean; // tareas hechas visibles en el calendario
+  calendarSyncMinutes: number; // cada cuánto se sincronizan los calendarios externos (0 = a mano)
+  notifOverdue: boolean; // avisos: entregas vencidas
+  notifToday: boolean; // avisos: lo de hoy
+  notifTomorrow: boolean; // avisos: lo de mañana
+  notifUpcoming: boolean; // avisos: próximos días
+  notifReview: boolean; // avisos: flashcards para repasar
+  notifEvents: boolean; // avisos: eventos de calendarios externos de hoy y mañana
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -19,7 +30,28 @@ export const DEFAULT_SETTINGS: AppSettings = {
   readableWidth: true,
   spellcheck: true,
   wordCount: true,
+  editorFamily: "sans",
+  editorSpacing: "normal",
+  weekStart: "lun",
+  showDoneTasks: true,
+  calendarSyncMinutes: 30,
+  notifOverdue: true,
+  notifToday: true,
+  notifTomorrow: true,
+  notifUpcoming: true,
+  notifReview: true,
+  notifEvents: true,
 };
+
+const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+const pick = <T extends string>(v: unknown, options: readonly T[], fallback: T): T => (options.includes(v as T) ? (v as T) : fallback);
+
+const FAMILY: Record<AppSettings["editorFamily"], string> = {
+  sans: "inherit",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "ui-monospace, 'Cascadia Code', Consolas, monospace",
+};
+const SPACING: Record<AppSettings["editorSpacing"], string> = { compacto: "1.4", normal: "1.6", amplio: "1.85" };
 
 const LS_KEY = "uc-settings";
 const EVENT = "uc-settings-change";
@@ -33,12 +65,24 @@ export function readSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(LS_KEY);
     const saved = raw ? (JSON.parse(raw) as Partial<AppSettings>) : {};
+    const d = DEFAULT_SETTINGS;
     return {
-      uiFont: clamp(saved.uiFont, 12, 16, DEFAULT_SETTINGS.uiFont),
-      editorFont: clamp(saved.editorFont, 14, 20, DEFAULT_SETTINGS.editorFont),
-      readableWidth: typeof saved.readableWidth === "boolean" ? saved.readableWidth : DEFAULT_SETTINGS.readableWidth,
-      spellcheck: typeof saved.spellcheck === "boolean" ? saved.spellcheck : DEFAULT_SETTINGS.spellcheck,
-      wordCount: typeof saved.wordCount === "boolean" ? saved.wordCount : DEFAULT_SETTINGS.wordCount,
+      uiFont: clamp(saved.uiFont, 12, 16, d.uiFont),
+      editorFont: clamp(saved.editorFont, 14, 20, d.editorFont),
+      readableWidth: bool(saved.readableWidth, d.readableWidth),
+      spellcheck: bool(saved.spellcheck, d.spellcheck),
+      wordCount: bool(saved.wordCount, d.wordCount),
+      editorFamily: pick(saved.editorFamily, ["sans", "serif", "mono"], d.editorFamily),
+      editorSpacing: pick(saved.editorSpacing, ["compacto", "normal", "amplio"], d.editorSpacing),
+      weekStart: pick(saved.weekStart, ["lun", "dom"], d.weekStart),
+      showDoneTasks: bool(saved.showDoneTasks, d.showDoneTasks),
+      calendarSyncMinutes: [0, 15, 30, 60, 360].includes(saved.calendarSyncMinutes as number) ? (saved.calendarSyncMinutes as number) : d.calendarSyncMinutes,
+      notifOverdue: bool(saved.notifOverdue, d.notifOverdue),
+      notifToday: bool(saved.notifToday, d.notifToday),
+      notifTomorrow: bool(saved.notifTomorrow, d.notifTomorrow),
+      notifUpcoming: bool(saved.notifUpcoming, d.notifUpcoming),
+      notifReview: bool(saved.notifReview, d.notifReview),
+      notifEvents: bool(saved.notifEvents, d.notifEvents),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -59,7 +103,7 @@ const STYLE = [
   ...SIZE_RULES.map(([sel, px]) => `${sel} { font-size: calc(${px}px * var(--ui-scale, 1)); }`),
   "body { font-size: calc(14px * var(--ui-scale, 1)); }",
   ".view-readable { max-width: var(--readable-width, 760px); }",
-  ".bn-editor { font-size: var(--editor-font-size, 16px) !important; }",
+  ".bn-editor { font-size: var(--editor-font-size, 16px) !important; font-family: var(--editor-font-family, inherit) !important; line-height: var(--editor-line-height, 1.6); }",
 ].join("\n");
 
 function ensureStyle() {
@@ -79,6 +123,8 @@ export function applySettings(s: AppSettings) {
   root.style.setProperty("--ui-scale", String(s.uiFont / 13));
   root.style.setProperty("--editor-font-size", `${s.editorFont}px`);
   root.style.setProperty("--readable-width", s.readableWidth ? "760px" : "none");
+  root.style.setProperty("--editor-font-family", FAMILY[s.editorFamily]);
+  root.style.setProperty("--editor-line-height", SPACING[s.editorSpacing]);
   document.body.spellcheck = s.spellcheck;
   ensureStyle();
 }

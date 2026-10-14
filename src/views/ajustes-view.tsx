@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import clsx from "clsx";
-import { FolderOpen } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
-import { getDataFolder, isDesktop, openDataFolder } from "@/lib/desktop";
+import { isDesktop } from "@/lib/desktop";
 import { useWorkspace } from "@/lib/workspace";
 import { useOpen } from "@/components/workspace/use-open";
 import { useSettings } from "@/components/settings/apply-settings";
 import { AISection } from "@/components/settings/ai-section";
+import { CalendarSection } from "@/components/settings/calendar-section";
+import { DataSection, useCounts } from "@/components/settings/data-section";
+import { DEFAULT_SETTINGS } from "@/components/settings/apply-settings";
+import { Hint, Row, Segmented, Slider, Toggle } from "@/components/settings/settings-ui";
 
 const SECTIONS = [
   { key: "apariencia", label: "Apariencia" },
   { key: "editor", label: "Editor" },
+  { key: "calendarios", label: "Calendarios" },
+  { key: "notificaciones", label: "Notificaciones" },
   { key: "ia", label: "IA" },
   { key: "atajos", label: "Atajos" },
   { key: "carreras", label: "Carreras" },
@@ -26,71 +31,6 @@ function hotkeyParts(hotkey: string) {
   return hotkey
     .split("+")
     .map((p) => (p.toLowerCase() === "mod" ? "Ctrl" : p.length === 1 ? p.toUpperCase() : p.charAt(0).toUpperCase() + p.slice(1)));
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-9 items-center justify-between gap-6 border-b border-border py-1.5">
-      <span className="t-small text-text">{label}</span>
-      <div className="flex flex-none items-center gap-2">{children}</div>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="flex gap-1" role="group">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-          className="btn btn-sm aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft"
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <input
-      type="checkbox"
-      aria-label={label}
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="h-4 w-4 cursor-pointer accent-primary"
-    />
-  );
-}
-
-function Slider({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
-  return (
-    <>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={1}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-36 accent-primary"
-        aria-label="Tamaño"
-      />
-      <span className="t-small num w-12 text-right text-muted">{value} px</span>
-    </>
-  );
 }
 
 function Apariencia() {
@@ -119,6 +59,17 @@ function Apariencia() {
       <Row label="Limitar ancho de lectura">
         <Toggle checked={settings.readableWidth} onChange={(v) => update({ readableWidth: v })} label="Limitar ancho de lectura" />
       </Row>
+      <Row label="Restablecer apariencia">
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() =>
+            update({ uiFont: DEFAULT_SETTINGS.uiFont, editorFont: DEFAULT_SETTINGS.editorFont, readableWidth: DEFAULT_SETTINGS.readableWidth })
+          }
+        >
+          Restablecer
+        </button>
+      </Row>
     </>
   );
 }
@@ -127,6 +78,28 @@ function Editor() {
   const [settings, update] = useSettings();
   return (
     <>
+      <Row label="Tipografía">
+        <Segmented
+          value={settings.editorFamily}
+          options={[
+            { value: "sans", label: "Sans" },
+            { value: "serif", label: "Serif" },
+            { value: "mono", label: "Monoespaciada" },
+          ]}
+          onChange={(editorFamily) => update({ editorFamily })}
+        />
+      </Row>
+      <Row label="Espaciado entre líneas">
+        <Segmented
+          value={settings.editorSpacing}
+          options={[
+            { value: "compacto", label: "Compacto" },
+            { value: "normal", label: "Normal" },
+            { value: "amplio", label: "Amplio" },
+          ]}
+          onChange={(editorSpacing) => update({ editorSpacing })}
+        />
+      </Row>
       <Row label="Corrector ortográfico">
         <Toggle checked={settings.spellcheck} onChange={(v) => update({ spellcheck: v })} label="Corrector ortográfico" />
       </Row>
@@ -191,41 +164,55 @@ function Carreras() {
   );
 }
 
-function Datos() {
-  const [folder, setFolder] = useState<string>();
-  const desktop = isDesktop();
-
-  useEffect(() => {
-    if (!desktop) return;
-    getDataFolder()
-      .then((path) => setFolder(path))
-      .catch(() => setFolder(undefined));
-  }, [desktop]);
-
+function Notificaciones() {
+  const [settings, update] = useSettings();
+  const rows: { key: keyof typeof settings; label: string }[] = [
+    { key: "notifOverdue", label: "Entregas vencidas" },
+    { key: "notifToday", label: "Lo que vence hoy" },
+    { key: "notifTomorrow", label: "Lo que vence mañana" },
+    { key: "notifUpcoming", label: "Parciales, finales y entregas de los próximos días" },
+    { key: "notifReview", label: "Flashcards para repasar" },
+    { key: "notifEvents", label: "Eventos de tus calendarios (hoy y mañana)" },
+  ];
   return (
-    <Row label="Carpeta de datos">
-      {desktop ? (
-        <>
-          <span className="t-small max-w-[320px] truncate text-muted" title={folder}>
-            {folder ?? "–"}
-          </span>
-          <button type="button" className="btn btn-sm" onClick={() => void openDataFolder()} aria-label="Abrir carpeta de datos">
-            <FolderOpen strokeWidth={1.75} />
-            Abrir
-          </button>
-        </>
-      ) : (
-        <span className="t-small text-faint">Solo en la app de escritorio</span>
-      )}
-    </Row>
+    <>
+      <Hint>Elegí qué avisos aparecen en la campana y en Notificaciones.</Hint>
+      {rows.map((r) => (
+        <Row key={r.key} label={r.label}>
+          <Toggle checked={settings[r.key] as boolean} onChange={(v) => update({ [r.key]: v })} label={r.label} />
+        </Row>
+      ))}
+    </>
   );
 }
 
 function Acerca() {
+  const counts = useCounts();
   return (
     <>
       <Row label="UniCore">
         <span className="t-small num text-muted">0.1.0</span>
+      </Row>
+      <Row label="Plataforma">
+        <span className="t-small text-muted">{isDesktop() ? "Aplicación de escritorio" : "Navegador"}</span>
+      </Row>
+      <Row label="Tus datos">
+        <span className="t-small text-muted">Se guardan en este equipo, sin cuenta</span>
+      </Row>
+      {counts && (
+        <Row label="Notas · tareas · flashcards">
+          <span className="t-small num text-muted">
+            {counts.notas.toLocaleString("es-AR")} · {counts.tareas.toLocaleString("es-AR")} · {counts.flashcards.toLocaleString("es-AR")}
+          </span>
+        </Row>
+      )}
+      <Row label="Paleta de comandos">
+        <span className="kbd">Ctrl</span>
+        <span className="kbd">K</span>
+      </Row>
+      <Row label="Asistente de IA">
+        <span className="kbd">Ctrl</span>
+        <span className="kbd">J</span>
       </Row>
     </>
   );
@@ -236,8 +223,10 @@ const CONTENT: Record<SectionKey, () => React.ReactElement> = {
   editor: Editor,
   ia: AISection,
   atajos: Atajos,
+  calendarios: CalendarSection,
+  notificaciones: Notificaciones,
   carreras: Carreras,
-  datos: Datos,
+  datos: DataSection,
   acerca: Acerca,
 };
 

@@ -20,7 +20,6 @@ import { ApplySettings } from "@/components/settings/apply-settings";
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalMouse } from "./global-mouse";
 import { GlobalFiles } from "./global-files";
-import { QuizHost } from "@/components/notes/quiz-host";
 
 function PaneView({ pane, active, last }: { pane: Pane; active: boolean; last: boolean }) {
   const { focusPane } = useWorkspace();
@@ -115,7 +114,6 @@ export function AppShell() {
           <Toaster />
           <GlobalMouse />
           <GlobalFiles />
-          <QuizHost />
         </AIProvider>
       </WorkspaceProvider>
     </AppStateProvider>

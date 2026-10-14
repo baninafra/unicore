@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { isQuizNote, readQuiz } from "@/lib/quiz/quiz-store";
+import { NewQuizDialog } from "@/components/quiz/new-quiz-dialog";
 import { ExternalLink, FilePlus, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { useWorkspace, type ViewState } from "@/lib/workspace";
@@ -158,13 +160,15 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
 
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [cardForm, setCardForm] = useState(false);
+  const [quizForm, setQuizForm] = useState(false);
 
   useEffect(() => {
     setCurrentSubjectId(subjectId);
     return () => setCurrentSubjectId(undefined);
   }, [subjectId, setCurrentSubjectId]);
 
-  const sortedNotes = useMemo(() => sortNotes(notes ?? []), [notes]);
+  const sortedNotes = useMemo(() => sortNotes((notes ?? []).filter((n) => !isQuizNote(n))), [notes]);
+  const quizzes = useMemo(() => (notes ?? []).filter(isQuizNote).sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [notes]);
   const notesByUnit = useMemo(() => {
     const map = new Map<number, Note[]>();
     for (const n of sortedNotes) map.set(n.unitNumber, [...(map.get(n.unitNumber) ?? []), n]);
@@ -438,6 +442,28 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           <Empty>Sin PDFs</Empty>
         )}
       </Section>
+
+      <Section
+        title="Cuestionarios"
+        action={
+          <button type="button" className="icon-btn" onClick={() => setQuizForm(true)} aria-label="Nuevo cuestionario" title="Nuevo cuestionario con IA">
+            <Plus strokeWidth={1.75} />
+          </button>
+        }
+      >
+        {quizzes.length > 0 ? (
+          quizzes.map((q) => {
+            const m = readQuiz(q);
+            const last = m.intentos[m.intentos.length - 1];
+            return <ListRow key={q.id} title={q.title} meta={last ? last.split(" · ")[1] : m.parcial ? m.parcial : `${m.questions.length} preg.`} view={{ type: "nota", id: q.id }} />;
+          })
+        ) : (
+          <button type="button" className="row text-left text-faint hover:text-text" onClick={() => setQuizForm(true)}>
+            Armar un cuestionario para estudiar
+          </button>
+        )}
+      </Section>
+      {quizForm && <NewQuizDialog subjectId={subjectId} onClose={() => setQuizForm(false)} />}
 
       <Section
         title="Flashcards"

@@ -23,11 +23,12 @@ import {
   TextSelect,
   Undo2,
   Command as CommandIcon,
+  Shapes,
 } from "lucide-react";
 import { Menu, type MenuItem } from "@/components/ui/menu";
 import { useAppState } from "@/lib/app-state";
 import { consumeOpened, useWorkspace, withOpenMode } from "@/lib/workspace";
-import { newNoteForView } from "@/lib/nav/actions";
+import { newCanvasForView, newNoteForView } from "@/lib/nav/actions";
 import { openPalette } from "@/lib/nav/palette-bus";
 import { saveBlob, safeFileName } from "@/lib/export/save";
 import { resolveFileUrl } from "@/lib/db";
@@ -208,6 +209,7 @@ export function GlobalMouse() {
         items.push(
           { label: "Nueva nota", icon: FilePlus, onSelect: async () => ctx.current.openView({ type: "nota", id: await newNoteForView(ctx.current.activeView) }, "tab") },
           { label: "Nueva tarea", icon: ListPlus, onSelect: () => ctx.current.openTaskDialog() },
+          { label: "Nuevo lienzo", icon: Shapes, onSelect: async () => ctx.current.openView({ type: "canvas", id: await newCanvasForView(ctx.current.activeView) }, "tab") },
           { label: "Preguntar a la IA", icon: Sparkles, onSelect: () => ctx.current.setRight(true, "ia") },
           { type: "separator" },
           { label: "Buscar", icon: Search, hint: "Ctrl+Shift+F", onSelect: () => ctx.current.openView({ type: "busqueda" }, "tab") },

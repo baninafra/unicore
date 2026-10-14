@@ -14,6 +14,7 @@ const STATIC_TITLES: Partial<Record<ViewState["type"], string>> = {
   base: "Base de notas",
   ideas: "Ideas",
   plantillas: "Plantillas",
+  notificaciones: "Notificaciones",
   ajustes: "Ajustes",
   vacia: "Nueva pestaña",
 };

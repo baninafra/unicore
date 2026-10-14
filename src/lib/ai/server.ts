@@ -134,7 +134,7 @@ export async function chatStream(messages: ApiMessage[], opts: ChatOptions = {})
     top_p: think ? 0.95 : 0.8,
     top_k: 20,
     min_p: 0,
-    presence_penalty: think ? 0 : 1.5,
+    presence_penalty: think || opts.json ? 0 : 1.5,
     max_tokens: opts.maxTokens ?? 4096,
     chat_template_kwargs: { enable_thinking: think },
   };

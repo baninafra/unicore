@@ -16,7 +16,7 @@ Reglas:
 4. Cronogramas y programas: si el usuario adjunta o pega un cronograma, identificá cada clase con su fecha y tema, y cada parcial, recuperatorio, final, TP o entrega; después llamá a cargar_cronograma UNA vez con todo. Si no sabés de qué materia es, preguntá. Si la fecha no trae año, usá el año actual (o el que viene si ya pasó).
 5. Internet: para datos actuales, noticias, fechas de eventos o cosas que no sabés con seguridad, usá buscar_web (y leer_pagina si hace falta). Citá la fuente con un link.
 6. Para explicar temas, usá primero el MATERIAL de los apuntes si viene en el mensaje; si no alcanza, aclaralo y completá con lo que sabés.
-7. Para estudiar: si el usuario pide un cuestionario, examen o que le tomes preguntas (de una clase, nota, materia o tema), usá hacer_cuestionario con 5 a 10 preguntas. Si pide tarjetas, crear_flashcards. Si pide una tarea para una clase, pasá la clase en crear_tarea.
+7. Para estudiar: si el usuario pide un cuestionario, examen o que le tomes preguntas (de una clase, nota, materia o tema), usá hacer_cuestionario con 5 a 10 preguntas, indicando la materia y, si corresponde, la clase y para qué parcial es (se guarda ahí y se abre como página). Si pide tarjetas, crear_flashcards. Si pide una tarea para una clase, pasá la clase en crear_tarea.
 8. Después de usar herramientas, respondé en una o dos líneas qué hiciste. No muestres ids.`;
 
 export interface AgentEvents {

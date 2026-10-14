@@ -36,14 +36,14 @@ import { NoteEditor } from "@/components/notes/note-editor";
 import type { NoteBlockEditor } from "@/components/notes/note-schema";
 import { NoteProperties } from "@/components/notes/note-properties";
 import { NoteTasks } from "@/components/tasks/note-tasks";
+import { quizFromNote } from "@/lib/quiz/quiz-store";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { MIN_CHARS_FOR_AI, createNote } from "@/components/notes/note-utils";
-import { QuizModal } from "@/components/notes/quiz-modal";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { useOpen } from "@/components/workspace/use-open";
 import { useAppState } from "@/lib/app-state";
-import { generateFlashcards, generateQuiz, type FlashcardDraft, type QuizQuestion } from "@/lib/ai/prompts";
+import { generateFlashcards, type FlashcardDraft } from "@/lib/ai/prompts";
 import { useLocalAI } from "@/lib/ai/use-local-ai";
 import { db, newId, nowIso, saveFile } from "@/lib/db";
 import { savePdfDocument } from "@/lib/pdf/save-document";
@@ -176,7 +176,6 @@ export function NotaView({ id }: { id: string }) {
   const [notice, setNotice] = useState<string>();
   const [busy, setBusy] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<FlashcardDraft[] | null>(null);
-  const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
   const [recording, setRecording] = useState(false);
 
   const photoInput = useRef<HTMLInputElement>(null);
@@ -305,9 +304,11 @@ export function NotaView({ id }: { id: string }) {
         if (result.length) setDrafts(result);
         else setNotice("No pudimos sacar tarjetas de esta nota. Probá agregar más texto.");
       } else {
-        const result = await generateQuiz(ai, text);
-        if (result.length) setQuiz(result);
-        else setNotice("No pudimos armar el examen. Probá de nuevo.");
+        // Se guarda en la materia como página, enlazado a esta clase o nota.
+        const current = await db.notes.get(id);
+        if (!current) return;
+        const quizId = await quizFromNote(ai, { ...current, plainTextCache: text });
+        openView({ type: "nota", id: quizId }, "tab");
       }
     } catch {
       setNotice("No pudimos usar la IA para esta nota. Probá de nuevo.");
@@ -407,7 +408,7 @@ export function NotaView({ id }: { id: string }) {
         { id: cid("audio"), name: recording ? "Detener grabación" : "Grabar audio", icon: recording ? Square : Mic, run: () => void toggleRecording() },
         { id: cid("flashcards"), name: "Generar flashcards", icon: Sparkles, run: () => void runAI("cards") },
         { id: cid("tarea"), name: "Crear tarea desde esta nota", icon: ListPlus, run: () => void taskFromNote(note).then(openTaskDialog) },
-        { id: cid("examen"), name: "Tomame examen", icon: ClipboardCheck, run: () => void runAI("quiz") },
+        { id: cid("examen"), name: "Cuestionario de esta nota", icon: ClipboardCheck, run: () => void runAI("quiz") },
         { sep: true },
         { id: cid("presentacion"), name: "Presentación", icon: Presentation, run: () => openView({ type: "slides", id }) },
         { id: cid("grafo"), name: "Grafo local", icon: Network, run: () => openView({ type: "grafo", noteId: id }, "split") },
@@ -621,7 +622,6 @@ export function NotaView({ id }: { id: string }) {
           }}
         />
       )}
-      {quiz && <QuizModal questions={quiz} onClose={() => setQuiz(null)} />}
     </div>
   );
 }

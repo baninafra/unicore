@@ -13,7 +13,19 @@ import { BusquedaView } from "@/views/busqueda-view";
 import { WebView } from "@/views/web-view";
 import { BaseView } from "@/views/base-view";
 import { IdeasView } from "@/views/ideas-view";
+import { QuizPage } from "@/views/quiz-page";
+import { isQuizNote } from "@/lib/quiz/quiz-store";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
+
+// Los cuestionarios son notas, pero se abren como página para responder.
+function NoteOrQuiz({ id }: { id: string }) {
+  const note = useLiveQuery(() => db.notes.get(id), [id]);
+  if (note && isQuizNote(note)) return <QuizPage note={note} />;
+  return <NotaView id={id} />;
+}
 import { PlantillasView } from "@/views/plantillas-view";
+import { NotificacionesView } from "@/views/notificaciones-view";
 import { AjustesView } from "@/views/ajustes-view";
 import { useWorkspace } from "@/lib/workspace";
 
@@ -67,7 +79,7 @@ export function ViewHost({ view }: { view: ViewState }) {
     case "materia":
       return <MateriaView id={view.id} />;
     case "nota":
-      return <NotaView key={view.id} id={view.id} />;
+      return <NoteOrQuiz key={view.id} id={view.id} />;
     case "grafo":
       return <GrafoView noteId={view.noteId} />;
     case "canvas":
@@ -86,6 +98,8 @@ export function ViewHost({ view }: { view: ViewState }) {
       return <IdeasView />;
     case "plantillas":
       return <PlantillasView />;
+    case "notificaciones":
+      return <NotificacionesView />;
     case "ajustes":
       return <AjustesView section={view.section} />;
     case "vacia":

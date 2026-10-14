@@ -26,6 +26,7 @@ export type ViewState =
   | { type: "base" } // tabla de notas filtrable por propiedades (Bases)
   | { type: "ideas" } // ideas estilo Keep
   | { type: "plantillas" }
+  | { type: "notificaciones" }
   | { type: "ajustes"; section?: string }
   | { type: "vacia" };
 

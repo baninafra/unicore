@@ -417,10 +417,13 @@ export const TOOL_DEFS: ApiTool[] = [
     function: {
       name: "hacer_cuestionario",
       description:
-        "Muestra un cuestionario de opción múltiple para estudiar, que el usuario responde en pantalla. Escribí vos las preguntas basándote en el material (si hace falta, primero leé la nota o la clase con buscar_notas / leer_nota). Hacé preguntas que hagan pensar, no sólo de memoria.",
+        "Arma un cuestionario de opción múltiple para estudiar: se guarda dentro de la materia (enlazado a la clase y/o al parcial) y se abre como página para responder. Escribí vos las preguntas basándote en el material (si hace falta, primero leé la clase o los apuntes con buscar_notas / leer_nota). Hacé preguntas que hagan pensar, no sólo de memoria. Si no sabés de qué materia es, preguntá.",
       parameters: obj(
         {
           titulo: S("Tema del cuestionario"),
+          materia: S("Materia donde se guarda"),
+          clase: S("Clase de la que sale: fecha YYYY-MM-DD o parte del título (opcional)"),
+          parcial: S("Para qué parcial o final es, ej. 'Primer parcial' (opcional)"),
           preguntas: {
             type: "array",
             items: obj(
@@ -821,11 +824,25 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
         })
         .filter((q) => q.question && q.options.length >= 2);
       if (!questions.length) return fail("No llegaron preguntas válidas.");
-      window.dispatchEvent(new CustomEvent("uc:quiz", { detail: { title: str(a.titulo), questions } }));
+      const place = await resolvePlace(str(a.materia));
+      if (str(a.materia) && place.error) return fail(place.error);
+      const subjectId = place.subject?.id;
+      const claseId = subjectId && str(a.clase) ? await findClassNote(subjectId, String(a.clase)) : undefined;
+      let parcial: Task | undefined;
+      if (subjectId && str(a.parcial)) {
+        const { examsOf } = await import("../quiz/quiz-store");
+        const exams = await examsOf(subjectId);
+        const q = String(a.parcial);
+        parcial = exams.find((t) => norm(t.title).includes(norm(q)) || wordsMatch(q, t.title) >= 0.6) ?? (/(primer|1)/i.test(q) ? exams.find((t) => t.type === "PARCIAL") : undefined);
+      }
+      const { saveQuiz } = await import("../quiz/quiz-store");
+      const title = `Cuestionario · ${str(a.titulo) ?? parcial?.title ?? "Repaso"}`;
+      const id = await saveQuiz({ subjectId, title, questions, claseId, parcialId: parcial?.id, parcial: parcial?.title ?? str(a.parcial), tema: str(a.titulo) });
+      ctx.openView({ type: "nota", id });
       return {
         ok: true,
-        content: json({ mostrado: true, preguntas: questions.length, nota: "El usuario lo está respondiendo en pantalla. No repitas las preguntas ni las respuestas en el chat." }),
-        label: `Armé un cuestionario de ${questions.length} preguntas${str(a.titulo) ? ` sobre ${a.titulo}` : ""}`,
+        content: json({ guardado: true, abierto: true, preguntas: questions.length, nota: "Ya está abierto como página para responder. No repitas las preguntas ni las respuestas en el chat." }),
+        label: `Armé «${title}» (${questions.length} preguntas)${place.subject ? ` en ${place.subject.name}` : ""}`,
       };
     }
 

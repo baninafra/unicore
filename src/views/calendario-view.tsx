@@ -13,7 +13,8 @@ import { CALENDAR_BORDER_L, syncAllCalendars, useCalendarEvents, useCalendars } 
 import { db } from "@/lib/db";
 import { toast } from "@/lib/undo";
 import { byDueDate } from "@/components/tasks/task-meta";
-import { useTasks } from "@/lib/hooks";
+import { useAllSubjects, useTasks } from "@/lib/hooks";
+import { scheduleEvents } from "@/lib/cronograma";
 import type { Task } from "@/lib/types";
 
 function capitalize(text: string) {
@@ -28,7 +29,9 @@ export function CalendarioView() {
   const [settings] = useSettings();
   const open = useOpen();
   const calendars = useCalendars();
-  const events = useCalendarEvents();
+  const external = useCalendarEvents();
+  const subjects = useAllSubjects();
+  const events = [...external, ...(settings.showCronogramas ? scheduleEvents(subjects) : [])];
   const [syncing, setSyncing] = useState(false);
 
   // Los mails sin confirmar no se muestran en el calendario.

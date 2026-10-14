@@ -4,7 +4,8 @@ import { EllipsisVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { grade } from "@/lib/format";
 import type { Degree, Subject } from "@/lib/types";
-import { useContextMenu } from "@/components/ui/menu";
+import { useContextMenu, type MenuItem } from "@/components/ui/menu";
+import { exportMenuItem } from "@/components/export/export-menu";
 import { degreeProgress } from "./plan";
 
 // Encabezado de una carrera: nombre, sigla, promedio y avance en una línea, con barra de 2 px.
@@ -26,10 +27,11 @@ export function DegreeHeader({
   // La barra es blurple por defecto; la carrera cian usa el token --cyan.
   const barStyle: CSSProperties | undefined = degree.color === "cyan" ? { background: "var(--cyan)" } : undefined;
 
-  const items = [
+  const items: MenuItem[] = [
     { label: "Editar carrera", icon: Pencil, onSelect: onEdit },
     { label: "Agregar materia", icon: Plus, onSelect: onAddSubject },
-    { type: "separator" as const },
+    exportMenuItem({ kind: "degree", id: degree.id }),
+    { type: "separator" },
     { label: "Eliminar carrera", icon: Trash2, onSelect: onDelete, danger: true },
   ];
 

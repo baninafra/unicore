@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { isQuizNote, readQuiz } from "@/lib/quiz/quiz-store";
 import { NewQuizDialog } from "@/components/quiz/new-quiz-dialog";
-import { ExternalLink, FilePlus, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Download, ExternalLink, FilePlus, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { exportMenuItem } from "@/components/export/export-menu";
 import { useAppState } from "@/lib/app-state";
 import { useWorkspace, type ViewState } from "@/lib/workspace";
 import { db, newId, nowIso } from "@/lib/db";
@@ -13,6 +14,7 @@ import { SUBJECT_STATUS_LABEL, type Note, type SubjectDocument, type SubjectStat
 import { ConfirmDialog } from "@/components/careers/confirm-dialog";
 import { saveSubject, type SubjectInput } from "@/components/careers/actions";
 import { FlashcardFormModal } from "@/components/flashcards/flashcard-form-modal";
+import { CronogramaSection } from "@/components/subjects/cronograma-section";
 import { PdfImportButton } from "@/components/pdf/pdf-import-button";
 import { createNote, paragraphBlocks, sortNotes } from "@/components/notes/note-utils";
 import { useNow } from "@/components/dashboard/use-now";
@@ -161,6 +163,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [cardForm, setCardForm] = useState(false);
   const [quizForm, setQuizForm] = useState(false);
+  const pageMenu = useContextMenu();
 
   useEffect(() => {
     setCurrentSubjectId(subjectId);
@@ -243,8 +246,16 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
     if (Number.isFinite(n) && n >= 0 && n <= 10) return save({ finalGrade: n });
   }
 
+  // Clic derecho en cualquier parte de la materia (las filas tienen su propio menú).
+  const pageItems: MenuItem[] = [
+    { label: "Nueva nota", icon: FilePlus, onSelect: () => void createNewNote() },
+    { label: "Nueva tarea", icon: Plus, onSelect: () => openTaskDialog({ subjectId, degreeId: subject.degreeId }) },
+    exportMenuItem({ kind: "subject", id: subjectId }),
+  ];
+
   return (
-    <div className="view-readable flex flex-col gap-7">
+    <div className="view-readable flex flex-col gap-7" onContextMenu={(e) => pageMenu.open(e, pageItems)}>
+      {pageMenu.menu}
       <div className="flex items-start gap-3">
         <input
           key={subject.name}
@@ -260,6 +271,18 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
         />
+        <button
+          type="button"
+          className="icon-btn mt-1"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            pageMenu.open({ clientX: r.left, clientY: r.bottom + 4 }, [exportMenuItem({ kind: "subject", id: subjectId })]);
+          }}
+          aria-label="Exportar"
+          title="Exportar"
+        >
+          <Download strokeWidth={1.75} />
+        </button>
         <button type="button" className="icon-btn mt-1" onClick={() => setAiOpen(true)} aria-label="Preguntarle a la IA" title="Preguntarle a la IA">
           <Sparkles strokeWidth={1.75} />
         </button>
@@ -380,6 +403,8 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           <LinkField value={subject.driveUrl} placeholder="Drive" onSave={(v) => void save({ driveUrl: v })} />
         </Prop>
       </div>
+
+      <CronogramaSection subject={subject} />
 
       <Section
         title="Notas"

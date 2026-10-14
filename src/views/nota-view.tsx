@@ -41,6 +41,7 @@ import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { MIN_CHARS_FOR_AI, createNote } from "@/components/notes/note-utils";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
+import { exportMenuItem } from "@/components/export/export-menu";
 import { useOpen } from "@/components/workspace/use-open";
 import { useAppState } from "@/lib/app-state";
 import { generateFlashcards, type FlashcardDraft } from "@/lib/ai/prompts";
@@ -431,6 +432,8 @@ export function NotaView({ id }: { id: string }) {
   const menuItems: MenuItem[] = actions.map((a) =>
     "sep" in a ? { type: "separator" } : { label: a.name, icon: a.icon, hint: prettyKey(a.hotkey), danger: a.danger, onSelect: a.run },
   );
+  // "Exportar" va antes del último separador (el de Eliminar).
+  menuItems.splice(Math.max(0, menuItems.length - 2), 0, exportMenuItem({ kind: "note", id }));
 
   const saveTitleFromBar = () => editor?.focus();
 
@@ -486,7 +489,10 @@ export function NotaView({ id }: { id: string }) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-1 border-b border-border bg-surface px-3">
+      <div
+        className="sticky top-0 z-10 flex h-9 flex-none items-center gap-1 border-b border-border bg-surface px-3"
+        onContextMenu={(e) => menu.open(e, menuItems)}
+      >
         <div className="t-small mr-auto flex min-w-0 items-center gap-1.5 truncate text-muted">{crumbs}</div>
         <button type="button" className="icon-btn" aria-pressed={!!bookmark} aria-label="Marcador" onClick={() => void toggleBookmark()}>
           {bookmark ? <BookmarkCheck /> : <Bookmark />}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, ExternalLink, FileDown, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, ExternalLink, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
@@ -33,7 +33,7 @@ import { DegreeDialog } from "@/components/careers/degree-dialog";
 import { deleteDegreeCascade } from "@/components/careers/actions";
 import { deleteWithUndo } from "@/lib/undo";
 import { type ExportTarget } from "@/lib/export/export-pdf";
-import { exportAs, FORMAT_LABEL } from "@/lib/export/export-formats";
+import { exportMenuItem } from "@/components/export/export-menu";
 import { allKeys, ancestorsOf, buildTree, defaultOpen, useBookmarkSet, useExplorerData, type SortMode, type TreeNode } from "./tree";
 
 const LS_OPEN = "uc-explorer-open";
@@ -176,12 +176,7 @@ export function FileExplorer() {
       onSelect: () => setDialog({ type: "delete", kind, id, title: node.label }),
     });
     const sep: MenuItem = { type: "separator" };
-    const pdf = (target: ExportTarget): MenuItem[] =>
-      (["pdf", "docx", "xlsx", "md"] as const).map((f) => ({
-        label: `Exportar a ${FORMAT_LABEL[f]}`,
-        icon: FileDown,
-        onSelect: () => safe(() => exportAs(f, target)),
-      }));
+    const pdf = (target: ExportTarget): MenuItem[] => [exportMenuItem(target)];
     const item = node.item;
 
     switch (item.kind) {

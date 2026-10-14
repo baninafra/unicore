@@ -5,6 +5,7 @@
 // del sistema, donde se elige "Guardar como PDF" / "Microsoft Print to PDF".
 
 import { db } from "../db";
+import { scheduleNote } from "../cronograma";
 import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "../types";
 
 export type ExportTarget =
@@ -191,7 +192,8 @@ export async function collect(target: ExportTarget): Promise<{ title: string; su
     if (!subject) throw new Error("No encontramos la materia.");
     const degree = await db.degrees.get(subject.degreeId);
     const notes = await db.notes.where("subjectId").equals(subject.id).toArray();
-    return { title: subject.name, subtitle: degree?.name, sections: byUnit(notes) };
+    const crono = scheduleNote(subject);
+    return { title: subject.name, subtitle: degree?.name, sections: [...(crono ? [{ title: "", notes: [crono] }] : []), ...byUnit(notes)] };
   }
   if (target.kind === "degree") {
     const degree = await db.degrees.get(target.id);
@@ -202,6 +204,8 @@ export async function collect(target: ExportTarget): Promise<{ title: string; su
     const sections: Section[] = [];
     for (const s of subjects) {
       const notes = await db.notes.where("subjectId").equals(s.id).toArray();
+      const crono = scheduleNote(s);
+      if (crono) sections.push({ title: s.name, notes: [crono] });
       if (notes.length) sections.push(...byUnit(notes, s.name));
     }
     return { title: degree.name, subtitle: degree.institution, sections };

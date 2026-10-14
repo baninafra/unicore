@@ -14,6 +14,26 @@ export interface Degree {
 
 export type SubjectStatus = "PENDIENTE" | "CURSANDO" | "REGULAR" | "APROBADA";
 
+// Cronograma de la materia: qué se ve cada día, y las fechas de parciales, entregas y finales.
+export type ScheduleKind = "CLASE" | "PARCIAL" | "ENTREGA" | "FINAL" | "FERIADO" | "OTRO";
+
+export interface ScheduleEntry {
+  id: string;
+  date: string; // "2026-10-14" (día local)
+  title: string; // tema o actividad
+  kind: ScheduleKind;
+  done?: boolean;
+}
+
+export const SCHEDULE_KIND_LABEL: Record<ScheduleKind, string> = {
+  CLASE: "Clase",
+  PARCIAL: "Parcial",
+  ENTREGA: "Entrega",
+  FINAL: "Final",
+  FERIADO: "Feriado",
+  OTRO: "Otro",
+};
+
 export interface Subject {
   id: string;
   degreeId: string;
@@ -27,6 +47,7 @@ export interface Subject {
   professorEmail?: string;
   campusUrl?: string;
   driveUrl?: string;
+  schedule?: ScheduleEntry[]; // cronograma de la materia
   createdAt: string;
 }
 

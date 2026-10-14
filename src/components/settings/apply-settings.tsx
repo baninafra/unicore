@@ -15,6 +15,7 @@ export interface AppSettings {
   editorSpacing: "compacto" | "normal" | "amplio"; // altura de línea del editor
   weekStart: "lun" | "dom"; // primer día de la semana en el calendario
   showDoneTasks: boolean; // tareas hechas visibles en el calendario
+  showCronogramas: boolean; // fechas del cronograma de cada materia en el calendario
   calendarSyncMinutes: number; // cada cuánto se sincronizan los calendarios externos (0 = a mano)
   notifOverdue: boolean; // avisos: entregas vencidas
   notifToday: boolean; // avisos: lo de hoy
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   editorSpacing: "normal",
   weekStart: "lun",
   showDoneTasks: true,
+  showCronogramas: true,
   calendarSyncMinutes: 30,
   notifOverdue: true,
   notifToday: true,
@@ -76,6 +78,7 @@ export function readSettings(): AppSettings {
       editorSpacing: pick(saved.editorSpacing, ["compacto", "normal", "amplio"], d.editorSpacing),
       weekStart: pick(saved.weekStart, ["lun", "dom"], d.weekStart),
       showDoneTasks: bool(saved.showDoneTasks, d.showDoneTasks),
+      showCronogramas: bool(saved.showCronogramas, d.showCronogramas),
       calendarSyncMinutes: [0, 15, 30, 60, 360].includes(saved.calendarSyncMinutes as number) ? (saved.calendarSyncMinutes as number) : d.calendarSyncMinutes,
       notifOverdue: bool(saved.notifOverdue, d.notifOverdue),
       notifToday: bool(saved.notifToday, d.notifToday),

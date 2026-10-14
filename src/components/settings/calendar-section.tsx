@@ -287,6 +287,9 @@ export function CalendarSection() {
       <Row label="Mostrar tareas hechas en el calendario">
         <Toggle checked={settings.showDoneTasks} onChange={(v) => update({ showDoneTasks: v })} label="Mostrar tareas hechas en el calendario" />
       </Row>
+      <Row label="Mostrar el cronograma de las materias">
+        <Toggle checked={settings.showCronogramas} onChange={(v) => update({ showCronogramas: v })} label="Mostrar el cronograma de las materias" />
+      </Row>
     </>
   );
 }

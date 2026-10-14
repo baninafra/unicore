@@ -331,6 +331,7 @@ export async function runAgentLocal(
 ): Promise<string> {
   let finalText = "";
   let lastCalls = "";
+  let deleted = false;
   for (let round = 0; round < 6; round++) {
     if (opts.signal.aborted) break;
     const raw = await opts.ai.generate(toLocalMessages(messages), {
@@ -340,7 +341,7 @@ export async function runAgentLocal(
     });
     let calls = opts.signal.aborted ? [] : parseLocalCalls(raw);
     // Dijo que hizo algo pero no llamó a ninguna herramienta: le pedimos que lo haga de verdad (una vez).
-    if (!calls.length && !opts.signal.aborted && round === 0 && CLAIMS_ACTION.test(raw)) {
+    if (!calls.length && !opts.signal.aborted && round < 3 && CLAIMS_ACTION.test(raw)) {
       const retry = await opts.ai.generate(
         [
           ...toLocalMessages(messages),
@@ -372,9 +373,41 @@ export async function runAgentLocal(
       function: { name: c.name, arguments: JSON.stringify(c.args) },
     }));
     messages.push({ role: "assistant", content: visibleText(raw), tool_calls: toolCalls });
+    if (calls.some((c) => c.name === "eliminar")) deleted = true;
     const results = await execCalls(calls, opts.ctx, opts.events);
     toolCalls.forEach((c, i) => messages.push({ role: "tool", tool_call_id: c.id, content: results[i] }));
     opts.events.onText("");
   }
+  // Pidió borrar y el modelo nunca llamó a eliminar (a veces dice "Eliminé…" sin hacerlo): lo hace la app.
+  const guess = !deleted && !opts.signal.aborted ? deleteTarget(opts.ctx.userText ?? "") : null;
+  if (guess) {
+    const [res] = await execCalls([{ name: "eliminar", args: guess }], opts.ctx, opts.events);
+    let out: { eliminados?: number; cancelado?: boolean } = {};
+    try {
+      out = JSON.parse(res);
+    } catch {
+      // resultado de error en texto
+    }
+    finalText = out.eliminados
+      ? `Listo, eliminé ${out.eliminados === 1 ? "1 elemento" : `${out.eliminados} elementos`}.`
+      : out.cancelado
+        ? "No eliminé nada."
+        : "No encontré qué eliminar. Decime el título exacto o la carpeta.";
+    opts.events.onText(finalText);
+    messages.push({ role: "assistant", content: finalText });
+  }
   return finalText;
+}
+
+// "borrá todos los sin título de Notas" → { titulo: "sin título", carpeta: "Notas" }
+function deleteTarget(text: string): Record<string, string> | null {
+  const t = text.trim();
+  if (!/\b(borr|elimin|limpi)/i.test(t)) return null;
+  const m = t.match(
+    /\b(?:tod[oa] lo que sea|tod[oa]s? l[oa]s?|l[oa]s?|que se llaman?|llamad[oa]s?)\s+(.+?)(?:\s+(?:de|en|del)\s+(?:la\s+carpeta\s+)?(.+?))?[.!?]*$/i,
+  );
+  if (!m) return null;
+  const titulo = m[1].replace(/^(notas?|lienzos?|elementos?|cosas?)\s+/i, "").replace(/^["'«]|["'»]$/g, "").trim();
+  if (!titulo || titulo.length > 60) return null;
+  return m[2] ? { titulo, carpeta: m[2].trim() } : { titulo };
 }

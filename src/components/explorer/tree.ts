@@ -2,7 +2,7 @@
 
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CalendarDays, FileText, Folder, GraduationCap, Lightbulb, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, Folder, GraduationCap, Lightbulb, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
@@ -94,16 +94,6 @@ function canvasNode(c: CanvasDoc, subjectId: string): TreeNode {
   };
 }
 
-function pdfNode(d: SubjectDocument): TreeNode {
-  return {
-    key: `p:${d.id}`,
-    label: d.fileName,
-    icon: FileText,
-    view: { type: "pdf", id: d.id },
-    item: { kind: "pdf", id: d.id },
-  };
-}
-
 function group<T>(list: T[], keyOf: (t: T) => string | undefined): Record<string, T[]> {
   const out: Record<string, T[]> = {};
   for (const item of list) {
@@ -166,14 +156,13 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
 
   // Materias con su contenido
   const notesBy = group(data.notes, (n) => (subjectIds.has(n.subjectId) ? n.subjectId : undefined));
-  const docsBy = group(data.documents, (d) => d.subjectId);
   const canvasesBy = group(data.canvases, (c) => (c.subjectId && subjectIds.has(c.subjectId) ? c.subjectId : undefined));
 
   const subjectNode = (s: Subject): TreeNode => {
     const notes = sortItems(notesBy[s.id] ?? [], (n) => n.title, sort);
-    const docs = sortItems(docsBy[s.id] ?? [], (d) => d.fileName, sort);
     const canvases = sortItems(canvasesBy[s.id] ?? [], (c) => c.name, sort);
-    const units = [...new Set([...notes.map((n) => n.unitNumber), ...docs.map((d) => d.unitNumber)])].sort((a, b) => a - b);
+    // La bibliografía (PDF) se ve en la materia, no en el árbol.
+    const units = [...new Set(notes.map((n) => n.unitNumber))].sort((a, b) => a - b);
     const children: TreeNode[] =
       units.length > 1
         ? [
@@ -182,14 +171,11 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
               label: `Unidad ${u}`,
               item: { kind: "unit", subjectId: s.id, unit: u },
               drop: { subjectId: s.id, unit: u },
-              children: [
-                ...notes.filter((n) => n.unitNumber === u).map(noteNode),
-                ...docs.filter((d) => d.unitNumber === u).map(pdfNode),
-              ],
+              children: notes.filter((n) => n.unitNumber === u).map(noteNode),
             })),
             ...canvases.map((c) => canvasNode(c, s.id)),
           ]
-        : [...notes.map(noteNode), ...docs.map(pdfNode), ...canvases.map((c) => canvasNode(c, s.id))];
+        : [...notes.map(noteNode), ...canvases.map((c) => canvasNode(c, s.id))];
     return {
       key: `s:${s.id}`,
       label: s.name,

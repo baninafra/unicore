@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { X } from "lucide-react";
-import type { ToastDetail } from "@/lib/undo";
+import { undoLastDelete, type ToastDetail } from "@/lib/undo";
 
 export function Toaster() {
   const [items, setItems] = useState<ToastDetail[]>([]);
@@ -18,6 +18,19 @@ export function Toaster() {
     };
     window.addEventListener("uc:toast", on);
     return () => window.removeEventListener("uc:toast", on);
+  }, []);
+
+  // Ctrl+Z restaura lo último que se eliminó, salvo mientras se escribe en un campo o en el editor (ahí deshace el texto).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "z") return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, select, [contenteditable=''], [contenteditable='true'], .bn-editor")) return;
+      e.preventDefault();
+      void undoLastDelete();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const close = (id: number) => setItems((prev) => prev.filter((x) => x.id !== id));

@@ -31,7 +31,9 @@ import { consumeOpened, useWorkspace, withOpenMode } from "@/lib/workspace";
 import { newCanvasForView, newNoteForView } from "@/lib/nav/actions";
 import { openPalette } from "@/lib/nav/palette-bus";
 import { saveBlob, safeFileName } from "@/lib/export/save";
-import { resolveFileUrl } from "@/lib/db";
+import { db, resolveFileUrl } from "@/lib/db";
+import type { Task } from "@/lib/types";
+import type { ViewState } from "@/lib/workspace";
 import { isDesktop } from "@/lib/desktop";
 
 const CLICKABLE = 'a[href], button, [role="button"], [role="treeitem"], [role="option"], [role="link"], [role="row"], [data-open], .row, .card-hover';
@@ -90,6 +92,28 @@ async function toPng(blob: Blob): Promise<Blob> {
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("png"))), "image/png"));
 }
 
+// Una tarea nueva desde donde se está: dentro de una nota queda enlazada a la nota y a su materia,
+// y si hay texto seleccionado ese texto es el título.
+async function taskDefaults(view: ViewState, text: string): Promise<Partial<Task>> {
+  const out: Partial<Task> = {};
+  const title = text.trim().split(/\r?\n/)[0]?.slice(0, 120);
+  if (title) out.title = title;
+  let subjectId: string | undefined;
+  if (view.type === "nota") {
+    const note = await db.notes.get(view.id);
+    if (note) {
+      out.noteId = note.id;
+      if (!note.subjectId.startsWith("__")) subjectId = note.subjectId;
+    }
+  } else if (view.type === "materia") subjectId = view.id;
+  if (subjectId) {
+    out.subjectId = subjectId;
+    const subject = await db.subjects.get(subjectId);
+    if (subject) out.degreeId = subject.degreeId;
+  }
+  return out;
+}
+
 export function GlobalMouse() {
   const { openView, activeView, setRight } = useWorkspace();
   const { openTaskDialog } = useAppState();
@@ -116,6 +140,17 @@ export function GlobalMouse() {
             },
           ]
         : [];
+
+    // Crear algo desde donde se hizo clic (en una nota, la tarea queda enlazada a ella).
+    const createItems = (text: string): MenuItem[] => [
+      { type: "separator" },
+      {
+        label: text.trim() ? "Crear tarea con la selección" : "Nueva tarea",
+        icon: ListPlus,
+        onSelect: async () => ctx.current.openTaskDialog(await taskDefaults(ctx.current.activeView, text)),
+      },
+      { label: "Nueva nota", icon: FilePlus, onSelect: async () => ctx.current.openView({ type: "nota", id: await newNoteForView(ctx.current.activeView) }, "tab") },
+    ];
 
     const onContext = (e: MouseEvent) => {
       // Si el elemento ya mostró su propio menú, no hacemos nada.
@@ -199,16 +234,17 @@ export function GlobalMouse() {
           },
           { label: "Seleccionar todo", icon: TextSelect, hint: "Ctrl+A", onSelect: () => void document.execCommand("selectAll") },
           ...textItems(text),
+          ...createItems(text),
         );
       } else if (text.trim()) {
-        items.push({ label: "Copiar", icon: Copy, hint: "Ctrl+C", onSelect: () => void navigator.clipboard.writeText(text) }, ...textItems(text).slice(1));
+        items.push({ label: "Copiar", icon: Copy, hint: "Ctrl+C", onSelect: () => void navigator.clipboard.writeText(text) }, ...textItems(text).slice(1), ...createItems(text));
       }
 
       if (!items.length || items.every((i) => i.type === "separator")) {
         items.length = 0;
         items.push(
           { label: "Nueva nota", icon: FilePlus, onSelect: async () => ctx.current.openView({ type: "nota", id: await newNoteForView(ctx.current.activeView) }, "tab") },
-          { label: "Nueva tarea", icon: ListPlus, onSelect: () => ctx.current.openTaskDialog() },
+          { label: "Nueva tarea", icon: ListPlus, onSelect: async () => ctx.current.openTaskDialog(await taskDefaults(ctx.current.activeView, "")) },
           { label: "Nuevo lienzo", icon: Shapes, onSelect: async () => ctx.current.openView({ type: "canvas", id: await newCanvasForView(ctx.current.activeView) }, "tab") },
           { label: "Preguntar a la IA", icon: Sparkles, onSelect: () => ctx.current.setRight(true, "ia") },
           { type: "separator" },

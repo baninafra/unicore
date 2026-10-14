@@ -56,6 +56,22 @@ async function restore(captured: Captured) {
   });
 }
 
+// Borrados que se pueden deshacer con Ctrl+Z (el último primero).
+const undoStack: { label: string; captured: Captured }[] = [];
+
+// Deshace el último borrado. Devuelve false si no hay nada para restaurar.
+export async function undoLastDelete(): Promise<boolean> {
+  const last = undoStack.pop();
+  if (!last) return false;
+  try {
+    await restore(last.captured);
+    toast(last.label.replace(/^Se eliminó/, "Se restauró"));
+  } catch {
+    toast("No pudimos deshacer.", { tone: "error" });
+  }
+  return true;
+}
+
 // Borra y ofrece deshacer. `label`: "Se eliminó la tarea «TP 2»".
 export async function deleteWithUndo(label: string, run: () => unknown): Promise<void> {
   installHooks();
@@ -74,12 +90,18 @@ export async function deleteWithUndo(label: string, run: () => unknown): Promise
     if (prev) prev.push(...mine);
   }
   if (!mine.length || prev) return;
+  const entry = { label, captured: mine };
+  undoStack.push(entry);
+  if (undoStack.length > 20) undoStack.shift();
   toast(label, {
     ms: 8000,
     action: {
       label: "Deshacer",
-      run: () =>
-        restore(mine).catch(() => toast("No pudimos deshacer.", { tone: "error" })),
+      run: () => {
+        const i = undoStack.indexOf(entry);
+        if (i >= 0) undoStack.splice(i, 1); // ya restaurado: Ctrl+Z no lo repite
+        return restore(mine).catch(() => toast("No pudimos deshacer.", { tone: "error" }));
+      },
     },
   });
 }

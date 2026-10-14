@@ -161,6 +161,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
   const tasks = useLiveQuery(() => db.tasks.where("subjectId").equals(subjectId).toArray(), [subjectId]);
 
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [docToDelete, setDocToDelete] = useState<SubjectDocument | null>(null);
   const [cardForm, setCardForm] = useState(false);
   const [quizForm, setQuizForm] = useState(false);
   const pageMenu = useContextMenu();
@@ -216,6 +217,17 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
     const stamp = nowIso();
     await db.canvases.add({ id, name: "Lienzo sin título", subjectId, data: { nodes: [], edges: [] }, createdAt: stamp, updatedAt: stamp });
     openView({ type: "canvas", id });
+  }
+
+  async function confirmDeleteDoc() {
+    if (!docToDelete) return;
+    const doc = docToDelete;
+    await db.transaction("rw", db.documents, db.files, db.bookmarks, async () => {
+      if (doc.fileId) await db.files.delete(doc.fileId);
+      await db.bookmarks.where("targetId").equals(doc.id).delete();
+      await db.documents.delete(doc.id);
+    });
+    setDocToDelete(null);
   }
 
   async function docAsNote(doc: SubjectDocument) {
@@ -460,6 +472,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
                 title={doc.fileName}
                 meta={`${doc.pageCount} p`}
                 view={{ type: "pdf", id: doc.id }}
+                onDelete={() => setDocToDelete(doc)}
                 extra={[{ label: "Abrir como apunte", icon: FilePlus, onSelect: () => void docAsNote(doc) }]}
               />
             ))
@@ -535,6 +548,16 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
       </Section>
 
       {cardForm && <FlashcardFormModal subjectId={subjectId} onClose={() => setCardForm(false)} />}
+
+      {docToDelete && (
+        <ConfirmDialog
+          title="Eliminar PDF"
+          message={`Se borra "${docToDelete.fileName}" de la bibliografía, con sus resaltados. No se puede deshacer.`}
+          confirmLabel="Eliminar PDF"
+          onConfirm={confirmDeleteDoc}
+          onClose={() => setDocToDelete(null)}
+        />
+      )}
 
       {noteToDelete && (
         <ConfirmDialog

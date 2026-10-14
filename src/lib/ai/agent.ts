@@ -294,7 +294,12 @@ export function parseLocalCalls(text: string, known: string[] = LOCAL_TOOLS): { 
 
 // Texto que ve el usuario mientras llega: sin las llamadas a herramientas.
 const visibleText = (t: string) => {
-  const s = t.replace(/<tool_call>[\s\S]*?(<\/tool_call>|$)/g, "").trim();
+  const s = t
+    .replace(/<tool_call>[\s\S]*?(<\/tool_call>|$)/g, "")
+    // Llamadas escritas como bloque de código (```json {"name": …} ```), terminadas o a medio escribir.
+    .replace(/```[a-z]*\s*\{\s*"name"[\s\S]*?(```|$)/g, "")
+    .replace(/^\s*\{\s*"name"\s*:.*$/gm, "")
+    .trim();
   // Mientras escribe una llamada sin etiquetas, no mostramos el JSON.
   return /^\s*\{\s*"name"/.test(s) || /^_?[a-z_]+\(/.test(s) ? "" : s;
 };
@@ -325,6 +330,7 @@ export async function runAgentLocal(
   opts: { ctx: ToolContext; events: AgentEvents; signal: AbortSignal; ai: Pick<LocalAI, "generate"> },
 ): Promise<string> {
   let finalText = "";
+  let lastCalls = "";
   for (let round = 0; round < 6; round++) {
     if (opts.signal.aborted) break;
     const raw = await opts.ai.generate(toLocalMessages(messages), {
@@ -350,6 +356,16 @@ export async function runAgentLocal(
       messages.push({ role: "assistant", content: finalText });
       break;
     }
+    // Las mismas llamadas que la vuelta anterior: se trabó, cortamos.
+    const sig = JSON.stringify(calls);
+    if (sig === lastCalls) {
+      finalText = "No pude hacerlo. Probá decirlo de otra forma, por ejemplo: «borrá las notas que se llaman Sin título».";
+      messages.push({ role: "assistant", content: finalText });
+      break;
+    }
+    lastCalls = sig;
+    // Si repite la misma llamada varias veces en una vuelta, va una sola.
+    calls = [...new Map(calls.map((c) => [JSON.stringify(c), c])).values()];
     const toolCalls: ApiToolCall[] = calls.map((c, i) => ({
       id: `local_${round}_${i}`,
       type: "function",

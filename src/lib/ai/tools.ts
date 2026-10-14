@@ -592,8 +592,10 @@ async function listItems(carpeta: string | undefined, titulo: string | undefined
     const special: Record<string, string> = { notas: LOOSE_FOLDER, "notas sueltas": LOOSE_FOLDER, sueltas: LOOSE_FOLDER, diario: DAILY_FOLDER, ideas: IDEAS_FOLDER, plantillas: TEMPLATES_FOLDER };
     folderId = special[c] ?? (await resolvePlace(carpeta)).subject?.id;
   }
-  const t = titulo ? norm(titulo) : "";
-  const match = (name: string) => !t || (exact ? norm(name || "Sin título") === t : norm(name || "Sin título").includes(t));
+  // Sin tildes, sin plurales ni espacios de más: "sin titulos" encuentra "Sin título".
+  const key = (x: string) => norm(x).replace(/[^a-z0-9ñ ]/g, " ").replace(/s\b/g, "").replace(/\s+/g, " ").trim();
+  const t = titulo ? key(titulo) : "";
+  const match = (name: string) => !t || (exact ? key(name || "Sin título") === t : key(name || "Sin título").includes(t));
   const subjects = new Map((await db.subjects.toArray()).map((x) => [x.id, x.name]));
   const where = (sid?: string) => (sid ? (subjects.get(sid) ?? FOLDER_LABEL[sid] ?? "Notas") : "Notas");
   // Lo que no tiene materia válida se ve en "Notas" en el explorador.
@@ -742,7 +744,12 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
       if (a.id) targets.push({ tipo: String(a.tipo ?? ""), id: String(a.id) });
       if (str(a.titulo)) {
         const kind = a.tipo === "nota" || a.tipo === "lienzo" ? a.tipo : "todos";
-        if (a.tipo !== "tarea") for (const f of await listItems(str(a.carpeta), str(a.titulo), kind, true)) targets.push({ tipo: f.tipo, id: f.id });
+        if (a.tipo !== "tarea") {
+          let found = await listItems(str(a.carpeta), str(a.titulo), kind, true);
+          // La carpeta puede venir mal escrita: probamos en todas (igual se confirma antes de borrar).
+          if (!found.length && a.carpeta) found = await listItems(undefined, str(a.titulo), kind, true);
+          for (const f of found) targets.push({ tipo: f.tipo, id: f.id });
+        }
         if (a.tipo === "tarea" || !a.tipo) {
           const t = norm(String(a.titulo));
           for (const task of await db.tasks.toArray()) if (norm(task.title) === t) targets.push({ tipo: "tarea", id: task.id });

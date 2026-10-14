@@ -256,6 +256,17 @@ async function createOcrWorker(): Promise<OcrWorker> {
   return createWorker("spa");
 }
 
+// Texto de una foto o captura (por ejemplo, un cronograma sacado con el celular).
+export async function ocrImage(file: Blob): Promise<string> {
+  const worker = await createOcrWorker();
+  try {
+    const { data } = await worker.recognize(file);
+    return data.text;
+  } finally {
+    await worker.terminate();
+  }
+}
+
 async function recognizePage(page: PDFPageProxy, worker: OcrWorker): Promise<string> {
   const viewport = page.getViewport({ scale: OCR_SCALE });
   const canvas = document.createElement("canvas");

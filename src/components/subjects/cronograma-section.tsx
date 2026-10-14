@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import clsx from "clsx";
 import { format } from "date-fns";
-import { ClipboardPaste, ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileUp, ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { db, newId } from "@/lib/db";
 import { useAppState } from "@/lib/app-state";
 import { parseScheduleText, scheduleDateLabel, sortSchedule } from "@/lib/cronograma";
@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { useNow } from "@/components/dashboard/use-now";
 import { END_OF_DAY } from "@/components/tasks/task-meta";
+import { convertFile, fileKind } from "@/lib/import/import-file";
 
 const KINDS = Object.keys(SCHEDULE_KIND_LABEL) as ScheduleKind[];
 
@@ -92,13 +93,45 @@ function EntryDialog({ subject, entry, onClose }: { subject: Subject; entry?: Sc
   );
 }
 
-function PasteDialog({ subject, onClose }: { subject: Subject; onClose: () => void }) {
+const FILE_ACCEPT = ".pdf,.docx,.xlsx,.xlsm,.pptx,.csv,.txt,.md,image/*";
+
+// Subir el cronograma de la cátedra (PDF, Word, Excel o foto) desde un archivo (PDF, Word, Excel, PowerPoint, CSV, texto o foto) o pegando el texto.
+function LoadDialog({ subject, onClose }: { subject: Subject; onClose: () => void }) {
   const [text, setText] = useState("");
+  const [reading, setReading] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [replace, setReplace] = useState(false);
+  const [over, setOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const parsed = text.trim() ? parseScheduleText(text) : [];
   const lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
+  const hadSchedule = (subject.schedule?.length ?? 0) > 0;
+
+  async function readFile(file: File) {
+    setError(undefined);
+    setReading("Leyendo el archivo…");
+    try {
+      let content: string;
+      if (fileKind(file) === "image") {
+        setReading("Reconociendo el texto de la foto…");
+        const { ocrImage } = await import("@/lib/pdf/import-pdf");
+        content = await ocrImage(file);
+      } else {
+        content = (await convertFile(file, setReading)).text;
+      }
+      if (!content.trim()) throw new Error("No encontramos texto en el archivo. Probá con otro o pegalo a mano.");
+      setFileName(file.name);
+      setText(content.slice(0, 60000));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos leer el archivo. Probá con otro.");
+    } finally {
+      setReading(null);
+    }
+  }
 
   async function add() {
-    await save(subject, [...(subject.schedule ?? []), ...parsed]);
+    await save(subject, [...(replace ? [] : (subject.schedule ?? [])), ...parsed]);
     onClose();
   }
 
@@ -106,41 +139,81 @@ function PasteDialog({ subject, onClose }: { subject: Subject; onClose: () => vo
     <Modal
       open
       onClose={onClose}
-      title="Pegar cronograma"
-      width={560}
+      title="Cargar cronograma"
+      width={600}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className="btn btn-primary" disabled={parsed.length === 0} onClick={() => void add()}>
+          <button type="button" className="btn btn-primary" disabled={parsed.length === 0 || !!reading} onClick={() => void add()}>
             {parsed.length ? `Agregar ${parsed.length} ${parsed.length === 1 ? "fecha" : "fechas"}` : "Agregar"}
           </button>
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <p className="t-small text-muted">Pegá el cronograma de la cátedra con una fecha por línea. Detectamos la fecha y el tipo (clase, parcial, entrega, final).</p>
+      <div
+        className={clsx("flex flex-col gap-3 rounded-md", over && "outline outline-2 outline-primary")}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) void readFile(f);
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="btn" disabled={!!reading} onClick={() => fileRef.current?.click()}>
+            <FileUp strokeWidth={1.75} />
+            Subir archivo
+          </button>
+          <span className="t-small text-muted">{reading ?? fileName ?? "PDF, Word, Excel, PowerPoint, CSV, texto o una foto"}</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept={FILE_ACCEPT}
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void readFile(f);
+            }}
+          />
+        </div>
+        {error && <p className="t-small text-rose">{error}</p>}
+        <p className="t-small text-muted">
+          También podés arrastrar el archivo acá o pegar el texto con una fecha por línea. Detectamos la fecha y el tipo (clase, parcial, entrega, final).
+        </p>
         <textarea
-          className="input min-h-[140px] py-2 font-mono"
+          className="input min-h-[120px] py-2 font-mono"
           autoFocus
           value={text}
           placeholder={"14/10 Límites y continuidad\n21/10 Derivadas\n28 de octubre - Parcial 1\n11/11 Entrega TP 1"}
           onChange={(e) => setText(e.target.value)}
         />
+        {hadSchedule && (
+          <label className="t-small flex items-center gap-2 text-muted">
+            <input type="checkbox" className="h-4 w-4 accent-primary" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
+            Reemplazar el cronograma actual ({subject.schedule!.length} {subject.schedule!.length === 1 ? "fecha" : "fechas"})
+          </label>
+        )}
         {text.trim() && (
           <div className="flex flex-col">
             <p className="t-small text-faint">
               {parsed.length} de {lines} {lines === 1 ? "línea" : "líneas"} con fecha
+              {parsed.length === 0 && ". Revisá que las fechas tengan día y mes, por ejemplo 14/10 o 14 de octubre."}
             </p>
-            {parsed.slice(0, 12).map((e) => (
+            {parsed.map((e) => (
               <div key={e.id} className="row">
                 <span className="t-small num w-20 flex-none whitespace-nowrap text-muted">{scheduleDateLabel(e.date)}</span>
                 <span className="min-w-0 flex-1 truncate">{e.title}</span>
                 <span className={clsx("badge", KIND_BADGE[e.kind])}>{SCHEDULE_KIND_LABEL[e.kind]}</span>
               </div>
             ))}
-            {parsed.length > 12 && <p className="t-small px-2 text-faint">y {parsed.length - 12} más</p>}
           </div>
         )}
       </div>
@@ -210,8 +283,8 @@ export function CronogramaSection({ subject }: { subject: Subject }) {
       <div className="mb-1 flex items-center justify-between pr-1">
         <h2 className="section-label">{list.length ? `Cronograma · ${pending} por venir` : "Cronograma"}</h2>
         <div className="flex items-center gap-1">
-          <button type="button" className="icon-btn" onClick={() => setDialog("pegar")} aria-label="Pegar cronograma" title="Pegar cronograma">
-            <ClipboardPaste strokeWidth={1.75} />
+          <button type="button" className="icon-btn" onClick={() => setDialog("pegar")} aria-label="Subir o pegar cronograma" title="Subir o pegar cronograma">
+            <FileUp strokeWidth={1.75} />
           </button>
           <button type="button" className="icon-btn" onClick={() => setDialog({})} aria-label="Agregar fecha" title="Agregar fecha">
             <Plus strokeWidth={1.75} />
@@ -225,7 +298,7 @@ export function CronogramaSection({ subject }: { subject: Subject }) {
       ) : (
         list.map((e) => <EntryRow key={e.id} subject={subject} entry={e} past={!!todayKey && e.date < todayKey} onEdit={() => setDialog({ entry: e })} />)
       )}
-      {dialog === "pegar" && <PasteDialog subject={subject} onClose={() => setDialog(null)} />}
+      {dialog === "pegar" && <LoadDialog subject={subject} onClose={() => setDialog(null)} />}
       {dialog && dialog !== "pegar" && <EntryDialog subject={subject} entry={dialog.entry} onClose={() => setDialog(null)} />}
     </section>
   );

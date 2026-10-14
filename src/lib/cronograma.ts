@@ -33,30 +33,66 @@ function guessKind(text: string): ScheduleKind {
   const t = text.toLowerCase();
   if (/\bfinal(es)?\b/.test(t)) return "FINAL";
   if (/parcial|examen|evaluaci[oó]n|recuperatorio|\bpp\b/.test(t)) return "PARCIAL";
-  if (/entrega|\btp\b|trabajo pr[aá]ctico|presentaci[oó]n|informe/.test(t)) return "ENTREGA";
+  if (/entrega|\btp\b|trabajo pr[aá]ctico|informe/.test(t)) return "ENTREGA";
   if (/feriado|asueto|sin clase|no hay clase/.test(t)) return "FERIADO";
   return "CLASE";
 }
 
-// Una línea por fecha: "14/10 Límites y continuidad", "Parcial 1 - 28 de octubre", "Semana 3 (21/10): Derivadas".
+const tidy = (t: string) =>
+  t
+    .replace(/[()\[\]]/g, " ")
+    .replace(/^[\s\-–—:·|,.]+|[\s\-–—:·|,.]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([:;,.])/g, "$1");
+
+// Las filas de tablas ("| 14/10 | Límites | Cap. 1 |", de Excel o Word) pasan a una línea; los separadores se descartan.
+function flattenTableRow(line: string): string | null {
+  if (!line.startsWith("|")) return line;
+  const cells = line
+    .split("|")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  if (!cells.length || cells.every((c) => /^:?-{2,}:?$/.test(c))) return null;
+  return cells.join(" – ");
+}
+
+// "Clase 3", "Semana 2", "Unidad 4": ese número no es un día (chrono lo tomaría como parte de un rango de fechas).
+const NUMBERED = /\b(clase|semana|unidad|tema|encuentro|m[oó]dulo|bolilla|cap[ií]tulo|pr[aá]ctica|tp|trabajo pr[aá]ctico|parcial)\s*(?:n[°ºo.]*\s*)?(\d+)/gi;
+const maskNumbers = (line: string) => line.replace(NUMBERED, (m, _w, n: string) => m.slice(0, m.length - n.length) + "§".repeat(n.length));
+const GENERIC = /^(clase|semana|unidad|tema|encuentro|m[oó]dulo|bolilla|cap[ií]tulo)\s*(?:n[°ºo.]*\s*)?\d*$/i;
+
+// Lee un cronograma pegado o sacado de un archivo. Acepta una fecha por línea ("14/10 Límites y continuidad"),
+// títulos con la fecha al final ("Parcial 1 - 28 de octubre"), varias fechas en una misma línea (PDF corrido)
+// y filas de tablas. Si el tema quedó en la línea siguiente a la fecha, lo toma de ahí.
 export function parseScheduleText(text: string, now = new Date()): ScheduleEntry[] {
   const ref = new Date(now.getFullYear(), 0, 1, 12);
   const out: ScheduleEntry[] = [];
+  const state: { waiting: ScheduleEntry | null } = { waiting: null }; // fecha sin tema todavía
+
   for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
+    const line = flattenTableRow(raw.trim());
     if (!line) continue;
-    const hit = chrono.es.parse(line, ref, { forwardDate: true })[0];
-    if (!hit) continue;
-    const title = (line.slice(0, hit.index) + " " + line.slice(hit.index + hit.text.length))
-      .replace(/[()\[\]]/g, " ")
-      .replace(/^[\s\-–—:·|,.]+|[\s\-–—:·|,.]+$/g, "")
-      .replace(/\s{2,}/g, " ");
-    const d = hit.start.date();
-    out.push({
-      id: newId(),
-      date: format(d, "yyyy-MM-dd"),
-      title: title || SCHEDULE_KIND_LABEL[guessKind(line)],
-      kind: guessKind(line),
+    const hits = chrono.es.parse(maskNumbers(line), ref, { forwardDate: true });
+
+    if (!hits.length) {
+      if (state.waiting && line.length <= 160) {
+        const w = state.waiting;
+        w.title = GENERIC.test(w.title) ? `${w.title}: ${tidy(line)}` : tidy(line);
+        if (w.kind === "CLASE") w.kind = guessKind(line);
+      }
+      state.waiting = null;
+      continue;
+    }
+
+    state.waiting = null;
+    hits.forEach((hit, k) => {
+      const end = hit.index + hit.text.length;
+      const after = line.slice(end, hits[k + 1]?.index ?? line.length);
+      const title = tidy(k === 0 ? `${line.slice(0, hit.index)} ${after}` : after);
+      const kind = guessKind(hits.length === 1 ? line : title);
+      const entry: ScheduleEntry = { id: newId(), date: format(hit.start.date(), "yyyy-MM-dd"), title: title || SCHEDULE_KIND_LABEL[kind], kind };
+      if (!title || GENERIC.test(title)) state.waiting = entry;
+      out.push(entry);
     });
   }
   return sortSchedule(out);

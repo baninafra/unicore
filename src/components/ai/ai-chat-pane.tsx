@@ -11,6 +11,7 @@ import { useAppState } from "@/lib/app-state";
 import { db, newId } from "@/lib/db";
 import { useLocalAI, type ChatMessage } from "@/lib/ai/use-local-ai";
 import { buildSubjectContext } from "@/lib/ai/rag";
+import { isSummaryRequest, summarize, summarySources } from "@/lib/ai/summarize";
 import { useWorkspace, type ViewState } from "@/lib/workspace";
 import { noteTitle, specialFolderName } from "@/lib/panes/note-data";
 import { useActiveNoteId, useNote } from "@/lib/panes/hooks";
@@ -283,6 +284,35 @@ export function AIChatPane() {
   async function sendAgent(text: string, atts: Attachment[], aiId: string) {
     if (!apiRef.current) {
       apiRef.current = [{ role: "system", content: `${AGENT_SYSTEM}\n\n${await situationText()}` }];
+    }
+
+    // "Hacé un resumen de la bibliografía": se lee el documento entero por partes, no por palabras clave.
+    if (subjectId && !atts.length && isSummaryRequest(text)) {
+      const sources = await summarySources(subjectId, text, note ? { title: noteTitle(note), plainTextCache: note.plainTextCache } : null);
+      if (sources.length) {
+        const ctrl = new AbortController();
+        abortRef.current = ctrl;
+        await ai.load();
+        ai.setBusy(true);
+        try {
+          const answer = await summarize(ai, sources, {
+            topic: text,
+            signal: ctrl.signal,
+            onProgress: (label) => patchTurn(aiId, { working: label }),
+            onText: (t) => patchTurn(aiId, { content: t, working: undefined }),
+          });
+          if (answer) {
+            apiRef.current.push({ role: "user", content: text }, { role: "assistant", content: answer.slice(0, 1500) });
+            patchTurn(aiId, { content: answer, working: undefined, sources: sources.map((x) => x.label) });
+          } else {
+            patchTurn(aiId, { content: ctrl.signal.aborted ? "" : "No llegué a armar el resumen. Probá de nuevo.", working: undefined });
+          }
+        } finally {
+          ai.setBusy(false);
+          abortRef.current = null;
+        }
+        return;
+      }
     }
 
     // Material de los apuntes (si hay una materia o nota en pantalla).

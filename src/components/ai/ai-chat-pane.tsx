@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDownToLine, Brain, Check, FileText, Film, Image as ImageIcon, Paperclip, Send, Settings2, Square, SquarePen, X } from "lucide-react";
+import { ArrowDownToLine, Brain, Check, Copy, FileText, Film, Image as ImageIcon, Paperclip, Send, Settings2, Square, SquarePen, X } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { db, newId } from "@/lib/db";
 import { useLocalAI, type ChatMessage } from "@/lib/ai/use-local-ai";
@@ -16,6 +16,7 @@ import { useWorkspace, type ViewState } from "@/lib/workspace";
 import { noteTitle, specialFolderName } from "@/lib/panes/note-data";
 import { useActiveNoteId, useNote } from "@/lib/panes/hooks";
 import { LOCAL_MODELS, useAISettings, writeAISettings, type LocalModel } from "@/lib/ai/ai-settings";
+import { tierModels } from "@/lib/ai/models";
 import { AGENT_SYSTEM, runAgent, runAgentLocal } from "@/lib/ai/agent";
 import { situationText } from "@/lib/ai/tools";
 import type { ApiMessage, ContentPart } from "@/lib/ai/server";
@@ -24,9 +25,41 @@ import { fmtTime, isVideoFile, videoFrames, videoInfo, videoInfoText, videoLinks
 import { Markdown } from "./markdown";
 import { Select } from "@/components/ui/select";
 
-// Selector del modelo (todos corren en esta PC).
+// Copia el texto al portapapeles y muestra un check un momento.
+function CopyButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      title="Copiar"
+      onClick={() => {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            setDone(true);
+            window.setTimeout(() => setDone(false), 1500);
+          })
+          .catch(() => undefined);
+      }}
+      className="flex items-center gap-1 text-[12px] text-faint hover:text-text"
+    >
+      {done ? <Check className="h-3.5 w-3.5" strokeWidth={2} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />}
+      {done ? "Copiado" : "Copiar"}
+    </button>
+  );
+}
+
+// Selector del modo: Low, Default y Ultra son los Qwen 3.5 descargados, de menor a mayor.
 function ModelPicker() {
   const s = useAISettings();
+  const ai = useLocalAI();
+  const tiers = tierModels(ai.catalog);
+  const size = (id?: string) => ai.catalog?.models.find((m) => m.id === id)?.label.replace("Qwen3.5 ", "");
+  const label = (id: LocalModel, base: string) => {
+    if (id === "low" || id === "default" || id === "ultra") return tiers[id] ? `${base} · ${size(tiers[id].id)}` : base;
+    if (id === "auto" && ai.currentModel && s.localModel === "auto") return `${base} · ${size(ai.currentModel)}`;
+    return base;
+  };
   return (
     <Select
       aria-label="Modelo de IA"
@@ -36,7 +69,7 @@ function ModelPicker() {
     >
       {LOCAL_MODELS.map((m) => (
         <option key={m.id} value={m.id}>
-          {m.label}
+          {label(m.id, m.label)}
         </option>
       ))}
     </Select>
@@ -292,7 +325,8 @@ export function AIChatPane() {
       if (sources.length) {
         const ctrl = new AbortController();
         abortRef.current = ctrl;
-        await ai.load();
+        // Resumir documentos enteros: en Automático, el modelo más grande.
+        await ai.load({ text, chars: 100_000 });
         ai.setBusy(true);
         try {
           const answer = await summarize(ai, sources, {
@@ -386,7 +420,7 @@ export function AIChatPane() {
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    await ai.load();
+    await ai.load({ text, chars: textPart.length, images: images.length > 0, think: settings.think });
     ai.setBusy(true);
     try {
       const common = {
@@ -688,6 +722,7 @@ export function AIChatPane() {
                   {t.content}
                 </div>
               )}
+              {t.content && <CopyButton text={t.content} />}
             </div>
           ) : (
             <div key={t.id} className="space-y-1.5">
@@ -728,16 +763,19 @@ export function AIChatPane() {
                 <p className="text-[12px] text-faint">Fuentes: {t.sources.join(", ")}</p>
               )}
               {!t.failed && t.content && !busy && (
-                <button
-                  type="button"
-                  onClick={() => insertAnswer(t.content)}
-                  disabled={!note}
-                  title={note ? undefined : "Abrí una nota para insertar"}
-                  className="flex items-center gap-1 text-[12px] text-faint hover:text-text disabled:opacity-40 disabled:hover:text-faint"
-                >
-                  <ArrowDownToLine className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  Insertar en la nota
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <CopyButton text={t.content} />
+                  <button
+                    type="button"
+                    onClick={() => insertAnswer(t.content)}
+                    disabled={!note}
+                    title={note ? undefined : "Abrí una nota para insertar"}
+                    className="flex items-center gap-1 text-[12px] text-faint hover:text-text disabled:opacity-40 disabled:hover:text-faint"
+                  >
+                    <ArrowDownToLine className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Insertar en la nota
+                  </button>
+                </div>
               )}
             </div>
           ),

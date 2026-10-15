@@ -1,17 +1,17 @@
-//! IA potente local: un `llama-server` (llama.cpp) que corre en esta PC.
+//! IA local: un `llama-server` (llama.cpp) que corre en esta PC con un modelo Qwen 3.5.
 //!
-//! Vive en `C:\Users\<usuario>\UniCore-IA` (fuera de Documentos para que OneDrive no sincronice 13 GB):
+//! Vive en `C:\Users\<usuario>\UniCore-IA` (fuera de Documentos para que OneDrive no sincronice GB):
 //! - `llama\llama-server.exe` (versión Vulkan, anda con placas AMD, NVIDIA e Intel)
-//! - `modelos\*.gguf` (el modelo; el `mmproj*.gguf` opcional le da visión)
+//! - `modelos\<id>\*.gguf` un modelo Qwen 3.5 por carpeta (ver `CATALOG`), con su `mmproj-F16.gguf` (visión)
 //!
-//! La app lo arranca sola cuando hace falta y lo cierra al salir. También deja buscar en
-//! internet usando el curl que trae Windows (la ventana de la app no puede por CORS).
+//! La app lo arranca sola cuando hace falta (con el modelo que pida) y lo cierra al salir. También
+//! deja buscar en internet usando el curl que trae Windows (la ventana de la app no puede por CORS).
 
 use std::fs;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 #[cfg(windows)]
@@ -21,15 +21,46 @@ pub const PORT: u16 = 8642;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+/// Un tamaño de Qwen 3.5 que se puede bajar. `rank`: cuanto más alto, más capaz.
+pub struct ModelDef {
+    id: &'static str,
+    label: &'static str,
+    repo: &'static str,
+    file: &'static str,
+    bytes: u64,
+    mmproj_bytes: u64,
+    rank: u8,
+    moe: bool,
+}
+
+const HF: &str = "https://huggingface.co/unsloth";
+pub const CATALOG: &[ModelDef] = &[
+    ModelDef { id: "0.8b", label: "Qwen3.5 0.8B", repo: "Qwen3.5-0.8B-GGUF", file: "Qwen3.5-0.8B-Q4_K_M.gguf", bytes: 530_000_000, mmproj_bytes: 200_000_000, rank: 1, moe: false },
+    ModelDef { id: "2b", label: "Qwen3.5 2B", repo: "Qwen3.5-2B-GGUF", file: "Qwen3.5-2B-Q4_K_M.gguf", bytes: 1_280_000_000, mmproj_bytes: 670_000_000, rank: 2, moe: false },
+    ModelDef { id: "4b", label: "Qwen3.5 4B", repo: "Qwen3.5-4B-GGUF", file: "Qwen3.5-4B-Q4_K_M.gguf", bytes: 2_740_000_000, mmproj_bytes: 670_000_000, rank: 3, moe: false },
+    ModelDef { id: "9b", label: "Qwen3.5 9B", repo: "Qwen3.5-9B-GGUF", file: "Qwen3.5-9B-Q4_K_M.gguf", bytes: 5_680_000_000, mmproj_bytes: 920_000_000, rank: 4, moe: false },
+    // MoE: activa 3B por palabra, así que anda rápido aunque no entre entero en la placa.
+    ModelDef { id: "35b-a3b", label: "Qwen3.5 35B-A3B", repo: "Qwen3.5-35B-A3B-GGUF", file: "Qwen3.5-35B-A3B-UD-IQ3_XXS.gguf", bytes: 13_080_000_000, mmproj_bytes: 900_000_000, rank: 5, moe: true },
+    ModelDef { id: "27b", label: "Qwen3.5 27B", repo: "Qwen3.5-27B-GGUF", file: "Qwen3.5-27B-IQ4_XS.gguf", bytes: 14_980_000_000, mmproj_bytes: 930_000_000, rank: 6, moe: false },
+];
+
+fn def(id: &str) -> Option<&'static ModelDef> {
+    CATALOG.iter().find(|m| m.id == id)
+}
+
+fn url(m: &ModelDef, file: &str) -> String {
+    format!("{HF}/{}/resolve/main/{file}", m.repo)
+}
+
 #[derive(Default)]
 pub struct Ia {
-    child: Mutex<Option<Child>>,
+    child: Mutex<Option<(Child, String)>>,
 }
 
 impl Drop for Ia {
     fn drop(&mut self) {
         if let Ok(mut c) = self.child.lock() {
-            if let Some(mut ch) = c.take() {
+            if let Some((mut ch, _)) = c.take() {
                 let _ = ch.kill();
             }
         }
@@ -37,7 +68,7 @@ impl Drop for Ia {
 }
 
 // En la carpeta del usuario (no en AppData: ahí Windows a veces separa lo que escriben
-// distintas apps, y no en Documentos: OneDrive no tiene que subir 14 GB).
+// distintas apps, y no en Documentos: OneDrive no tiene que subir GB).
 fn ia_root() -> PathBuf {
     dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join("UniCore-IA")
 }
@@ -46,26 +77,28 @@ fn server_exe() -> PathBuf {
     ia_root().join("llama").join("llama-server.exe")
 }
 
-// El modelo más grande de la carpeta (el mmproj es aparte).
-fn find_model() -> Option<(PathBuf, Option<PathBuf>)> {
-    let dir = ia_root().join("modelos");
-    let mut models = Vec::new();
-    let mut mmproj = None;
-    for e in fs::read_dir(&dir).ok()?.flatten() {
-        let p = e.path();
-        let name = p.file_name()?.to_string_lossy().to_lowercase();
-        if !name.ends_with(".gguf") {
-            continue;
-        }
-        let size = e.metadata().map(|m| m.len()).unwrap_or(0);
-        if name.starts_with("mmproj") {
-            mmproj = Some(p);
-        } else if size > 1_000_000_000 {
-            models.push((size, p));
-        }
+fn model_dir(m: &ModelDef) -> PathBuf {
+    ia_root().join("modelos").join(m.id)
+}
+
+fn model_path(m: &ModelDef) -> PathBuf {
+    model_dir(m).join(m.file)
+}
+
+fn installed(m: &ModelDef) -> bool {
+    model_path(m).exists()
+}
+
+// Las versiones anteriores dejaban el 35B suelto en `modelos\`: lo pasamos a su carpeta.
+fn migrate() {
+    let root = ia_root().join("modelos");
+    let Some(m) = def("35b-a3b") else { return };
+    let old = root.join(m.file);
+    if old.exists() && !installed(m) {
+        let _ = fs::create_dir_all(model_dir(m));
+        let _ = fs::rename(&old, model_path(m));
+        let _ = fs::rename(root.join("mmproj-F16.gguf"), model_dir(m).join("mmproj-F16.gguf"));
     }
-    models.sort();
-    models.pop().map(|(_, p)| (p, mmproj))
 }
 
 fn port_open() -> bool {
@@ -77,55 +110,85 @@ pub struct IaInfo {
     installed: bool,
     running: bool,
     port: u16,
+    /// Id del modelo que está cargado (si lo arrancamos nosotros).
     model: Option<String>,
     vision: bool,
 }
 
-fn info(running: bool) -> IaInfo {
-    let found = find_model();
+fn info(running: Option<String>, external: bool) -> IaInfo {
+    migrate();
+    let vision = running
+        .as_deref()
+        .and_then(def)
+        .map(|m| model_dir(m).join("mmproj-F16.gguf").exists())
+        .unwrap_or(false);
     IaInfo {
-        installed: server_exe().exists() && found.is_some(),
-        running,
+        installed: server_exe().exists() && CATALOG.iter().any(installed),
+        running: running.is_some() || external,
         port: PORT,
-        model: found.as_ref().and_then(|(p, _)| p.file_stem().map(|s| s.to_string_lossy().into_owned())),
-        vision: found.map(|(_, m)| m.is_some()).unwrap_or(false),
+        model: running,
+        vision,
+    }
+}
+
+// Id del modelo que corre en nuestro proceso, si sigue vivo.
+fn running_model(ia: &Ia) -> Option<String> {
+    let mut guard = ia.child.lock().ok()?;
+    let alive = guard.as_mut().map(|(ch, _)| matches!(ch.try_wait(), Ok(None))).unwrap_or(false);
+    if alive {
+        guard.as_ref().map(|(_, id)| id.clone())
+    } else {
+        None
     }
 }
 
 #[tauri::command]
 pub fn ia_info(ia: tauri::State<Ia>) -> IaInfo {
-    let alive = ia
-        .child
-        .lock()
-        .map(|mut c| c.as_mut().map(|ch| matches!(ch.try_wait(), Ok(None))).unwrap_or(false))
-        .unwrap_or(false);
-    info(alive || port_open())
+    let running = running_model(&ia);
+    let external = running.is_none() && port_open();
+    info(running, external)
 }
 
-/// Arranca el servidor si no está corriendo. `ctx` = tamaño de contexto en tokens.
+/// Arranca el servidor con `model` (o el más capaz descargado). Si corre otro modelo, lo cambia.
+/// `ctx` = tamaño de contexto en tokens.
 #[tauri::command]
-pub fn ia_start(ia: tauri::State<Ia>, ctx: Option<u32>) -> Result<IaInfo, String> {
+pub fn ia_start(ia: tauri::State<Ia>, model: Option<String>, ctx: Option<u32>) -> Result<IaInfo, String> {
+    migrate();
+    let m = match model.as_deref() {
+        Some(id) => def(id).filter(|m| installed(m)).ok_or("Ese modelo no está descargado. Bajalo en Ajustes > IA.")?,
+        None => CATALOG
+            .iter()
+            .filter(|m| installed(m))
+            .max_by_key(|m| m.rank)
+            .ok_or("No hay ningún modelo Qwen 3.5 descargado. Bajá uno en Ajustes > IA.")?,
+    };
     let mut guard = ia.child.lock().map_err(|e| e.to_string())?;
-    if let Some(ch) = guard.as_mut() {
+    if let Some((ch, id)) = guard.as_mut() {
         if matches!(ch.try_wait(), Ok(None)) {
-            return Ok(info(true));
+            if id == m.id {
+                return Ok(info(Some(id.clone()), false));
+            }
+            // Otro modelo: lo cerramos y esperamos a que suelte el puerto y la memoria.
+            let _ = ch.kill();
+            let _ = ch.wait();
         }
-    }
-    if port_open() {
-        return Ok(info(true));
+        *guard = None;
+    } else if port_open() {
+        // Un servidor que levantó otro (a mano): lo usamos como está.
+        return Ok(info(None, true));
     }
     let exe = server_exe();
-    let (model, mmproj) = find_model().ok_or("No encontramos el modelo en UniCore-IA\\modelos")?;
     if !exe.exists() {
         return Err("No encontramos llama-server en UniCore-IA\\llama".into());
     }
+    let mmproj = model_dir(m).join("mmproj-F16.gguf");
 
     let mut cmd = Command::new(&exe);
     cmd.current_dir(exe.parent().unwrap())
-        .args(["-m", &model.to_string_lossy()])
+        .args(["-m", &model_path(m).to_string_lossy()])
         .args(["--host", "127.0.0.1", "--port", &PORT.to_string()])
-        // --fit llena la placa de video y deja en la RAM los expertos que no entran (MoE).
-        // Medido en una RX 9060 XT 8 GB: ~460 tokens/s leyendo y ~24 tokens/s escribiendo.
+        // --fit llena la placa de video y deja en la RAM lo que no entra (en los MoE, los expertos).
+        // Medido en una RX 9060 XT 8 GB con el 35B-A3B: ~460 tokens/s leyendo y ~24 escribiendo.
         .args(["--fit", "on", "--fit-target", "768"])
         .args(["-c", &ctx.unwrap_or(32768).to_string(), "-np", "1"])
         // Lotes grandes: la placa procesa los documentos largos mucho más rápido.
@@ -139,30 +202,114 @@ pub fn ia_start(ia: tauri::State<Ia>, ctx: Option<u32>) -> Result<IaInfo, String
         .stderr(Stdio::from(
             fs::File::create(ia_root().join("servidor.log")).map_err(|e| e.to_string())?,
         ));
-    match mmproj {
-        Some(m) => {
-            // La visión va en la CPU para dejarle la placa al modelo.
-            cmd.args(["--mmproj", &m.to_string_lossy(), "--no-mmproj-offload"]);
-        }
-        None => {
-            cmd.arg("--no-mmproj");
-        }
+    if mmproj.exists() {
+        // La visión va en la CPU para dejarle la placa al modelo.
+        cmd.args(["--mmproj", &mmproj.to_string_lossy(), "--no-mmproj-offload"]);
+    } else {
+        cmd.arg("--no-mmproj");
     }
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
 
     let child = cmd.spawn().map_err(|e| format!("No se pudo abrir llama-server: {e}"))?;
-    *guard = Some(child);
-    Ok(info(true))
+    *guard = Some((child, m.id.to_string()));
+    Ok(info(Some(m.id.to_string()), false))
 }
 
 #[tauri::command]
 pub fn ia_stop(ia: tauri::State<Ia>) {
     if let Ok(mut c) = ia.child.lock() {
-        if let Some(mut ch) = c.take() {
+        if let Some((mut ch, _)) = c.take() {
             let _ = ch.kill();
+            let _ = ch.wait();
         }
     }
+}
+
+// ---------- Qué tiene esta PC ----------
+
+#[derive(Clone, serde::Serialize)]
+pub struct Hardware {
+    /// RAM total en bytes.
+    ram: u64,
+    /// Memoria de la placa de video más grande (0 si sólo hay gráficos integrados chicos).
+    vram: u64,
+    gpu: String,
+}
+
+fn powershell(script: &str) -> String {
+    let mut cmd = Command::new("powershell");
+    cmd.args(["-NoProfile", "-Command", script]);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd.output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default()
+}
+
+fn hardware() -> Hardware {
+    static HW: OnceLock<Hardware> = OnceLock::new();
+    HW.get_or_init(|| {
+        let ram = powershell("(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory").trim().parse().unwrap_or(0);
+        // Win32_VideoController corta en 4 GB; el registro del driver tiene el número real.
+        let out = powershell(
+            r#"Get-ItemProperty -Path 'HKLM:\SYSTEM\ControlSet001\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0*' -ErrorAction SilentlyContinue | ForEach-Object { "$($_.'HardwareInformation.qwMemorySize')|$($_.DriverDesc)" }"#,
+        );
+        let (vram, gpu) = out
+            .lines()
+            .filter_map(|l| {
+                let (n, name) = l.trim().split_once('|')?;
+                Some((n.parse::<u64>().unwrap_or(0), name.to_string()))
+            })
+            .max_by_key(|(n, _)| *n)
+            .unwrap_or((0, String::new()));
+        Hardware { ram, vram, gpu }
+    })
+    .clone()
+}
+
+#[derive(serde::Serialize)]
+pub struct CatalogModel {
+    id: &'static str,
+    label: &'static str,
+    /// Lo que ocupa en el disco (modelo + visión).
+    bytes: u64,
+    /// Lo que ocupa el modelo (para estimar si entra en la placa).
+    model_bytes: u64,
+    rank: u8,
+    moe: bool,
+    installed: bool,
+}
+
+#[derive(serde::Serialize)]
+pub struct Catalog {
+    hardware: Hardware,
+    engine_installed: bool,
+    models: Vec<CatalogModel>,
+}
+
+/// Los modelos Qwen 3.5 que se pueden bajar, cuáles están y qué tiene la PC.
+#[tauri::command]
+pub async fn ia_catalog() -> Catalog {
+    tauri::async_runtime::spawn_blocking(|| {
+        migrate();
+        Catalog {
+            hardware: hardware(),
+            engine_installed: server_exe().exists(),
+            models: CATALOG
+                .iter()
+                .map(|m| CatalogModel {
+                    id: m.id,
+                    label: m.label,
+                    bytes: m.bytes + m.mmproj_bytes,
+                    model_bytes: m.bytes,
+                    rank: m.rank,
+                    moe: m.moe,
+                    installed: installed(m),
+                })
+                .collect(),
+        }
+    })
+    .await
+    .unwrap_or(Catalog { hardware: Hardware { ram: 0, vram: 0, gpu: String::new() }, engine_installed: false, models: vec![] })
 }
 
 /// Últimas líneas del registro del servidor (para mostrar por qué no arrancó).
@@ -204,10 +351,7 @@ pub async fn web_get(url: String, body: Option<String>) -> Result<String, String
 // ---------- Descarga desde la app ----------
 
 const LLAMA_URL: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b11609/llama-b11609-bin-win-vulkan-x64.zip";
-const MODEL_URL: &str = "https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/resolve/main/Qwen3.5-35B-A3B-UD-IQ3_XXS.gguf";
-const MMPROJ_URL: &str = "https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/resolve/main/mmproj-F16.gguf";
-// Tamaños aproximados, para la barra de progreso.
-const TOTAL_BYTES: u64 = 32_000_000 + 13_080_000_000 + 903_000_000;
+const LLAMA_BYTES: u64 = 32_000_000;
 
 #[derive(Default, Clone, serde::Serialize)]
 pub struct DownloadState {
@@ -239,36 +383,66 @@ fn curl_to(url: &str, dest: &PathBuf) -> Result<(), String> {
     }
 }
 
+// Se baja a `.part` y se renombra al terminar: así un archivo a medias nunca cuenta como descargado.
+fn fetch(url: &str, dest: &PathBuf) -> Result<(), String> {
+    if dest.exists() {
+        return Ok(());
+    }
+    let part = part_of(dest);
+    curl_to(url, &part)?;
+    fs::rename(&part, dest).map_err(|e| e.to_string())
+}
+
+fn part_of(p: &PathBuf) -> PathBuf {
+    let mut s = p.clone().into_os_string();
+    s.push(".part");
+    PathBuf::from(s)
+}
+
 fn size_of(p: &PathBuf) -> u64 {
     fs::metadata(p).map(|m| m.len()).unwrap_or(0)
 }
 
+/// Baja el motor (si falta) y los modelos pedidos, uno detrás del otro.
 #[tauri::command]
-pub fn ia_download(dl: tauri::State<Downloads>) -> Result<(), String> {
+pub fn ia_download(dl: tauri::State<Downloads>, models: Vec<String>) -> Result<(), String> {
+    migrate();
+    let wanted: Vec<&'static ModelDef> = models.iter().filter_map(|id| def(id)).filter(|m| !installed(m)).collect();
+    let need_llama = !server_exe().exists();
+    if wanted.is_empty() && !need_llama {
+        return Ok(());
+    }
     let state = dl.state.clone();
     {
         let mut s = state.lock().map_err(|e| e.to_string())?;
         if s.running {
-            return Ok(());
+            return Err("Ya hay una descarga en curso.".into());
         }
-        *s = DownloadState { running: true, total: TOTAL_BYTES, step: "Preparando…".into(), ..Default::default() };
+        let total = wanted.iter().map(|m| m.bytes + m.mmproj_bytes).sum::<u64>() + if need_llama { LLAMA_BYTES } else { 0 };
+        *s = DownloadState { running: true, total, step: "Preparando…".into(), ..Default::default() };
     }
     std::thread::spawn(move || {
         let root = ia_root();
-        let models = root.join("modelos");
         let llama = root.join("llama");
-        let _ = fs::create_dir_all(&models);
         let _ = fs::create_dir_all(&llama);
         let zip = root.join("llama.zip");
-        let model = models.join("Qwen3.5-35B-A3B-UD-IQ3_XXS.gguf");
-        let mmproj = models.join("mmproj-F16.gguf");
+
+        // Todo lo que se va a bajar, en orden, para medir el progreso.
+        let mut files: Vec<(String, PathBuf, String)> = Vec::new();
+        for m in &wanted {
+            let _ = fs::create_dir_all(model_dir(m));
+            files.push((url(m, m.file), model_path(m), format!("Descargando {}…", m.label)));
+            files.push((url(m, "mmproj-F16.gguf"), model_dir(m).join("mmproj-F16.gguf"), format!("Descargando la visión de {}…", m.label)));
+        }
 
         // Hilo que mide cuánto se bajó.
         let watch = state.clone();
-        let (z, m, p) = (zip.clone(), model.clone(), mmproj.clone());
-        let llama_done = llama.join("llama-server.exe");
+        let paths: Vec<PathBuf> = files.iter().map(|(_, p, _)| p.clone()).collect();
+        let (z, llama_done) = (zip.clone(), llama.join("llama-server.exe"));
         std::thread::spawn(move || loop {
             std::thread::sleep(Duration::from_millis(700));
+            let done = (if !need_llama { 0 } else if llama_done.exists() { LLAMA_BYTES } else { size_of(&z) })
+                + paths.iter().map(|p| size_of(p).max(size_of(&part_of(p)))).sum::<u64>();
             let mut s = match watch.lock() {
                 Ok(s) => s,
                 Err(_) => return,
@@ -276,8 +450,7 @@ pub fn ia_download(dl: tauri::State<Downloads>) -> Result<(), String> {
             if !s.running {
                 return;
             }
-            let zip_bytes = if llama_done.exists() { 32_000_000 } else { size_of(&z) };
-            s.done = zip_bytes + size_of(&m) + size_of(&p);
+            s.done = done.min(s.total);
         });
 
         let set_step = |t: &str| {
@@ -286,7 +459,7 @@ pub fn ia_download(dl: tauri::State<Downloads>) -> Result<(), String> {
             }
         };
         let result = (|| -> Result<(), String> {
-            if !llama.join("llama-server.exe").exists() {
+            if need_llama {
                 set_step("Descargando el motor (llama.cpp)…");
                 curl_to(LLAMA_URL, &zip)?;
                 let mut tar = Command::new("tar");
@@ -296,13 +469,14 @@ pub fn ia_download(dl: tauri::State<Downloads>) -> Result<(), String> {
                 tar.status().map_err(|e| e.to_string())?;
                 let _ = fs::remove_file(&zip);
             }
-            set_step("Descargando el modelo Qwen3.5 35B (13 GB)…");
-            if size_of(&model) < 13_000_000_000 {
-                curl_to(MODEL_URL, &model)?;
-            }
-            set_step("Descargando la visión (para leer fotos)…");
-            if size_of(&mmproj) < 900_000_000 {
-                curl_to(MMPROJ_URL, &mmproj)?;
+            // La visión primero: el modelo es lo que marca "descargado", así que va al final.
+            for pair in files.chunks(2) {
+                let (vurl, vpath, vstep) = &pair[1];
+                set_step(vstep);
+                fetch(vurl, vpath)?;
+                let (murl, mpath, mstep) = &pair[0];
+                set_step(mstep);
+                fetch(murl, mpath)?;
             }
             Ok(())
         })();
@@ -312,7 +486,7 @@ pub fn ia_download(dl: tauri::State<Downloads>) -> Result<(), String> {
                 Ok(()) => {
                     s.finished = true;
                     s.done = s.total;
-                    s.step = "Lista".into();
+                    s.step = "Listo".into();
                 }
                 Err(e) => s.error = Some(e),
             }
@@ -326,14 +500,29 @@ pub fn ia_download_status(dl: tauri::State<Downloads>) -> DownloadState {
     dl.state.lock().map(|s| s.clone()).unwrap_or_default()
 }
 
-/// Borra el modelo potente (libera ~14 GB). Primero apaga el servidor.
+/// Borra un modelo (o todo, motor incluido, si no se dice cuál). Si está cargado, apaga el servidor.
 #[tauri::command]
-pub fn ia_remove(ia: tauri::State<Ia>) -> Result<(), String> {
-    ia_stop(ia);
-    std::thread::sleep(Duration::from_millis(500));
-    let root = ia_root();
-    if root.exists() {
-        fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
+pub fn ia_remove(ia: tauri::State<Ia>, model: Option<String>) -> Result<(), String> {
+    migrate();
+    match model.as_deref() {
+        Some(id) => {
+            let m = def(id).ok_or("Modelo desconocido")?;
+            if running_model(&ia).as_deref() == Some(id) {
+                ia_stop(ia);
+            }
+            let dir = model_dir(m);
+            if dir.exists() {
+                fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+            }
+        }
+        None => {
+            ia_stop(ia);
+            std::thread::sleep(Duration::from_millis(500));
+            let root = ia_root();
+            if root.exists() {
+                fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
+            }
+        }
     }
     Ok(())
 }

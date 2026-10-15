@@ -4,6 +4,7 @@
 // La implementación real (WebLLM en un Web Worker) vive en ./ai-provider.tsx.
 
 import { createContext, useContext } from "react";
+import type { Catalog, TaskHint } from "./models";
 
 export type AIStatus = "idle" | "unsupported" | "loading" | "ready" | "generating" | "error";
 
@@ -12,7 +13,7 @@ export interface ChatMessage {
   content: string;
 }
 
-// "servidor": la IA potente en esta PC (llama.cpp), con herramientas. "navegador": WebLLM, sólo charla.
+// "servidor": Qwen 3.5 en esta PC (llama.cpp) o Groq, con herramientas. "navegador": WebLLM (sólo fuera de la app de escritorio).
 export type AIEngine = "servidor" | "navegador";
 
 export interface GenerateOptions {
@@ -30,7 +31,10 @@ export interface LocalAI {
   progress: number; // 0 a 1 durante la descarga/carga del modelo
   progressText: string; // texto en español para mostrar al usuario
   error?: string;
-  load: () => Promise<void>; // descarga (una sola vez) y carga el modelo
+  load: (task?: TaskHint) => Promise<void>; // carga el modelo (en Automático, el que conviene para `task`)
+  catalog: Catalog | null; // modelos Qwen 3.5 y hardware (sólo en la app de escritorio)
+  currentModel?: string; // id del Qwen 3.5 cargado
+  refreshModels: () => Promise<void>; // volver a leer qué modelos hay descargados
   generate: (messages: ChatMessage[], opts?: GenerateOptions) => Promise<string>; // carga solo si hace falta
   stop: () => void;
 }

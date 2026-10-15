@@ -1,10 +1,11 @@
 "use client";
 
-// Cliente de la IA potente: llama-server (llama.cpp) corriendo en esta PC, con API tipo OpenAI.
+// Cliente de la IA local (Qwen 3.5): llama-server (llama.cpp) corriendo en esta PC, con API tipo OpenAI.
 // La app de escritorio lo arranca sola (ver src-tauri/src/ia.rs). En el navegador se puede
 // levantar a mano en el mismo puerto.
 
 import { isDesktop } from "../desktop";
+import { readAISettings } from "./ai-settings";
 
 export const SERVER_PORT = 8642;
 const BASE = `http://127.0.0.1:${SERVER_PORT}`;
@@ -13,7 +14,7 @@ export interface ServerInfo {
   installed: boolean;
   running: boolean;
   port: number;
-  model?: string;
+  model?: string; // id del modelo Qwen 3.5 cargado
   vision: boolean;
 }
 
@@ -67,39 +68,42 @@ export async function serverLog(): Promise<string> {
   return isDesktop() ? invoke<string>("ia_log").catch(() => "") : "";
 }
 
-let starting: Promise<void> | null = null;
+let starting: Promise<void> = Promise.resolve();
 
-// Arranca el servidor (si hace falta) y espera a que el modelo termine de cargar.
-export function ensureServer(onProgress?: (text: string) => void): Promise<void> {
-  if (!starting) {
-    starting = (async () => {
-      if (await healthy()) return;
-      if (isDesktop()) await invoke("ia_start", { ctx: 32768 });
-      onProgress?.("Cargando el modelo en la placa de video…");
-      const t0 = Date.now();
-      // La primera carga de 13 GB desde el disco puede tardar un par de minutos.
-      while (Date.now() - t0 < 5 * 60_000) {
-        try {
-          const r = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(1500) });
-          if (r.ok) return;
-          if (r.status !== 503) throw new Error(`estado ${r.status}`);
-        } catch {
-          // todavía no abrió el puerto
-        }
-        if (isDesktop()) {
-          const info = await invoke<ServerInfo>("ia_info").catch(() => null);
-          if (info && !info.running) throw new Error("El servidor de IA se cerró al cargar el modelo. Revisá que haya memoria libre.");
-        }
-        const secs = Math.round((Date.now() - t0) / 1000);
-        onProgress?.(`Cargando el modelo en la placa de video… ${secs} s`);
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      throw new Error("El modelo tardó demasiado en cargar.");
-    })().finally(() => {
-      starting = null;
-    });
+// Arranca el servidor con `model` (id de Qwen 3.5; si cargó otro, lo cambia) y espera a que
+// el modelo termine de cargar. Los pedidos se encadenan para no arrancar dos a la vez.
+export function ensureServer(model?: string, onProgress?: (text: string) => void): Promise<void> {
+  const run = starting.catch(() => undefined).then(() => startAndWait(model, onProgress));
+  starting = run;
+  return run;
+}
+
+async function startAndWait(model?: string, onProgress?: (text: string) => void) {
+  if (isDesktop()) {
+    const info = await invoke<ServerInfo>("ia_info").catch(() => null);
+    if (info?.running && (!model || !info.model || info.model === model) && (await healthy())) return;
+    await invoke("ia_start", { model: model ?? null, ctx: 32768 });
+  } else if (await healthy()) return;
+  onProgress?.("Cargando el modelo en la placa de video…");
+  const t0 = Date.now();
+  // La primera carga de un modelo grande desde el disco puede tardar un par de minutos.
+  while (Date.now() - t0 < 5 * 60_000) {
+    try {
+      const r = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(1500) });
+      if (r.ok) return;
+      if (r.status !== 503) throw new Error(`estado ${r.status}`);
+    } catch {
+      // todavía no abrió el puerto
+    }
+    if (isDesktop()) {
+      const info = await invoke<ServerInfo>("ia_info").catch(() => null);
+      if (info && !info.running) throw new Error("El servidor de IA se cerró al cargar el modelo. Revisá que haya memoria libre.");
+    }
+    const secs = Math.round((Date.now() - t0) / 1000);
+    onProgress?.(`Cargando el modelo en la placa de video… ${secs} s`);
+    await new Promise((r) => setTimeout(r, 1000));
   }
-  return starting;
+  throw new Error("El modelo tardó demasiado en cargar.");
 }
 
 export async function stopServer() {
@@ -125,6 +129,7 @@ export interface ChatOptions {
 
 // Una vuelta de chat con streaming. Junta texto, razonamiento y llamadas a herramientas.
 export async function chatStream(messages: ApiMessage[], opts: ChatOptions = {}): Promise<StreamResult> {
+  if (readAISettings().localModel === "groq") return groqStream(messages, opts);
   const think = opts.think ?? false;
   const body: Record<string, unknown> = {
     messages,
@@ -155,8 +160,13 @@ export async function chatStream(messages: ApiMessage[], opts: ChatOptions = {})
     throw new Error(`La IA respondió con un error (${res.status}). ${text.slice(0, 200)}`);
   }
 
+  return readStream(res, opts);
+}
+
+// Lee el stream SSE (formato OpenAI) y junta texto, razonamiento y llamadas a herramientas.
+async function readStream(res: Response, opts: ChatOptions): Promise<StreamResult> {
   const out: StreamResult = { content: "", reasoning: "", toolCalls: [] };
-  const reader = res.body.getReader();
+  const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   try {
@@ -211,4 +221,51 @@ export async function chatStream(messages: ApiMessage[], opts: ChatOptions = {})
   }
   out.toolCalls = out.toolCalls.filter(Boolean);
   return out;
+}
+
+// Qwen 3.8 en Groq (nube): misma API tipo OpenAI, con la clave que pone el usuario en Ajustes > IA.
+export const GROQ_MODEL = "qwen/qwen3.8-27b";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+async function groqStream(messages: ApiMessage[], opts: ChatOptions): Promise<StreamResult> {
+  const s = readAISettings();
+  const key = s.groqKey.trim();
+  if (!key) throw new Error("Falta la clave de Groq. Pegala en Ajustes > IA.");
+  const body: Record<string, unknown> = {
+    model: GROQ_MODEL,
+    messages,
+    stream: true,
+    temperature: opts.temperature ?? 0.6,
+    max_completion_tokens: opts.maxTokens ?? 4096,
+    // Con herramientas o JSON, Groq sólo acepta "parsed" u "hidden"; no mostramos el razonamiento.
+    reasoning_format: "hidden",
+  };
+  if (opts.tools?.length) {
+    body.tools = opts.tools;
+    body.parallel_tool_calls = true;
+  }
+  if (opts.json) body.response_format = { type: "json_object" };
+
+  // Groq limita los tokens por minuto en la capa gratuita: si responde 429, esperamos lo que indica y reintentamos.
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    });
+    if (res.status !== 429) break;
+    const text = await res.text().catch(() => "");
+    const m = /try again in ([\d.]+)\s*(ms|s)\b/i.exec(text);
+    const waitMs = m ? Math.min(Number(m[1]) * (m[2].toLowerCase() === "ms" ? 1 : 1000), 30_000) : 15_000;
+    await new Promise((r) => setTimeout(r, waitMs + 500));
+    if (opts.signal?.aborted) break;
+  }
+  if (!res || !res.ok || !res.body) {
+    if (res?.status === 413) throw new Error("El pedido es demasiado grande para Groq. Probá con algo más corto o empezá un chat nuevo.");
+    const text = res ? await res.text().catch(() => "") : "";
+    throw new Error(`Groq respondió con un error (${res?.status ?? "?"}). ${text.slice(0, 200)}`);
+  }
+  return readStream(res, opts);
 }

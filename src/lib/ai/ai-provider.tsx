@@ -1,23 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type {
-  ChatCompletionRequestStreaming,
-  InitProgressReport,
-  WebWorkerMLCEngine,
-} from "@mlc-ai/web-llm";
-import {
-  AIContext,
-  type AIStatus,
-  type ChatMessage,
-  type GenerateOptions,
-  type LocalAI,
-  type AIEngine,
-} from "./use-local-ai";
+import type { ChatCompletionRequestStreaming, InitProgressReport, WebWorkerMLCEngine } from "@mlc-ai/web-llm";
+import { AIContext, type AIStatus, type ChatMessage, type GenerateOptions, type LocalAI, type AIEngine } from "./use-local-ai";
 import { useAISettings } from "./ai-settings";
 import { chatStream, ensureServer, serverInfo, type ServerInfo } from "./server";
+import { fetchCatalog, pickTier, tierModels, type Catalog, type TaskHint } from "./models";
+import { isDesktop } from "../desktop";
 
-// Modelos locales (WebLLM). En automático se elige según la placa de video.
+// Fuera de la app de escritorio no hay llama-server: queda WebLLM, que se elige según la placa de video.
 const MODEL_7B = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
 const MODEL_3B_F16 = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 const MODEL_3B_F32 = "Qwen2.5-3B-Instruct-q4f32_1-MLC";
@@ -113,15 +104,23 @@ export function AIProvider({ children }: { children: ReactNode }) {
   const [progressText, setProgressText] = useState("");
   const [error, setError] = useState<string>();
 
-  // IA potente (llama-server en esta PC).
+  // Qwen 3.5 (llama-server en esta PC).
   const [server, setServer] = useState<ServerInfo | null | undefined>(undefined);
   const [serverStatus, setServerStatus] = useState<AIStatus>("idle");
   const [serverError, setServerError] = useState<string>();
   const [serverProgress, setServerProgress] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const catalogRef = useRef(catalog);
+  catalogRef.current = catalog;
+  const serverRef = useRef(server);
+  serverRef.current = server;
+  const busyRef = useRef(false);
+  const lastUsedRef = useRef(0);
 
-  const engine: AIEngine =
-    settings.localModel === "servidor" || (settings.localModel === "auto" && server?.installed) ? "servidor" : "navegador";
+  // En la app de escritorio todo es Qwen 3.5 en llama-server; Groq (nube) usa el mismo camino.
+  // En el navegador, sólo si alguien dejó un llama-server corriendo.
+  const engine: AIEngine = settings.localModel === "groq" || isDesktop() || server?.installed || server?.running ? "servidor" : "navegador";
   const engineRef = useRef<WebWorkerMLCEngine | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const loadedModelRef = useRef<string | null>(null);
@@ -133,12 +132,19 @@ export function AIProvider({ children }: { children: ReactNode }) {
   // Cola simple: una generación por vez, para que no choquen las llamadas.
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
 
-  // ¿Está instalada la IA potente? ¿Ya corre?
+  const refreshModels = useCallback(async () => {
+    const [info, cat] = await Promise.all([serverInfo(), fetchCatalog()]);
+    setServer(info);
+    setCatalog(cat);
+  }, []);
+
+  // ¿Qué modelos Qwen 3.5 hay? ¿Ya corre alguno?
   useEffect(() => {
     let alive = true;
-    serverInfo().then((info) => {
+    Promise.all([serverInfo(), fetchCatalog()]).then(([info, cat]) => {
       if (!alive) return;
       setServer(info);
+      setCatalog(cat);
       if (info?.running) setServerStatus("ready");
     });
     return () => {
@@ -166,30 +172,78 @@ export function AIProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => unloadLocal, [unloadLocal]);
 
-  // Si cambia el modelo elegido, se libera el anterior; el nuevo se carga al usarlo.
+  // Si se pasa a llama-server o Groq, se libera el modelo del navegador.
   useEffect(() => {
-    const loaded = loadedModelRef.current;
-    if (loaded && (engine === "servidor" || (settings.localModel !== "auto" && loaded !== settings.localModel))) {
+    if (loadedModelRef.current && engine === "servidor") {
       unloadLocal();
       setLocalStatus((s) => (s === "unsupported" ? s : "idle"));
     }
-  }, [settings.localModel, engine, unloadLocal]);
+  }, [engine, unloadLocal]);
 
-  const loadServer = useCallback(async (): Promise<void> => {
-    setServerStatus((s) => (s === "ready" || s === "generating" ? s : "loading"));
-    setServerError(undefined);
-    try {
-      await ensureServer((t) => setServerProgress(t));
-      setServerStatus((s) => (s === "generating" ? s : "ready"));
-      setServerProgress("");
-      serverInfo().then((info) => info && setServer(info));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : MSG_LOAD_FAILED;
-      setServerStatus("error");
-      setServerError(msg);
-      throw new Error(msg);
-    }
+  // Qué Qwen 3.5 usar: el del modo elegido, o en Automático el que pide la tarea.
+  const resolveModel = useCallback((task?: TaskHint): string | undefined => {
+    const tiers = tierModels(catalogRef.current);
+    const mode = settingsRef.current.localModel;
+    const current = serverRef.current?.model;
+    // Mientras el agente trabaja no cambiamos de modelo (otro pedido en paralelo usa el que está).
+    if (busyRef.current && current) return current;
+    if (mode === "low" || mode === "default" || mode === "ultra") return tiers[mode]?.id;
+    const want = tiers[pickTier(task)]?.id;
+    const rank = (id?: string) => catalogRef.current?.models.find((m) => m.id === id)?.rank ?? 0;
+    // En plena charla no bajamos de modelo: recargar tarda más de lo que se ahorra.
+    if (current && rank(current) > rank(want) && Date.now() - lastUsedRef.current < 2 * 60_000) return current;
+    return want;
   }, []);
+
+  const loadServer = useCallback(
+    async (task?: TaskHint): Promise<void> => {
+      if (settingsRef.current.localModel === "groq") {
+        // Nube: no hay nada que cargar; sólo hace falta la clave.
+        if (!settingsRef.current.groqKey.trim()) {
+          const msg = "Falta la clave de Groq. Pegala en Ajustes > IA.";
+          setServerStatus("error");
+          setServerError(msg);
+          throw new Error(msg);
+        }
+        setServerError(undefined);
+        setServerStatus((s) => (s === "generating" ? s : "ready"));
+        return;
+      }
+      // Si recién se bajó un modelo, todavía no figura: releemos el catálogo.
+      if (isDesktop() && !tierModels(catalogRef.current).ultra) {
+        const cat = await fetchCatalog();
+        catalogRef.current = cat;
+        setCatalog(cat);
+      }
+      const model = resolveModel(task);
+      if (isDesktop() && !model) {
+        const msg = "No hay ningún modelo Qwen 3.5 descargado. Bajá uno en Ajustes > IA.";
+        setServerStatus("error");
+        setServerError(msg);
+        throw new Error(msg);
+      }
+      const switching = !!model && serverRef.current?.model !== model;
+      setServerStatus((s) => (!switching && (s === "ready" || s === "generating") ? s : "loading"));
+      setServerError(undefined);
+      try {
+        await ensureServer(model, (t) => setServerProgress(t));
+        lastUsedRef.current = Date.now();
+        setServerStatus((s) => (s === "generating" ? s : "ready"));
+        setServerProgress("");
+        const info = await serverInfo();
+        if (info) {
+          serverRef.current = info;
+          setServer(info);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : MSG_LOAD_FAILED;
+        setServerStatus("error");
+        setServerError(msg);
+        throw new Error(msg);
+      }
+    },
+    [resolveModel],
+  );
 
   const runLoad = useCallback(async (): Promise<void> => {
     const adapter = await requestAdapter();
@@ -204,10 +258,9 @@ export function AIProvider({ children }: { children: ReactNode }) {
     setProgressText("Preparando la IA…");
 
     const webllm = await import("@mlc-ai/web-llm");
-    const wanted = settingsRef.current.localModel;
-    const chosen = wanted === "auto" || wanted === "servidor" ? chooseModel(adapter) : wanted;
-    // En automático, si el 7B no carga (casi siempre por memoria), reintentamos con el 3B.
-    const candidates = wanted === "auto" && chosen === MODEL_7B ? [MODEL_7B, MODEL_3B_F16] : [chosen];
+    const chosen = chooseModel(adapter);
+    // Si el 7B no carga (casi siempre por memoria), reintentamos con el 3B.
+    const candidates = chosen === MODEL_7B ? [MODEL_7B, MODEL_3B_F16] : [chosen];
 
     // Primero se guarda en la caché del navegador; si falla (pasa en algunas ventanas), en IndexedDB.
     const attempts = candidates.flatMap((modelId) => [
@@ -221,7 +274,10 @@ export function AIProvider({ children }: { children: ReactNode }) {
           worker,
           modelId,
           {
-            appConfig: { ...webllm.prebuiltAppConfig, cacheBackend: idb ? "indexeddb" : "cache" },
+            appConfig: {
+              ...webllm.prebuiltAppConfig,
+              cacheBackend: idb ? "indexeddb" : "cache",
+            },
             initProgressCallback: (report) => {
               const d = describeProgress(report);
               setProgress(d.progress);
@@ -234,7 +290,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
         engineRef.current = engine;
         workerRef.current = worker;
         loadedModelRef.current = modelId;
-        if (wanted === "auto") writeStoredModel(modelId);
+        writeStoredModel(modelId);
         writeCacheKind(idb);
         setProgress(1);
         setProgressText("");
@@ -253,16 +309,19 @@ export function AIProvider({ children }: { children: ReactNode }) {
     throw new Error(MSG_LOAD_FAILED);
   }, []);
 
-  const load = useCallback(async (): Promise<void> => {
-    if (engineKindRef.current === "servidor") return loadServer();
-    if (engineRef.current) return;
-    if (!loadingRef.current) {
-      loadingRef.current = runLoad().finally(() => {
-        loadingRef.current = null;
-      });
-    }
-    return loadingRef.current;
-  }, [runLoad, loadServer]);
+  const load = useCallback(
+    async (task?: TaskHint): Promise<void> => {
+      if (engineKindRef.current === "servidor") return loadServer(task);
+      if (engineRef.current) return;
+      if (!loadingRef.current) {
+        loadingRef.current = runLoad().finally(() => {
+          loadingRef.current = null;
+        });
+      }
+      return loadingRef.current;
+    },
+    [runLoad, loadServer],
+  );
 
   const enqueue = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
     const run = queueRef.current.then(task);
@@ -273,7 +332,12 @@ export function AIProvider({ children }: { children: ReactNode }) {
   const generate = useCallback(
     (messages: ChatMessage[], opts: GenerateOptions = {}): Promise<string> =>
       enqueue(async () => {
-        await load();
+        const text = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+        await load({
+          text: text.slice(0, 2000),
+          chars: messages.reduce((n, m) => n + m.content.length, 0),
+          json: opts.json,
+        });
 
         if (engineKindRef.current === "servidor") {
           setServerStatus("generating");
@@ -336,6 +400,8 @@ export function AIProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setBusy = useCallback((busy: boolean) => {
+    busyRef.current = busy;
+    if (!busy) lastUsedRef.current = Date.now();
     if (engineKindRef.current === "servidor") setServerStatus(busy ? "generating" : "ready");
   }, []);
 
@@ -353,8 +419,28 @@ export function AIProvider({ children }: { children: ReactNode }) {
       generate,
       stop,
       setBusy,
+      catalog,
+      currentModel: server?.model,
+      refreshModels,
     }),
-    [engine, isServer, server?.vision, status, progress, serverProgress, progressText, serverError, error, load, generate, stop, setBusy],
+    [
+      engine,
+      isServer,
+      server?.vision,
+      server?.model,
+      status,
+      progress,
+      serverProgress,
+      progressText,
+      serverError,
+      error,
+      load,
+      generate,
+      stop,
+      setBusy,
+      catalog,
+      refreshModels,
+    ],
   );
 
   return <AIContext.Provider value={value}>{children}</AIContext.Provider>;

@@ -249,6 +249,7 @@ pub fn run() {
             ia::ia_download_status,
             ia::ia_remove,
             ia::ia_free_space,
+            ia::ia_catalog,
             ia::save_export
         ])
         .build(tauri::generate_context!())

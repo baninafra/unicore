@@ -4,6 +4,7 @@
 // en el navegador sólo queda Wikipedia, que permite pedidos desde cualquier página.
 
 import { isDesktop } from "../desktop";
+import { readAISettings } from "./ai-settings";
 
 export interface WebResult {
   titulo: string;
@@ -26,6 +27,11 @@ export async function get(url: string, body?: string): Promise<string> {
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
+
+// Groq (capa gratuita) acepta pocos tokens por minuto: con Groq mandamos menos texto de la web.
+const onGroq = () => readAISettings().localModel === "groq";
+const PAGE_CHARS = () => (onGroq() ? 2000 : 9000);
+const MAX_RESULTS = () => (onGroq() ? 5 : 8);
 
 function realUrl(href: string): string {
   // DuckDuckGo envuelve los links: //duckduckgo.com/l/?uddg=<url>
@@ -51,7 +57,7 @@ async function duckduckgo(query: string): Promise<WebResult[]> {
       url: realUrl(a.getAttribute("href") ?? ""),
       fragmento: clip(squash(r.querySelector(".result__snippet")?.textContent ?? ""), 300),
     });
-    if (out.length >= 8) break;
+    if (out.length >= MAX_RESULTS()) break;
   }
   return out;
 }
@@ -94,5 +100,5 @@ export async function readPage(url: string): Promise<{ titulo: string; url: stri
     if (t.length > 1) blocks.push(/^H\d$/.test(e.tagName) ? `## ${t}` : t);
   });
   const texto = blocks.length ? blocks.join("\n") : squash(main?.textContent ?? "");
-  return { titulo: squash(doc.title), url, texto: clip(texto, 9000) };
+  return { titulo: squash(doc.title), url, texto: clip(texto, PAGE_CHARS()) };
 }

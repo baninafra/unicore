@@ -30,7 +30,7 @@ function PaneView({ pane, active, last }: { pane: Pane; active: boolean; last: b
       className={clsx("flex min-w-0 flex-1 flex-col", !last && "border-r border-border")}
       onMouseDownCapture={() => !active && focusPane(pane.id)}
     >
-      <div className="flex items-end bg-bg pr-1.5">
+      <div className="flex items-end bg-bg pr-2">
         <div className="min-w-0 flex-1">
           <TabBar pane={pane} isActivePane={active} />
         </div>

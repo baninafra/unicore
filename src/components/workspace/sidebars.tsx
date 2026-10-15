@@ -164,9 +164,9 @@ export function RightToggle() {
       aria-label="Abrir panel derecho"
       title="Abrir panel derecho"
       onClick={() => setRight(true)}
-      className="mb-1 flex h-6 w-6 flex-none items-center justify-center self-end rounded-sm text-faint hover:bg-surface-raised hover:text-text"
+      className="mb-1 flex h-7 w-7 flex-none items-center justify-center self-end rounded-sm text-faint hover:bg-surface-raised hover:text-text"
     >
-      <PanelRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+      <PanelRight className="h-4 w-4" strokeWidth={1.75} />
     </button>
   );
 }

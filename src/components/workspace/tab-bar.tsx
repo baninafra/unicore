@@ -49,23 +49,23 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
   const current = pane.tabs.find((t) => t.id === pane.activeTabId);
   const canNav = isActivePane && activeTab;
   return (
-    <div className="flex h-9 flex-none items-end gap-0.5 bg-bg px-1.5" onMouseDown={() => focusPane(pane.id)}>
+    <div className="flex h-10 flex-none items-end gap-0.5 bg-bg px-1.5" onMouseDown={() => focusPane(pane.id)}>
       <div className="mb-1 flex flex-none items-center">
         <button
-          className="flex h-6 w-6 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
           aria-label="Atrás"
           disabled={!canNav || !current?.back.length}
           onClick={goBack}
         >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
         </button>
         <button
-          className="flex h-6 w-6 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
           aria-label="Adelante"
           disabled={!canNav || !current?.forward.length}
           onClick={goForward}
         >
-          <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
       <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-hidden">
@@ -74,13 +74,13 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
         ))}
         <button
           aria-label="Nueva pestaña"
-          className="mb-1 flex h-6 w-6 flex-none items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
+          className="mb-1 flex h-7 w-7 flex-none items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
           onClick={() => {
             focusPane(pane.id);
             openView({ type: "vacia" }, "tab");
           }}
         >
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <Plus className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
       <div className="mb-1 flex flex-none items-center">
@@ -88,19 +88,19 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
           <button
             aria-label="Cerrar panel"
             title="Cerrar panel"
-            className="flex h-6 w-6 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
+            className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
             onClick={() => closePane(pane.id)}
           >
-            <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
         ) : (
           <button
             aria-label="Dividir a la derecha"
             title="Dividir a la derecha"
-            className="flex h-6 w-6 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
+            className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
             onClick={() => current && openView(current.view, "split")}
           >
-            <Columns2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <Columns2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
         )}
       </div>

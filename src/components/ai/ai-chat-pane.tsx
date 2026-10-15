@@ -41,7 +41,7 @@ function CopyButton({ text }: { text: string }) {
           })
           .catch(() => undefined);
       }}
-      className="flex items-center gap-1 text-[12px] text-faint hover:text-text"
+      className="flex items-center gap-1 text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-text"
     >
       {done ? <Check className="h-3.5 w-3.5" strokeWidth={2} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />}
       {done ? "Copiado" : "Copiar"}
@@ -63,7 +63,7 @@ function ModelPicker() {
   return (
     <Select
       aria-label="Modelo de IA"
-      className="h-7 min-w-0 max-w-full cursor-pointer truncate rounded-md border border-transparent bg-transparent px-1.5 text-[13px] text-muted outline-none hover:border-border hover:bg-surface-raised focus:border-primary"
+      className="h-7 min-w-0 max-w-full cursor-pointer truncate rounded-md border border-transparent bg-transparent px-1.5 text-[length:calc(13px*var(--ui-scale,1))] text-muted outline-none hover:border-border hover:bg-surface-raised focus:border-primary"
       value={s.localModel}
       onChange={(e) => writeAISettings({ localModel: e.target.value as LocalModel })}
     >
@@ -587,17 +587,17 @@ export function AIChatPane() {
                 <i style={{ width: `${pct}%` }} />
               </div>
             )}
-            <p className="truncate text-[12px] text-faint">{ai.progressText || "Preparando la IA…"}</p>
+            <p className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{ai.progressText || "Preparando la IA…"}</p>
           </div>
         );
       }
       case "error":
         return (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <p className="min-w-0 flex-1 truncate text-[13px] text-rose" title={ai.error}>
+            <p className="min-w-0 flex-1 truncate text-[length:calc(13px*var(--ui-scale,1))] text-rose" title={ai.error}>
               {ai.error ?? "No pudimos preparar la IA. Probá de nuevo."}
             </p>
-            <button type="button" onClick={activate} className="flex-none text-[13px] text-primary-soft underline underline-offset-2">
+            <button type="button" onClick={activate} className="flex-none text-[length:calc(13px*var(--ui-scale,1))] text-primary-soft underline underline-offset-2">
               Reintentar
             </button>
           </div>
@@ -609,9 +609,9 @@ export function AIChatPane() {
           </button>
         );
       case "generating":
-        return <span className="text-[13px] text-faint">Trabajando…</span>;
+        return <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Trabajando…</span>;
       default:
-        return <span className="text-[13px] text-faint">Lista</span>;
+        return <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Lista</span>;
     }
   }
 
@@ -632,7 +632,7 @@ export function AIChatPane() {
       onDrop={onDrop}
     >
       {dragging && (
-        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary-tint/80 text-[13px] text-text">
+        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary-tint/80 text-[length:calc(13px*var(--ui-scale,1))] text-text">
           Soltá para adjuntar
         </div>
       )}
@@ -686,7 +686,7 @@ export function AIChatPane() {
 
       <div ref={threadRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3">
         {turns.length === 0 && (
-          <p className="text-[13px] text-faint">{contextName ? `Preguntá sobre ${contextName}` : "Preguntá lo que necesites"}</p>
+          <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{contextName ? `Preguntá sobre ${contextName}` : "Preguntá lo que necesites"}</p>
         )}
         {turns.map((t) =>
           t.role === "user" ? (
@@ -718,7 +718,7 @@ export function AIChatPane() {
                 </div>
               )}
               {t.content && (
-                <div className="max-w-[88%] whitespace-pre-wrap break-words rounded-md bg-surface-raised px-2.5 py-1.5 text-[13px] leading-5">
+                <div className="max-w-[88%] whitespace-pre-wrap break-words rounded-md bg-surface-raised px-2.5 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] leading-5">
                   {t.content}
                 </div>
               )}
@@ -729,7 +729,7 @@ export function AIChatPane() {
               {t.steps && t.steps.length > 0 && (
                 <ul className="space-y-0.5">
                   {t.steps.map((s, i) => (
-                    <li key={i} className={clsx("flex items-start gap-1.5 text-[12px]", s.ok ? "text-mint" : "text-amber")}>
+                    <li key={i} className={clsx("flex items-start gap-1.5 text-[length:calc(12px*var(--ui-scale,1))]", s.ok ? "text-mint" : "text-amber")}>
                       {s.ok ? <Check className="mt-0.5 h-3 w-3 flex-none" strokeWidth={2} /> : <X className="mt-0.5 h-3 w-3 flex-none" strokeWidth={2} />}
                       <span>{s.label}</span>
                     </li>
@@ -737,18 +737,18 @@ export function AIChatPane() {
                 </ul>
               )}
               {t.failed ? (
-                <p className="text-[13px] text-rose">{t.content}</p>
+                <p className="text-[length:calc(13px*var(--ui-scale,1))] text-rose">{t.content}</p>
               ) : t.content ? (
                 <Markdown text={t.content} />
               ) : t.working ? (
-                <p className="text-[13px] text-faint">{t.working}</p>
+                <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t.working}</p>
               ) : busy && t.id === turns[turns.length - 1]?.id && !confirm ? (
-                <p className="text-[13px] text-faint">Pensando…</p>
+                <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Pensando…</p>
               ) : null}
               {confirm?.turnId === t.id && (
                 <div className="space-y-2 rounded-md border border-rose bg-rose-tint p-2.5">
-                  <p className="text-[13px] font-medium text-text">{confirm.title}</p>
-                  {confirm.detail && <p className="text-[12px] text-muted">{confirm.detail}</p>}
+                  <p className="text-[length:calc(13px*var(--ui-scale,1))] font-medium text-text">{confirm.title}</p>
+                  {confirm.detail && <p className="text-[length:calc(12px*var(--ui-scale,1))] text-muted">{confirm.detail}</p>}
                   <div className="flex gap-2">
                     <button type="button" className="btn btn-danger btn-sm" onClick={() => answerConfirm(true)}>
                       Eliminar
@@ -760,7 +760,7 @@ export function AIChatPane() {
                 </div>
               )}
               {t.sources && t.sources.length > 0 && (
-                <p className="text-[12px] text-faint">Fuentes: {t.sources.join(", ")}</p>
+                <p className="text-[length:calc(12px*var(--ui-scale,1))] text-faint">Fuentes: {t.sources.join(", ")}</p>
               )}
               {!t.failed && t.content && !busy && (
                 <div className="flex flex-wrap items-center gap-3">
@@ -770,7 +770,7 @@ export function AIChatPane() {
                     onClick={() => insertAnswer(t.content)}
                     disabled={!note}
                     title={note ? undefined : "Abrí una nota para insertar"}
-                    className="flex items-center gap-1 text-[12px] text-faint hover:text-text disabled:opacity-40 disabled:hover:text-faint"
+                    className="flex items-center gap-1 text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-text disabled:opacity-40 disabled:hover:text-faint"
                   >
                     <ArrowDownToLine className="h-3.5 w-3.5" strokeWidth={1.75} />
                     Insertar en la nota
@@ -797,7 +797,7 @@ export function AIChatPane() {
           </div>
         )}
         {!powerful && attachments.some((a) => a.kind === "image" || a.kind === "video") && (
-          <p className="mb-1 text-[12px] text-amber">La IA liviana no ve imágenes ni videos. Elegí la IA potente arriba.</p>
+          <p className="mb-1 text-[length:calc(12px*var(--ui-scale,1))] text-amber">La IA liviana no ve imágenes ni videos. Elegí la IA potente arriba.</p>
         )}
         <div className="flex items-end gap-2">
           <input
@@ -830,7 +830,7 @@ export function AIChatPane() {
             disabled={unavailable}
             placeholder={agentMode ? "Pedí o preguntá algo" : "Preguntá algo"}
             aria-label="Pregunta para el asistente"
-            className="min-h-[32px] min-w-0 flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[13px] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
+            className="min-h-[32px] min-w-0 flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
           />
           {busy ? (
             <button type="button" className="btn btn-sm btn-icon flex-none" onClick={stopAll} aria-label="Detener" title="Detener">

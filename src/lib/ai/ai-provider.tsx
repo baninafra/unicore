@@ -5,7 +5,7 @@ import type { ChatCompletionRequestStreaming, InitProgressReport, WebWorkerMLCEn
 import { AIContext, type AIStatus, type ChatMessage, type GenerateOptions, type LocalAI, type AIEngine } from "./use-local-ai";
 import { useAISettings } from "./ai-settings";
 import { chatStream, ensureServer, serverInfo, type ServerInfo } from "./server";
-import { fetchCatalog, pickTier, tierModels, type Catalog, type TaskHint } from "./models";
+import { fetchCatalog, pickTier, suggestedSet, tierModels, type Catalog, type TaskHint } from "./models";
 import { isDesktop } from "../desktop";
 
 // Fuera de la app de escritorio no hay llama-server: queda WebLLM, que se elige según la placa de video.
@@ -16,6 +16,7 @@ const MODEL_3B_F32 = "Qwen2.5-3B-Instruct-q4f32_1-MLC";
 const MODEL_RANK: Record<string, number> = { [MODEL_3B_F32]: 1, [MODEL_3B_F16]: 2, [MODEL_7B]: 3 };
 
 const MODEL_STORAGE_KEY = "uc-ai-model";
+const AUTO_DL_KEY = "uc-ai-autodl";
 const GIB = 1024 ** 3;
 
 const MSG_UNSUPPORTED = "Tu navegador no puede correr la IA. Probá con Chrome o Edge actualizados.";
@@ -146,6 +147,15 @@ export function AIProvider({ children }: { children: ReactNode }) {
       setServer(info);
       setCatalog(cat);
       if (info?.running) setServerStatus("ready");
+      // La primera vez se bajan solos los recomendados para esta PC (después, el usuario decide en Ajustes).
+      if (cat && !localStorage.getItem(AUTO_DL_KEY)) {
+        const missing = suggestedSet(cat).filter((m) => !m.installed);
+        localStorage.setItem(AUTO_DL_KEY, "1");
+        if (missing.length)
+          import("@tauri-apps/api/core")
+            .then(({ invoke }) => invoke("ia_download", { models: missing.map((m) => m.id) }))
+            .catch(() => undefined);
+      }
     });
     return () => {
       alive = false;

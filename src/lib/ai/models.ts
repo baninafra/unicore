@@ -68,14 +68,18 @@ export function suggestedSet(c: Catalog): QwenModel[] {
   return [low, mid, max].filter((m, i, a): m is QwenModel => !!m && a.indexOf(m) === i);
 }
 
-// Qué modelo descargado corresponde a cada modo: Low el más chico, Ultra el más grande y Default el del medio.
+// Qué modelo descargado corresponde a cada modo: los recomendados para esta PC (chico, mediano y
+// el más grande que entra). Si alguno falta, el más chico, el del medio o el más grande descargado.
 export function tierModels(c: Catalog | null): Partial<Record<Tier, QwenModel>> {
   const got = (c?.models ?? []).filter((m) => m.installed).sort((a, b) => a.rank - b.rank);
-  if (!got.length) return {};
+  if (!c || !got.length) return {};
+  const rec = suggestedSet(c);
+  const pick = (i: number, fallback: QwenModel) => (rec[i]?.installed ? rec[i] : fallback);
+  const last = rec.length - 1;
   return {
-    low: got[0],
-    default: got[Math.ceil((got.length - 1) / 2)],
-    ultra: got[got.length - 1],
+    low: pick(0, got[0]),
+    default: pick(Math.min(1, last), got[Math.ceil((got.length - 1) / 2)]),
+    ultra: pick(last, got[got.length - 1]),
   };
 }
 

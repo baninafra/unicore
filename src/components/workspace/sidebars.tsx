@@ -244,7 +244,30 @@ export function RightSidebar() {
           </div>
         </aside>
       )}
+      {railHidden && (
+        // Mismo lugar que el botón de esconder: arriba de todo, a la derecha.
+        <div className="relative w-0 flex-none">
+          <button
+            aria-label="Mostrar la barra derecha"
+            title="Mostrar la barra derecha"
+            onClick={() => setRailHidden(false)}
+            className="absolute right-1.5 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md bg-bg text-faint hover:bg-surface-raised hover:text-text"
+          >
+            <PanelRightOpen className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </button>
+        </div>
+      )}
       {!railHidden && <nav aria-label="Paneles y herramientas" className="flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2">
+        <RailButton
+          icon={PanelRightClose}
+          label="Esconder la barra derecha"
+          active={false}
+          onClick={() => {
+            setRight(false);
+            setRailHidden(true);
+          }}
+        />
+        <div className="my-1 h-px w-5 bg-border" />
         {RIGHT.map((v) => (
           <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
         ))}
@@ -252,35 +275,13 @@ export function RightSidebar() {
         {TOOLS.map((v) => (
           <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
         ))}
-        <div className="mt-auto">
-          <RailButton
-            icon={PanelRightClose}
-            label="Esconder la barra derecha"
-            active={false}
-            onClick={() => {
-              setRight(false);
-              setRailHidden(true);
-            }}
-          />
-        </div>
       </nav>}
     </>
   );
 }
 
 // El riel de la derecha siempre está visible, así que ya no hace falta un botón aparte para abrir el panel.
-// Con la barra derecha escondida, un botón chico arriba a la derecha la vuelve a mostrar.
+// El botón para volver a mostrarla vive en la misma esquina que el de esconder (ver RightSidebar).
 export function RightToggle() {
-  const [hidden, setHidden] = useRailHidden();
-  if (!hidden) return null;
-  return (
-    <button
-      aria-label="Mostrar la barra derecha"
-      title="Mostrar la barra derecha"
-      onClick={() => setHidden(false)}
-      className="mb-1 flex h-7 w-7 flex-none items-center justify-center self-end rounded-sm text-faint hover:bg-surface-raised hover:text-text"
-    >
-      <PanelRightOpen className="h-4 w-4" strokeWidth={1.75} />
-    </button>
-  );
+  return null;
 }

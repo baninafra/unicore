@@ -5,6 +5,18 @@ import { CalendarDays, CalendarCheck, FolderOpen, GitFork, GraduationCap, Inbox,
 import { useWorkspace } from "@/lib/workspace";
 import { isDesktop, openDataFolder } from "@/lib/desktop";
 import { useNotifications } from "@/lib/notifications";
+import { FileSpreadsheet, FileText, FileType, Presentation } from "lucide-react";
+import { EDITOR_KINDS } from "@/lib/editors/editors";
+import { openEditorApp } from "@/components/shell/editor-app";
+
+// El PDF no se crea vacío: se elige uno del equipo y se abre en el editor.
+function pickPdf(onPick: (file: File) => void) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".pdf,application/pdf";
+  input.onchange = () => input.files?.[0] && onPick(input.files[0]);
+  input.click();
+}
 
 function RibbonButton({ icon: Icon, label, onClick, active, badge }: { icon: LucideIcon; label: string; onClick: () => void; active?: boolean; badge?: number }) {
   return (
@@ -52,6 +64,24 @@ export function Ribbon() {
       <RibbonButton icon={Inbox} label="Mails" active={activeView.type === "mails"} onClick={() => openView({ type: "mails" })} />
       <RibbonButton icon={GitFork} label="Grafo" active={activeView.type === "grafo"} onClick={() => openView({ type: "grafo" })} />
       <RibbonButton icon={Terminal} label="Comandos (Ctrl+P)" onClick={() => runCommand("paleta:abrir")} />
+      <div className="my-1 h-px w-5 bg-border" />
+      {([
+        ["doc", FileText],
+        ["sheet", FileSpreadsheet],
+        ["deck", Presentation],
+      ] as const).map(([kind, icon]) => (
+        <RibbonButton
+          key={kind}
+          icon={icon}
+          label={EDITOR_KINDS[kind].label}
+          onClick={() => openEditorApp(kind)}
+        />
+      ))}
+      <RibbonButton
+        icon={FileType}
+        label="PDF"
+        onClick={() => pickPdf((file) => openEditorApp("pdf", file))}
+      />
       <div className="mt-auto flex flex-col items-center gap-1">
         {isDesktop() && <RibbonButton icon={FolderOpen} label="Carpeta de datos" onClick={() => openDataFolder()} />}
         <RibbonButton icon={Settings} label="Ajustes" active={activeView.type === "ajustes"} onClick={() => openView({ type: "ajustes" })} />

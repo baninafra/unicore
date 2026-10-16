@@ -9,6 +9,7 @@ import { seedIfEmpty } from "@/lib/seed";
 import { useWorkspace, WorkspaceProvider, type Pane } from "@/lib/workspace";
 import { LogoMark } from "@/components/ui/logo";
 import { Ribbon } from "@/components/workspace/ribbon";
+import { EditorApp } from "./editor-app";
 import { LeftSidebar, RightSidebar, RightToggle } from "@/components/workspace/sidebars";
 import { TabBar } from "@/components/workspace/tab-bar";
 import { ViewHost } from "@/components/workspace/view-host";
@@ -74,6 +75,7 @@ function Workspace({ notice }: { notice?: string }) {
         <RightSidebar />
       </div>
       <StatusBar />
+      <EditorApp />
     </div>
   );
 }

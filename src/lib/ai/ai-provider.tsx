@@ -197,7 +197,10 @@ export function AIProvider({ children }: { children: ReactNode }) {
     const current = serverRef.current?.model;
     // Mientras el agente trabaja no cambiamos de modelo (otro pedido en paralelo usa el que está).
     if (busyRef.current && current) return current;
-    if (mode === "low" || mode === "default" || mode === "ultra") return tiers[mode]?.id;
+    // Low sólo charla: si el pedido necesita herramientas o pensar, sube al menos a Default
+    // (el modelo chico no entiende pedidos largos ni usa bien las herramientas).
+    if (mode === "low") return (pickTier(task) === "low" ? tiers.low : tiers.default)?.id;
+    if (mode === "default" || mode === "ultra") return tiers[mode]?.id;
     const want = tiers[pickTier(task)]?.id;
     const rank = (id?: string) => catalogRef.current?.models.find((m) => m.id === id)?.rank ?? 0;
     // En plena charla no bajamos de modelo: recargar tarda más de lo que se ahorra.

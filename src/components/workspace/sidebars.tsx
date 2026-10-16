@@ -2,7 +2,26 @@
 
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Bookmark, Files, Hash, Link2, ListTree, PanelRight, Search, Sparkles, SquareArrowOutUpRight, Table2, type LucideIcon } from "lucide-react";
+import {
+  Binary,
+  Bookmark,
+  Calculator,
+  ChartSpline,
+  Files,
+  GraduationCap,
+  Hash,
+  Languages,
+  Link2,
+  ListTree,
+  PanelRightClose,
+  Ruler,
+  Search,
+  Sparkles,
+  SquareArrowOutUpRight,
+  Table2,
+  type LucideIcon,
+} from "lucide-react";
+import dynamic from "next/dynamic";
 import { useWorkspace, type LeftView, type RightView } from "@/lib/workspace";
 import { FileExplorer } from "@/components/explorer/file-explorer";
 import { SearchPane } from "@/components/search/search-pane";
@@ -13,6 +32,15 @@ import { OutgoingPane } from "@/components/panes/outgoing-pane";
 import { OutlinePane } from "@/components/panes/outline-pane";
 import { TagsPane } from "@/components/panes/tags-pane";
 import { PropertiesPane } from "@/components/panes/properties-pane";
+
+// Las herramientas se cargan recién cuando se abren (mathjs y el traductor pesan).
+const ToolLoading = () => <div className="p-4 t-small text-faint">Cargando…</div>;
+const CalculatorTool = dynamic(() => import("@/components/tools/calculator").then((m) => m.CalculatorTool), { ssr: false, loading: ToolLoading });
+const PlotTool = dynamic(() => import("@/components/tools/plotter").then((m) => m.PlotTool), { ssr: false, loading: ToolLoading });
+const TranslatorTool = dynamic(() => import("@/components/tools/translator").then((m) => m.TranslatorTool), { ssr: false, loading: ToolLoading });
+const UnitsTool = dynamic(() => import("@/components/tools/units").then((m) => m.UnitsTool), { ssr: false, loading: ToolLoading });
+const GradesTool = dynamic(() => import("@/components/tools/grades").then((m) => m.GradesTool), { ssr: false, loading: ToolLoading });
+const BasesTool = dynamic(() => import("@/components/tools/bases").then((m) => m.BasesTool), { ssr: false, loading: ToolLoading });
 
 function PaneTab({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {
   return (
@@ -102,6 +130,16 @@ const RIGHT: { key: RightView; label: string; icon: LucideIcon }[] = [
   { key: "properties", label: "Propiedades", icon: Table2 },
 ];
 
+// Herramientas sueltas, debajo de lo que tiene que ver con la nota abierta.
+const TOOLS: { key: RightView; label: string; icon: LucideIcon }[] = [
+  { key: "calc", label: "Calculadora científica", icon: Calculator },
+  { key: "plot", label: "Graficador de funciones", icon: ChartSpline },
+  { key: "translate", label: "Traductor", icon: Languages },
+  { key: "units", label: "Conversor de unidades", icon: Ruler },
+  { key: "grades", label: "Promedio y nota necesaria", icon: GraduationCap },
+  { key: "bases", label: "Bases numéricas", icon: Binary },
+];
+
 export function LeftSidebar() {
   const { leftOpen, leftView, setLeft } = useWorkspace();
   const [width, setWidth] = useWidth("uc-left-width", 260, 180, 560);
@@ -123,50 +161,76 @@ export function LeftSidebar() {
   );
 }
 
-export function RightSidebar() {
-  const { rightOpen, rightView, setRight } = useWorkspace();
-  const [width, setWidth] = useWidth("uc-right-width", 320, 240, 760);
-  if (!rightOpen) return null;
+function RailButton({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {
   return (
-    <aside className="relative flex min-w-[220px] flex-[0_1_auto] flex-col border-l border-border bg-bg" style={{ width }}>
-      <ResizeHandle side="right" width={width} onResize={setWidth} onReset={() => setWidth(320)} />
-      <div className="flex h-9 flex-none items-center gap-0.5 px-2">
-        {RIGHT.map((v) => (
-          <PaneTab key={v.key} icon={v.icon} label={v.label} active={rightView === v.key} onClick={() => setRight(true, v.key)} />
-        ))}
-        <button
-          aria-label="Cerrar panel derecho"
-          title="Cerrar panel derecho"
-          onClick={() => setRight(false)}
-          className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-faint hover:bg-surface-raised hover:text-text"
-        >
-          <PanelRight className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {rightView === "ia" && <AIChatPane />}
-        {rightView === "backlinks" && <BacklinksPane />}
-        {rightView === "outgoing" && <OutgoingPane />}
-        {rightView === "outline" && <OutlinePane />}
-        {rightView === "tags" && <TagsPane />}
-        {rightView === "properties" && <PropertiesPane />}
-      </div>
-    </aside>
+    <button
+      aria-label={label}
+      title={label}
+      aria-pressed={active}
+      onClick={onClick}
+      className={clsx(
+        "flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-raised hover:text-text",
+        active ? "bg-surface-raised text-primary-soft" : "text-faint",
+      )}
+    >
+      <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+    </button>
   );
 }
 
-// Botón para abrir el panel derecho cuando está cerrado (arriba a la derecha).
-export function RightToggle() {
-  const { rightOpen, setRight } = useWorkspace();
-  if (rightOpen) return null;
+// Panel derecho: el contenido a la izquierda y una columna de íconos pegada al borde, siempre visible.
+// Clic en un ícono abre ese panel; clic en el que ya está abierto lo cierra.
+export function RightSidebar() {
+  const { rightOpen, rightView, setRight } = useWorkspace();
+  const [width, setWidth] = useWidth("uc-right-width", 320, 240, 760);
+  const pick = (key: RightView) => (rightOpen && rightView === key ? setRight(false) : setRight(true, key));
+  const current = [...RIGHT, ...TOOLS].find((v) => v.key === rightView);
   return (
-    <button
-      aria-label="Abrir panel derecho"
-      title="Abrir panel derecho"
-      onClick={() => setRight(true)}
-      className="mb-1 flex h-7 w-7 flex-none items-center justify-center self-end rounded-sm text-faint hover:bg-surface-raised hover:text-text"
-    >
-      <PanelRight className="h-4 w-4" strokeWidth={1.75} />
-    </button>
+    <>
+      {rightOpen && (
+        <aside className="relative flex min-w-[220px] flex-[0_1_auto] flex-col border-l border-border bg-bg" style={{ width }}>
+          <ResizeHandle side="right" width={width} onResize={setWidth} onReset={() => setWidth(320)} />
+          <div className="flex h-9 flex-none items-center gap-2 px-3">
+            <span className="t-label truncate text-muted">{current?.label}</span>
+            <button
+              aria-label="Cerrar panel derecho"
+              title="Cerrar panel derecho"
+              onClick={() => setRight(false)}
+              className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-faint hover:bg-surface-raised hover:text-text"
+            >
+              <PanelRightClose className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {rightView === "ia" && <AIChatPane />}
+            {rightView === "backlinks" && <BacklinksPane />}
+            {rightView === "outgoing" && <OutgoingPane />}
+            {rightView === "outline" && <OutlinePane />}
+            {rightView === "tags" && <TagsPane />}
+            {rightView === "properties" && <PropertiesPane />}
+            {rightView === "calc" && <CalculatorTool />}
+            {rightView === "plot" && <PlotTool />}
+            {rightView === "translate" && <TranslatorTool />}
+            {rightView === "units" && <UnitsTool />}
+            {rightView === "grades" && <GradesTool />}
+            {rightView === "bases" && <BasesTool />}
+          </div>
+        </aside>
+      )}
+      <nav aria-label="Paneles y herramientas" className="flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2">
+        {RIGHT.map((v) => (
+          <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
+        ))}
+        <div className="my-1 h-px w-5 bg-border" />
+        {TOOLS.map((v) => (
+          <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
+        ))}
+      </nav>
+    </>
   );
+}
+
+// El riel de la derecha siempre está visible, así que ya no hace falta un botón aparte para abrir el panel.
+export function RightToggle() {
+  return null;
 }

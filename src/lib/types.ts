@@ -93,6 +93,7 @@ export interface Note {
   tags?: string[]; // sin "#", en minúsculas
   links?: string[]; // ids de notas a las que enlaza con [[...]]
   dailyDate?: string; // "2026-10-13" si es nota diaria
+  parentId?: string; // subnota: id de la nota que la contiene (hasta dos niveles)
   updatedAt: string;
   createdAt: string;
 }
@@ -149,6 +150,20 @@ export interface PdfHighlight {
   color: "amarillo" | "verde" | "azul" | "rosa";
   rects: { x: number; y: number; w: number; h: number }[]; // relativos a la página (0 a 1)
   note?: string;
+  createdAt: string;
+}
+
+// Archivos que se editan con los editores incrustados (Word, Excel, PowerPoint, PDF).
+export type OfficeKind = "doc" | "sheet" | "deck" | "pdf";
+
+export interface OfficeDoc {
+  id: string;
+  subjectId: string; // materia o carpeta especial, como las notas
+  name: string; // "Informe.docx", con extensión
+  kind: OfficeKind;
+  fileId?: string; // contenido guardado en `files`; sin él, el editor arranca vacío
+  textCache?: string; // texto del archivo para buscar y para la IA (se actualiza al guardar)
+  updatedAt: string;
   createdAt: string;
 }
 

@@ -23,6 +23,7 @@ export type ViewState =
   | { type: "busqueda"; query?: string }
   | { type: "web"; url: string }
   | { type: "slides"; id: string }
+  | { type: "editor"; id: string } // archivo de Word, Excel, PowerPoint o PDF en su editor
   | { type: "base" } // tabla de notas filtrable por propiedades (Bases)
   | { type: "ideas" } // ideas estilo Keep
   | { type: "plantillas" }
@@ -51,7 +52,20 @@ export interface Pane {
 }
 
 export type LeftView = "explorer" | "search" | "bookmarks";
-export type RightView = "ia" | "backlinks" | "outgoing" | "outline" | "tags" | "properties";
+export type RightView =
+  | "ia"
+  | "backlinks"
+  | "outgoing"
+  | "outline"
+  | "tags"
+  | "properties"
+  // Herramientas
+  | "calc"
+  | "translate"
+  | "plot"
+  | "units"
+  | "grades"
+  | "bases";
 
 export type OpenMode = "current" | "tab" | "split";
 

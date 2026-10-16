@@ -34,6 +34,8 @@ import { saveNoteContent } from "@/lib/notes/note-ops";
 import { markdownToBlocks } from "@/lib/notes/md-blocks";
 import { deleteWithUndo, toast } from "@/lib/undo";
 import { IDEAS_FOLDER, type Note } from "@/lib/types";
+import { PromptModal } from "@/components/ui/prompt-modal";
+import { folderName, renameFolder, useFolderNames } from "@/lib/folder-names";
 
 const NoteEditor = dynamic(() => import("@/components/notes/note-editor").then((m) => m.NoteEditor), { ssr: false });
 
@@ -410,6 +412,9 @@ export function IdeasView() {
   const menu = useContextMenu();
   const [filter, setFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  useFolderNames();
+  const ideasName = folderName(IDEAS_FOLDER) ?? "Ideas";
   const [openId, setOpenId] = useState<string | null>(null);
   const [paletteFor, setPaletteFor] = useState<string | null>(null);
 
@@ -532,7 +537,26 @@ export function IdeasView() {
     <div className="@container mx-auto flex min-h-full max-w-[1500px] flex-col gap-6 px-6 py-6">
       <header className="flex flex-wrap items-center gap-3">
         <Lightbulb className="h-5 w-5 text-amber" strokeWidth={1.75} />
-        <h1 className="t-h1 mr-auto">{showArchived ? "Ideas archivadas" : "Ideas"}</h1>
+        <h1
+          className="t-h1 mr-auto cursor-text rounded-md px-1 hover:bg-surface-raised"
+          title="Clic para cambiar el nombre"
+          onClick={() => setRenaming(true)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setRenaming(true);
+          }}
+        >
+          {showArchived ? `${ideasName} archivadas` : ideasName}
+        </h1>
+        <PromptModal
+          open={renaming}
+          title="Renombrar carpeta"
+          initial={ideasName}
+          confirmLabel="Renombrar"
+          onConfirm={(v) => renameFolder(IDEAS_FOLDER, v)}
+          onClose={() => setRenaming(false)}
+        />
         <label className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 text-[13px]">
           <Search className="h-3.5 w-3.5 text-faint" strokeWidth={1.75} />
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar ideas" className="w-40 bg-transparent outline-none placeholder:text-faint" />

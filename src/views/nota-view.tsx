@@ -27,7 +27,9 @@ import {
   Sparkles,
   Square,
   Trash2,
-  type LucideIcon, ListPlus } from "lucide-react";
+  type LucideIcon, ListPlus, FilePlus } from "lucide-react";
+import { createSubnote } from "@/lib/notes/subnotes";
+import { toast } from "@/lib/undo";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
 import { FlashcardsReviewModal } from "@/components/flashcards/flashcards-review-modal";
 import { HistoryModal } from "@/components/notes/history-modal";
@@ -415,6 +417,15 @@ export function NotaView({ id }: { id: string }) {
         { id: cid("grafo"), name: "Grafo local", icon: Network, run: () => openView({ type: "grafo", noteId: id }, "split") },
         { id: cid("combinar"), name: "Combinar con otra nota…", icon: Merge, run: () => setPicker("combinar") },
         { id: cid("extraer"), name: "Extraer selección a nota nueva", icon: Scissors, run: startExtract },
+        {
+          id: cid("subnota"),
+          name: "Nueva subnota",
+          icon: FilePlus,
+          run: () =>
+            void createSubnote(id)
+              .then((sub) => openView({ type: "nota", id: sub }))
+              .catch((err: unknown) => toast(err instanceof Error ? err.message : "No se pudo crear.", { tone: "error" })),
+        },
         { id: cid("copiar"), name: "Copiar enlace [[Título]]", icon: Link, run: copyLink },
         { id: cid("pestana"), name: "Abrir en pestaña nueva", icon: ExternalLink, run: () => openView(view, "tab") },
         { id: cid("derecha"), name: "Abrir a la derecha", icon: PanelRight, run: () => openView(view, "split") },

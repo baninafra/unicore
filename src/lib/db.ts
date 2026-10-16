@@ -8,6 +8,7 @@ import type {
   CalendarSource,
   CanvasDoc,
   NoteSnapshot,
+  OfficeDoc,
   Degree,
   Flashcard,
   Note,
@@ -33,6 +34,7 @@ export const db = new Dexie("unicore") as Dexie & {
   bookmarks: EntityTable<Bookmark, "id">;
   calendars: EntityTable<CalendarSource, "id">;
   calendarEvents: EntityTable<CalendarEvent, "id">;
+  officeDocs: EntityTable<OfficeDoc, "id">;
 };
 
 db.version(1).stores({
@@ -58,6 +60,11 @@ db.version(2).stores({
 db.version(3).stores({
   calendars: "id, createdAt",
   calendarEvents: "id, calendarId, start",
+});
+
+// v4: archivos de Word, Excel, PowerPoint y PDF que se abren en los editores incrustados
+db.version(4).stores({
+  officeDocs: "id, subjectId, updatedAt, kind",
 });
 
 export const newId = () => nanoid(12);

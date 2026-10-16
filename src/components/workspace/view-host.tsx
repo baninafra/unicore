@@ -35,6 +35,7 @@ const NotaView = dynamic(() => import("@/views/nota-view").then((m) => m.NotaVie
 const GrafoView = dynamic(() => import("@/views/grafo-view").then((m) => m.GrafoView), { ssr: false, loading: Loading });
 const CanvasView = dynamic(() => import("@/views/canvas-view").then((m) => m.CanvasView), { ssr: false, loading: Loading });
 const PdfView = dynamic(() => import("@/views/pdf-view").then((m) => m.PdfView), { ssr: false, loading: Loading });
+const EditorView = dynamic(() => import("@/views/editor-view").then((m) => m.EditorView), { ssr: false, loading: Loading });
 const SlidesView = dynamic(() => import("@/views/slides-view").then((m) => m.SlidesView), { ssr: false, loading: Loading });
 
 function EmptyTab() {
@@ -92,6 +93,8 @@ export function ViewHost({ view }: { view: ViewState }) {
       return <WebView url={view.url} />;
     case "slides":
       return <SlidesView id={view.id} />;
+    case "editor":
+      return <EditorView key={view.id} id={view.id} />;
     case "base":
       return <BaseView />;
     case "ideas":

@@ -1,5 +1,6 @@
 "use client";
 
+import { newSubmenu } from "@/components/ui/new-menu";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { isQuizNote, readQuiz } from "@/lib/quiz/quiz-store";
@@ -260,8 +261,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
 
   // Clic derecho en cualquier parte de la materia (las filas tienen su propio menú).
   const pageItems: MenuItem[] = [
-    { label: "Nueva nota", icon: FilePlus, onSelect: () => void createNewNote() },
-    { label: "Nueva tarea", icon: Plus, onSelect: () => openTaskDialog({ subjectId, degreeId: subject.degreeId }) },
+    newSubmenu({ open: (v) => openView(v), openTask: (d) => openTaskDialog(d), subjectId, taskDefaults: { subjectId, degreeId: subject.degreeId } }),
     exportMenuItem({ kind: "subject", id: subjectId }),
   ];
 

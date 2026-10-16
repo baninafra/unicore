@@ -4,6 +4,7 @@
 // Trabaja sobre los bloques de BlockNote y sobre los campos que guarda el editor
 // (plainTextCache, links, tags, aliases).
 
+import { folderName } from "@/lib/folder-names";
 import { normalizeText } from "@/lib/ai/rag";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
 
@@ -116,10 +117,9 @@ export function mentionsPhrase(text: string, phrase: string): boolean {
 
 // Nombre de las carpetas especiales; undefined si el id es el de una materia.
 export function specialFolderName(subjectId: string): string | undefined {
-  if (subjectId === DAILY_FOLDER) return "Diario";
+  if (subjectId === DAILY_FOLDER || subjectId === IDEAS_FOLDER) return folderName(subjectId);
   if (subjectId === LOOSE_FOLDER) return "Notas sueltas";
   if (subjectId === TEMPLATES_FOLDER) return "Plantillas";
-  if (subjectId === IDEAS_FOLDER) return "Ideas";
   return undefined;
 }
 

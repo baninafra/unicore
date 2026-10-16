@@ -1,0 +1,2554 @@
+diff --git a/apps/deckcraft-cli/src/help.rs b/apps/deckcraft-cli/src/help.rs
+index 535ce84..8dbe2d3 100644
+--- a/apps/deckcraft-cli/src/help.rs
++++ b/apps/deckcraft-cli/src/help.rs
+@@ -116,8 +116,8 @@ calls it.
+     Subcommand {
+         name: "app",
+         usage: "app [--port PORT] COMMAND [PARAMS] | --method METHOD [PARAMS]",
+-        summary: "run a command in the DeckCraft app started with --control",
+-        details: "Sends one request to the DeckCraft app started with `deckcraft --control PORT` (port 7979 by default)
++        summary: "run a command in the UniCore app started with --control",
++        details: "Sends one request to the UniCore app started with `deckcraft --control PORT` (port 7979 by default)
+ and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd does; --method METHOD
+ [PARAMS] calls a control-channel method such as ui.screenshot. PARAMS is a JSON object.
+ 
+@@ -129,7 +129,7 @@ and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd doe
+         usage: "mcp [--connect PORT] [--sample] [--automation-read-root DIR] [--automation-write-root DIR]",
+         summary: "serve the commands to an agent over MCP on stdio",
+         details: "Runs a Model Context Protocol server on stdin and stdout. It works on its own presentation without a
+-window, or with --connect PORT (or host:port) on the DeckCraft app started with --control PORT.
++window, or with --connect PORT (or host:port) on the UniCore app started with --control PORT.
+ --sample opens the sample presentation.
+ 
+ --automation-read-root DIR and --automation-write-root DIR confine every file the agent's commands read
+@@ -147,12 +147,6 @@ median and slowest of N runs (5 by default, 1 to 1000) as a table, or as JSON wi
+ 
+   deckcraft-cli bench deck.pptx --runs 10",
+     },
+-    Subcommand {
+-        name: "links",
+-        usage: "links",
+-        summary: "print the DeckCraft community and project links",
+-        details: "Prints the DeckCraft community and project links.",
+-    },
+     Subcommand { name: "version", usage: "--version", summary: "print the version", details: "Prints the version of deckcraft-cli." },
+ ];
+ 
+@@ -170,7 +164,7 @@ pub fn overview() -> String {
+     let list: Vec<String> =
+         SUBCOMMANDS.iter().map(|s| format!("  {:<width$}  {}", s.usage.split(' ').next().unwrap_or_default(), s.summary)).collect();
+     format!(
+-        "deckcraft-cli works on DeckCraft presentations (.deckcraft, .pptx) without a window.
++        "deckcraft-cli works on UniCore presentations (.deckcraft, .pptx) without a window.
+ 
+ {}
+ 
+diff --git a/apps/deckcraft-cli/src/main.rs b/apps/deckcraft-cli/src/main.rs
+index 5934973..7bd3b53 100644
+--- a/apps/deckcraft-cli/src/main.rs
++++ b/apps/deckcraft-cli/src/main.rs
+@@ -1,4 +1,4 @@
+-//! Headless DeckCraft. `deckcraft-cli help` explains each subcommand (`help.rs`).
++//! Headless UniCore. `deckcraft-cli help` explains each subcommand (`help.rs`).
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+ 
+@@ -72,11 +72,6 @@ fn main() -> ExitCode {
+         Some("describe") => report(describe(rest.first().map(String::as_str))),
+         Some("app") => report(app(rest)),
+         Some("mcp") => report(mcp(rest)),
+-        Some("links") => {
+-            use deckcraft_engine::links::*;
+-            outln!("Discord   {DISCORD}\nWebsite   {WEBSITE}\nApp page  {APP_PAGE}\nGitHub    {GITHUB}");
+-            ExitCode::SUCCESS
+-        }
+         Some(other) => unknown(other),
+         None => usage(),
+     }
+@@ -98,7 +93,6 @@ fn unknown(sub: &str) -> ExitCode {
+ 
+ fn usage() -> ExitCode {
+     eprintln!("{}", help::overview());
+-    eprintln!("\nCommunity: {}  ·  {}", deckcraft_engine::links::DISCORD, deckcraft_engine::links::APP_PAGE);
+     ExitCode::FAILURE
+ }
+ 
+@@ -570,7 +564,7 @@ fn app(args: &[String]) -> Result<(), String> {
+         }
+     }
+     let mut r = Remote::connect(&control_addr(&port))
+-        .map_err(|e| format!("no DeckCraft app on port {port} ({e}); start it with `deckcraft --control {port}`"))?;
++        .map_err(|e| format!("no UniCore app on port {port} ({e}); start it with `deckcraft --control {port}`"))?;
+     let parse = |s: Option<&String>| -> Result<Value, String> {
+         s.map(|j| serde_json::from_str(j).map_err(|e| format!("bad JSON: {e}"))).transpose().map(|v| v.unwrap_or(json!({})))
+     };
+diff --git a/apps/deckcraft-web/Cargo.toml b/apps/deckcraft-web/Cargo.toml
+index 7014421..b918b20 100644
+--- a/apps/deckcraft-web/Cargo.toml
++++ b/apps/deckcraft-web/Cargo.toml
+@@ -27,4 +27,4 @@ rfd = { workspace = true }
+ wasm-bindgen = "0.2"
+ wasm-bindgen-futures = "0.4"
+ js-sys = "0.3"
+-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration"] }
++web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "MessageEvent"] }
+diff --git a/apps/deckcraft-web/index.html b/apps/deckcraft-web/index.html
+index b1834c3..8654428 100644
+--- a/apps/deckcraft-web/index.html
++++ b/apps/deckcraft-web/index.html
+@@ -3,9 +3,8 @@
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+-  <title>DeckCraft</title>
++  <title>UniCore</title>
+   <link data-trunk rel="rust" data-bin="deckcraft-web" data-wasm-opt="z" data-weak-refs />
+-  <link data-trunk rel="icon" href="../../assets/app-icon/hicolor/32x32/apps/ai.storyteller.deckcraft.png" />
+   <style>
+     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #262626; }
+     #deckcraft_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+@@ -15,6 +14,6 @@
+ </head>
+ <body>
+   <canvas id="deckcraft_canvas"></canvas>
+-  <div id="deckcraft_loading">Loading DeckCraft&hellip;</div>
++  <div id="deckcraft_loading">Cargando&hellip;</div>
+ </body>
+ </html>
+diff --git a/apps/deckcraft-web/src/bridge.rs b/apps/deckcraft-web/src/bridge.rs
+new file mode 100644
+index 0000000..164bdc9
+--- /dev/null
++++ b/apps/deckcraft-web/src/bridge.rs
+@@ -0,0 +1,302 @@
++//! The `postMessage` bridge between the host app (UniCore) and this page.
++//!
++//! The bridge is active only when the page URL carries `?host=parent` and the page is framed
++//! by a parent on the same origin. Messages are plain JS objects with a `type` field. Only
++//! messages whose `event.origin` equals ours *and* whose `event.source` is `window.parent` are
++//! accepted; every message is posted to `window.parent` with our own origin.
++//!
++//! To the parent:
++//! - `uc:ready` `{ version }` — once the app can receive files.
++//! - `uc:failed` `{ error }` — when the app could not start.
++//! - `uc:save` `{ name, bytes, saveAs }` — for every file the app would otherwise download or
++//!   write (Save, Save As, Export). `bytes` is a transferred `ArrayBuffer`. `saveAs` is false for
++//!   a save of the native editable format (`.deckcraft`) and true for exports and other formats.
++//! - `uc:dirty` `{ dirty }` — when unsaved changes appear or disappear (sent only on change).
++//! - `uc:result` `{ id, ok, result? | error? }` — the reply to a `uc:command`.
++//!
++//! From the parent:
++//! - `uc:open` `{ name, bytes }` — open that file exactly like File ▸ Open or a drop would.
++//! - `uc:command` `{ id, command, params }` — run one command on the active document with the
++//!   normal undo support. The bridge answers `uc.commands` (the command catalog) and `uc.read`
++//!   (a plain-text/Markdown rendering of the active document) itself.
++//!
++//! Commands must run with mutable access to the app, which the JS callback cannot take, so they
++//! are queued here and drained at the start of the next frame (a repaint is requested when one
++//! arrives).
++
++use std::cell::{Cell, RefCell};
++use std::rc::Rc;
++
++use deckcraft_ui_egui::{Inbox, InboxEvent, InboxFile, SlideApp};
++use serde_json::{Value, json};
++use wasm_bindgen::JsCast as _;
++use wasm_bindgen::JsValue;
++use wasm_bindgen::closure::Closure;
++
++/// The URL query flag that turns the bridge on.
++const HOST_FLAG: &str = "host=parent";
++/// `uc.read` returns at most this many characters.
++const MAX_READ_CHARS: usize = 60_000;
++/// The editable document formats the host keeps: a save of one clears the dirty flag.
++const NATIVE_EXTS: &[&str] = &[".deckcraft", ".pptx"];
++
++/// A message the parent sent, parsed and waiting for the next frame.
++pub enum Incoming {
++    Open { name: String, bytes: Vec<u8> },
++    Command { id: Value, command: String, params: Value },
++}
++
++/// The live bridge: the inbound queue shared with the JS listener and the frame state.
++pub struct Bridge {
++    queue: Rc<RefCell<Vec<Incoming>>>,
++    native_saved: Rc<Cell<bool>>,
++    /// Kept alive so the `message` listener stays installed for the page's lifetime.
++    _listener: Closure<dyn FnMut(web_sys::MessageEvent)>,
++    ready_sent: bool,
++    last_dirty: Option<bool>,
++}
++
++/// True when `?host=parent` is set and the page is framed by a same-origin parent.
++pub fn host_requested() -> bool {
++    let Some(window) = web_sys::window() else { return false };
++    if !window.location().search().unwrap_or_default().contains(HOST_FLAG) {
++        return false;
++    }
++    let Ok(Some(parent)) = window.parent() else { return false };
++    // Not framed (a top-level page is its own parent): no host.
++    let window_js: JsValue = window.clone().into();
++    let parent_js: JsValue = parent.clone().into();
++    if js_sys::Object::is(&parent_js, &window_js) {
++        return false;
++    }
++    // Same origin: reading the parent's origin fails (or differs) for a cross-origin parent.
++    let ours = window.location().origin().ok();
++    let theirs = parent.location().origin().ok();
++    ours.is_some() && ours == theirs
++}
++
++impl Bridge {
++    /// Installs the `message` listener and returns the bridge. `ctx` is repainted when a message
++    /// arrives so the queued command runs on the next frame.
++    pub fn install(queue: Rc<RefCell<Vec<Incoming>>>, native_saved: Rc<Cell<bool>>, ctx: egui::Context) -> Option<Bridge> {
++        let window = web_sys::window()?;
++        let parent = window.parent().ok().flatten()?;
++        let parent_js: JsValue = parent.clone().into();
++        let our_origin = window.location().origin().ok()?;
++        let q = queue.clone();
++        let listener = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |event: web_sys::MessageEvent| {
++            if event.origin() != our_origin {
++                return;
++            }
++            let source = match event.source() {
++                Some(s) => s,
++                None => return,
++            };
++            let source_js: JsValue = source.into();
++            if !js_sys::Object::is(&source_js, &parent_js) {
++                return;
++            }
++            if let Some(message) = parse_incoming(&event) {
++                q.borrow_mut().push(message);
++                ctx.request_repaint();
++            }
++        });
++        window.add_event_listener_with_callback("message", listener.as_ref().unchecked_ref()).ok()?;
++        Some(Bridge { queue, native_saved, _listener: listener, ready_sent: false, last_dirty: None })
++    }
++
++    /// Runs the messages that arrived since the last frame against the live app.
++    pub fn drain(&mut self, app: &mut SlideApp, inbox: &Inbox) {
++        let messages: Vec<Incoming> = self.queue.borrow_mut().drain(..).collect();
++        for message in messages {
++            match message {
++                Incoming::Open { name, bytes } => {
++                    // Exactly the drop path: capture the target now, apply when the bytes land.
++                    let id = app.begin_external_file("open");
++                    push_inbox(inbox, InboxEvent::File(InboxFile { id, name, bytes }));
++                }
++                Incoming::Command { id, command, params } => {
++                    let result = run_bridge_command(app, &command, params);
++                    post_result(&id, result);
++                }
++            }
++        }
++    }
++
++    /// Sends `uc:ready` once, honours a pending native save, and reports dirty changes.
++    pub fn after_frame(&mut self, app: &mut SlideApp) {
++        if !self.ready_sent {
++            self.ready_sent = true;
++            post_json(&json!({"type": "uc:ready", "version": env!("CARGO_PKG_VERSION")}));
++        }
++        if self.native_saved.get() {
++            self.native_saved.set(false);
++            if let Some(st) = app.session.active_mut() {
++                st.saved_doc = st.doc.clone();
++            }
++        }
++        let dirty = app.session.active().is_some_and(|d| d.is_dirty());
++        match self.last_dirty {
++            Some(previous) if previous != dirty => {
++                self.last_dirty = Some(dirty);
++                post_json(&json!({"type": "uc:dirty", "dirty": dirty}));
++            }
++            None => self.last_dirty = Some(dirty),
++            _ => {}
++        }
++    }
++}
++
++/// Tell the parent the app could not start.
++pub fn post_failed(error: &str) {
++    post_json(&json!({"type": "uc:failed", "error": error}));
++}
++
++/// Send one file to the parent as `uc:save`, transferring its bytes. A save of the native
++/// editable format marks the document saved (`native_saved`), so the dirty flag clears.
++pub fn emit_save(name: &str, bytes: &[u8], native_saved: &Rc<Cell<bool>>) {
++    let lower = name.to_ascii_lowercase();
++    let native = NATIVE_EXTS.iter().any(|ext| lower.ends_with(ext));
++    if native {
++        native_saved.set(true);
++    }
++    let Some(window) = web_sys::window() else { return };
++    let Ok(Some(parent)) = window.parent() else { return };
++    let Ok(origin) = window.location().origin() else { return };
++    let array = js_sys::Uint8Array::from(bytes);
++    let buffer = array.buffer();
++    let object = js_sys::Object::new();
++    set(&object, "type", &JsValue::from_str("uc:save"));
++    set(&object, "name", &JsValue::from_str(name));
++    set(&object, "bytes", buffer.as_ref());
++    set(&object, "saveAs", &JsValue::from_bool(!native));
++    let transfer = js_sys::Array::new();
++    transfer.push(buffer.as_ref());
++    let _ = parent.post_message_with_transfer(object.as_ref(), &origin, transfer.as_ref());
++}
++
++fn run_bridge_command(app: &mut SlideApp, command: &str, params: Value) -> Result<Value, String> {
++    match command {
++        "uc.commands" => Ok(command_catalog(app)),
++        "uc.read" => Ok(read_document(app)),
++        _ => app.run(command, params),
++    }
++}
++
++/// `uc.commands`: every available engine command with its parameter description.
++fn command_catalog(app: &SlideApp) -> Value {
++    let list: Vec<Value> = app
++        .session
++        .commands()
++        .into_iter()
++        .map(|c| {
++            json!({
++                "id": c.id,
++                "label": c.label,
++                "description": c.params,
++                "params": c.params,
++                "menu": c.menu,
++                "shortcut": c.shortcut,
++                "enabled": c.enabled,
++            })
++        })
++        .collect();
++    Value::Array(list)
++}
++
++/// `uc.read`: a readable Markdown rendering of the active document, capped in length. This app
++/// holds presentations only, so it renders per slide: a `## Slide N` heading, the slide's texts
++/// and its notes.
++fn read_document(app: &SlideApp) -> Value {
++    let Some(st) = app.session.active() else {
++        return json!({"name": "", "text": ""});
++    };
++    let name = st.path.clone().unwrap_or_else(|| st.title());
++    let doc = st.doc.clone();
++    let mut text = String::new();
++    for (i, slide) in doc.slides.iter().enumerate() {
++        text.push_str("## Slide ");
++        text.push_str(&(i + 1).to_string());
++        text.push('\n');
++        let title = slide.title();
++        if !title.trim().is_empty() {
++            text.push_str(title.trim());
++            text.push('\n');
++        }
++        for shape in &slide.shapes {
++            if let Some(body) = &shape.text {
++                let body = body.text();
++                let body = body.trim();
++                if !body.is_empty() {
++                    text.push_str(body);
++                    text.push('\n');
++                }
++            }
++        }
++        let notes = slide.notes_text();
++        let notes = notes.trim();
++        if !notes.is_empty() {
++            text.push_str("Notes: ");
++            text.push_str(notes);
++            text.push('\n');
++        }
++        text.push('\n');
++        if text.chars().count() > MAX_READ_CHARS {
++            text = text.chars().take(MAX_READ_CHARS).collect();
++            break;
++        }
++    }
++    json!({"name": name, "text": text})
++}
++
++fn parse_incoming(event: &web_sys::MessageEvent) -> Option<Incoming> {
++    let data = event.data();
++    let ty = js_sys::Reflect::get(&data, &JsValue::from_str("type")).ok()?.as_string()?;
++    match ty.as_str() {
++        "uc:open" => {
++            let name = js_sys::Reflect::get(&data, &JsValue::from_str("name")).ok()?.as_string()?;
++            let bytes = match js_sys::Reflect::get(&data, &JsValue::from_str("bytes")) {
++                Ok(v) if v.is_undefined() || v.is_null() => Vec::new(),
++                Ok(v) => js_sys::Uint8Array::new(&v).to_vec(),
++                Err(_) => Vec::new(),
++            };
++            Some(Incoming::Open { name, bytes })
++        }
++        "uc:command" => {
++            let command = js_sys::Reflect::get(&data, &JsValue::from_str("command")).ok()?.as_string()?;
++            let id = js_sys::Reflect::get(&data, &JsValue::from_str("id")).map(|v| js_to_json(&v)).unwrap_or(Value::Null);
++            let params = js_sys::Reflect::get(&data, &JsValue::from_str("params")).map(|v| js_to_json(&v)).unwrap_or(Value::Null);
++            Some(Incoming::Command { id, command, params })
++        }
++        _ => None,
++    }
++}
++
++fn js_to_json(value: &JsValue) -> Value {
++    js_sys::JSON::stringify(value).ok().and_then(|s| s.as_string()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(Value::Null)
++}
++
++fn post_result(id: &Value, result: Result<Value, String>) {
++    let message = match result {
++        Ok(value) => json!({"type": "uc:result", "id": id, "ok": true, "result": value}),
++        Err(error) => json!({"type": "uc:result", "id": id, "ok": false, "error": error}),
++    };
++    post_json(&message);
++}
++
++fn post_json(value: &Value) {
++    let Some(window) = web_sys::window() else { return };
++    let Ok(Some(parent)) = window.parent() else { return };
++    let Ok(origin) = window.location().origin() else { return };
++    let Ok(text) = serde_json::to_string(value) else { return };
++    let Ok(js) = js_sys::JSON::parse(&text) else { return };
++    let _ = parent.post_message(&js, &origin);
++}
++
++fn set(object: &js_sys::Object, key: &str, value: &JsValue) {
++    let _ = js_sys::Reflect::set(object.as_ref(), &JsValue::from_str(key), value);
++}
++
++fn push_inbox(inbox: &Inbox, event: InboxEvent) {
++    inbox.lock().unwrap_or_else(|e| e.into_inner()).push(event);
++}
+diff --git a/apps/deckcraft-web/src/main.rs b/apps/deckcraft-web/src/main.rs
+index 6d2b7e9..304f8f1 100644
+--- a/apps/deckcraft-web/src/main.rs
++++ b/apps/deckcraft-web/src/main.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft in the browser.
++//! UniCore in the browser.
+ //!
+ //! Runs the same [`deckcraft_ui_egui::SlideApp`] as the desktop app through eframe's web
+ //! runner (wgpu: WebGPU where available, WebGL2 otherwise). Build with `trunk build --release`
+@@ -14,13 +14,17 @@
+ //! - preferences are not persisted.
+ //!
+ //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?blank` starts with an
+-//! empty presentation instead of the sample deck; `?show` starts the slide show.
++//! empty presentation instead of the sample deck; `?show` starts the slide show; `?host=parent`
++//! turns on the host `postMessage` bridge (`bridge.rs`) and starts with an empty presentation.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+ 
+ #[cfg(target_arch = "wasm32")]
+ mod web;
+ 
++#[cfg(target_arch = "wasm32")]
++mod bridge;
++
+ #[cfg(target_arch = "wasm32")]
+ fn main() {
+     web::start();
+diff --git a/apps/deckcraft-web/src/web.rs b/apps/deckcraft-web/src/web.rs
+index dabad8a..21f2337 100644
+--- a/apps/deckcraft-web/src/web.rs
++++ b/apps/deckcraft-web/src/web.rs
+@@ -1,9 +1,15 @@
+-//! The browser shell: web `Services`, drag-and-drop, and the eframe web runner.
++//! The browser shell: web `Services`, drag-and-drop, the host `postMessage` bridge, and the
++//! eframe web runner.
++
++use std::cell::{Cell, RefCell};
++use std::rc::Rc;
+ 
+ use deckcraft_engine::Session;
+ use deckcraft_ui_egui::{Inbox, InboxEvent, InboxFile, Services, SlideApp};
+ use wasm_bindgen::JsCast as _;
+ 
++use crate::bridge;
++
+ const PRESENTATION_EXTS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "txt", "md"];
+ const PICTURE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff"];
+ const AUDIO_EXTS: &[&str] = &["wav", "mp3", "m4a", "aac", "flac", "ogg", "opus", "aif", "aiff"];
+@@ -14,12 +20,21 @@ const LOADING_ID: &str = "deckcraft_loading";
+ pub fn start() {
+     eframe::WebLogger::init(log::LevelFilter::Info).ok();
+     wasm_bindgen_futures::spawn_local(async {
++        let host = bridge::host_requested();
++        let queue: Rc<RefCell<Vec<bridge::Incoming>>> = Rc::new(RefCell::new(Vec::new()));
++        let native_saved: Rc<Cell<bool>> = Rc::new(Cell::new(false));
+         let Some(document) = web_sys::window().and_then(|w| w.document()) else {
+             log::error!("no document");
++            if host {
++                bridge::post_failed("no document");
++            }
+             return;
+         };
+         let Some(canvas) = document.get_element_by_id(CANVAS_ID).and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok()) else {
+             log::error!("missing <canvas id=\"{CANVAS_ID}\">");
++            if host {
++                bridge::post_failed("missing canvas");
++            }
+             return;
+         };
+         let mut options = eframe::WebOptions::default();
+@@ -37,9 +52,16 @@ pub fn start() {
+                         log::info!("deckcraft-web {}: wgpu backend {:?}", env!("CARGO_PKG_VERSION"), rs.adapter.get_info().backend);
+                     }
+                     let inbox: Inbox = Inbox::default();
+-                    let mut app = SlideApp::new(Session::new(), services(inbox.clone(), cc.egui_ctx.clone()));
++                    let mut app = SlideApp::new(Session::new(), services(inbox.clone(), cc.egui_ctx.clone(), host, native_saved.clone()));
+                     let q = query();
+-                    if !q.contains("blank") {
++                    if host {
++                        // The host keeps PowerPoint files, so Save writes .pptx.
++                        app.save_format = "pptx";
++                        // Host mode starts empty: the parent opens the document it wants.
++                        if let Err(e) = app.run("file.new", serde_json::json!({})) {
++                            log::error!("new presentation: {e}");
++                        }
++                    } else if !q.contains("blank") {
+                         if let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session) {
+                             log::error!("sample deck: {e}");
+                         }
+@@ -49,14 +71,20 @@ pub fn start() {
+                     if q.contains("show") {
+                         app.start_show(0, false);
+                     }
+-                    Ok(Box::new(WebShell { app, inbox }))
++                    let bridge = if host { bridge::Bridge::install(queue, native_saved, cc.egui_ctx.clone()) } else { None };
++                    Ok(Box::new(WebShell { app, inbox, bridge }))
+                 }),
+             )
+             .await;
+         if let Some(el) = document.get_element_by_id(LOADING_ID) {
+             match result {
+                 Ok(()) => el.remove(),
+-                Err(e) => el.set_inner_html(&format!("<p>DeckCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
++                Err(e) => {
++                    if host {
++                        bridge::post_failed(&format!("{e:?}"));
++                    }
++                    el.set_inner_html(&format!("<p>UniCore failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>"));
++                }
+             }
+         }
+     });
+@@ -71,6 +99,7 @@ fn query() -> String {
+ struct WebShell {
+     app: SlideApp,
+     inbox: Inbox,
++    bridge: Option<bridge::Bridge>,
+ }
+ 
+ impl eframe::App for WebShell {
+@@ -97,7 +126,14 @@ impl eframe::App for WebShell {
+                 }
+             });
+         }
++        // Host messages wait for the frame so their commands run with the app borrowed mutably.
++        if let Some(b) = self.bridge.as_mut() {
++            b.drain(&mut self.app, &self.inbox);
++        }
+         self.app.logic(ctx);
++        if let Some(b) = self.bridge.as_mut() {
++            b.after_frame(&mut self.app);
++        }
+     }
+ 
+     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+@@ -110,9 +146,12 @@ impl eframe::App for WebShell {
+ }
+ 
+ /// Web services: no file paths, so `pick_open`/`pick_save`/`read` stay `None` and the UI falls
+-/// back to `open_async` (browser picker → inbox) and `download`.
+-fn services(inbox: Inbox, ctx: egui::Context) -> Services {
++/// back to `open_async` (browser picker → inbox) and `download`. In host mode every save, save-as
++/// and export is handed to the parent as `uc:save` instead of triggering a browser download.
++fn services(inbox: Inbox, ctx: egui::Context, host: bool, native_saved: Rc<Cell<bool>>) -> Services {
+     let open_inbox = inbox.clone();
++    let write_flag = native_saved.clone();
++    let download_flag = native_saved;
+     Services {
+         open_async: Some(Box::new(move |purpose: &str, request: u64| {
+             let inbox = open_inbox.clone();
+@@ -134,9 +173,18 @@ fn services(inbox: Inbox, ctx: egui::Context) -> Services {
+                 ctx.request_repaint();
+             });
+         })),
+-        write: Some(Box::new(|name: &str, bytes: &[u8]| download(name, bytes))),
+-        download: Some(Box::new(|name: &str, bytes: &[u8]| {
+-            if let Err(e) = download(name, bytes) {
++        write: Some(Box::new(move |name: &str, bytes: &[u8]| {
++            if host {
++                bridge::emit_save(name, bytes, &write_flag);
++            } else if let Err(e) = download(name, bytes) {
++                log::error!("download of {name} failed: {e}");
++            }
++            Ok(())
++        })),
++        download: Some(Box::new(move |name: &str, bytes: &[u8]| {
++            if host {
++                bridge::emit_save(name, bytes, &download_flag);
++            } else if let Err(e) = download(name, bytes) {
+                 log::error!("download of {name} failed: {e}");
+             }
+         })),
+diff --git a/apps/deckcraft/build.rs b/apps/deckcraft/build.rs
+index 5bb30d5..60c8baa 100644
+--- a/apps/deckcraft/build.rs
++++ b/apps/deckcraft/build.rs
+@@ -14,10 +14,10 @@ fn main() {
+     }
+     let mut res = winresource::WindowsResource::new();
+     res.set_icon("../../assets/app-icon/deckcraft.ico")
+-        .set("ProductName", "DeckCraft")
+-        .set("FileDescription", "DeckCraft presentations")
++        .set("ProductName", "UniCore")
++        .set("FileDescription", "UniCore presentations")
+         .set("CompanyName", "Learning Machines LLC")
+-        .set("LegalCopyright", "Copyright (c) the DeckCraft authors. MIT OR Apache-2.0.")
++        .set("LegalCopyright", "Copyright (c) the UniCore authors. MIT OR Apache-2.0.")
+         .set("OriginalFilename", "deckcraft.exe")
+         .set("InternalName", "deckcraft");
+     if let Err(e) = res.compile() {
+diff --git a/apps/deckcraft/src/display.rs b/apps/deckcraft/src/display.rs
+index 2a6eeca..b90c491 100644
+--- a/apps/deckcraft/src/display.rs
++++ b/apps/deckcraft/src/display.rs
+@@ -1,6 +1,6 @@
+ //! Which windowing system to start on, on Linux and the BSDs.
+ //!
+-//! DeckCraft prefers X11 when `DISPLAY` is set (see `main`). A stale `DISPLAY` (left over from
++//! UniCore prefers X11 when `DISPLAY` is set (see `main`). A stale `DISPLAY` (left over from
+ //! an ended `ssh -X` session or a desktop with Xwayland turned off) used to make start-up fail
+ //! with winit's "failed to open display" even though a Wayland compositor was running. When a
+ //! local `DISPLAY` names an X server whose socket isn't there and Wayland is available, start on
+diff --git a/apps/deckcraft/src/graphics.rs b/apps/deckcraft/src/graphics.rs
+index fc054c0..97e1fb0 100644
+--- a/apps/deckcraft/src/graphics.rs
++++ b/apps/deckcraft/src/graphics.rs
+@@ -16,7 +16,7 @@ pub fn configure(options: &mut NativeOptions, backend_override: Option<Backends>
+         // out of the instance avoids it. This matches the verified WGPU_BACKEND=dx12
+         // workaround without mutating process environment variables.
+         create.instance_descriptor.backends = backend_override.unwrap_or(Backends::DX12);
+-        // Auto loads whichever dxcompiler.dll the DLL search path finds; DeckCraft ships
++        // Auto loads whichever dxcompiler.dll the DLL search path finds; UniCore ships
+         // none, and without a matching dxil.dll the unsigned-DXIL warning fails wgpu's
+         // indirect-validation pipeline and loses the device before the first frame
+         // (issue #153). FXC uses the compiler that is part of Windows.
+diff --git a/apps/deckcraft/src/logging.rs b/apps/deckcraft/src/logging.rs
+index a0ca504..f31a167 100644
+--- a/apps/deckcraft/src/logging.rs
++++ b/apps/deckcraft/src/logging.rs
+@@ -7,7 +7,7 @@
+ //! moves the previous log to `deckcraft.1.log` (and that one to `.2`), so the log of a run that
+ //! crashed survives the next launch.
+ //!
+-//! Levels: `info` for DeckCraft's own crates, `warn` for everything else (wgpu and naga are
++//! Levels: `info` for UniCore's own crates, `warn` for everything else (wgpu and naga are
+ //! chatty). `RUST_LOG` replaces that with env_logger-style directives: `debug`,
+ //! `warn,deckcraft_pptx=trace`, `wgpu_core=info`. A directive ending in `*` matches every target
+ //! that starts with it (`deckcraft*=debug`).
+@@ -496,7 +496,7 @@ mod tests {
+     fn the_logger_filters_records_and_writes_them_to_the_attached_file() {
+         let dir = temp_dir("logger");
+         let logger = AppLogger::new(Filter::parse(DEFAULT_FILTER), false);
+-        record(&logger, log::Level::Info, "deckcraft", "DeckCraft starting");
++        record(&logger, log::Level::Info, "deckcraft", "UniCore starting");
+         record(&logger, log::Level::Info, "wgpu_core::device", "too chatty");
+         let path = logger.attach_dir(&dir).expect("attach");
+         assert_eq!(path, dir.join(LOG_FILE));
+@@ -505,7 +505,7 @@ mod tests {
+         let text = read(&path);
+         let lines: Vec<&str> = text.lines().collect();
+         assert_eq!(lines.len(), 2, "{text}");
+-        assert!(lines.first().is_some_and(|l| l.contains(" INFO  [") && l.ends_with("deckcraft: DeckCraft starting")), "{text}");
++        assert!(lines.first().is_some_and(|l| l.contains(" INFO  [") && l.ends_with("deckcraft: UniCore starting")), "{text}");
+         assert!(lines.get(1).is_some_and(|l| l.ends_with("wgpu_hal::vulkan: a real warning")), "{text}");
+         assert!(logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("deckcraft_engine::recovery").build()));
+         assert!(!logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("naga").build()));
+diff --git a/apps/deckcraft/src/main.rs b/apps/deckcraft/src/main.rs
+index ef80daa..7774751 100644
+--- a/apps/deckcraft/src/main.rs
++++ b/apps/deckcraft/src/main.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft desktop app.
++//! UniCore desktop app.
+ //!
+ //! Usage: `deckcraft [--control <port>] [--sample] [--show] [files…]`
+ //! `deckcraft --help` prints the flags and exits. `deckcraft --version` prints the version and exits.
+@@ -47,7 +47,7 @@ impl eframe::App for App {
+         // in a crash report. eframe calls `on_exit` on every way of quitting (⌘Q, the close
+         // button, `app.quit`), once the unsaved-changes prompt has let the window close, and
+         // nothing after it is needed: the preferences are saved and the log file is unbuffered.
+-        // `on_exit` only runs once the app exists, never on a failed start. Same as GridCraft #117.
++        // `on_exit` only runs once the app exists, never on a failed start. Same as UniCore #117.
+         #[cfg(target_os = "macos")]
+         std::process::exit(0);
+     }
+@@ -56,9 +56,9 @@ impl eframe::App for App {
+ /// The per-user settings directory: `ui.json`, `prefs.json` and `logs/` live here.
+ fn config_dir() -> Option<std::path::PathBuf> {
+     if cfg!(target_os = "macos") {
+-        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Library/Application Support/DeckCraft"))
++        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Library/Application Support/UniCore"))
+     } else if cfg!(windows) {
+-        std::env::var_os("APPDATA").map(|a| std::path::PathBuf::from(a).join("DeckCraft"))
++        std::env::var_os("APPDATA").map(|a| std::path::PathBuf::from(a).join("UniCore"))
+     } else {
+         std::env::var_os("XDG_CONFIG_HOME")
+             .map(std::path::PathBuf::from)
+@@ -104,7 +104,7 @@ fn services() -> Services {
+                 "theme" => d.add_filter("Themes and presentations", &["thmx", "pptx", "potx", "ppsx"]).add_filter("Office Theme", &["thmx"]),
+                 _ => d
+                     .add_filter("Presentations", &["deckcraft", "pptx", "potx", "ppsx"])
+-                    .add_filter("DeckCraft", &["deckcraft"])
++                    .add_filter("UniCore", &["deckcraft"])
+                     .add_filter("PowerPoint", &["pptx", "potx", "ppsx"])
+                     .add_filter("Outline", &["txt", "md"]),
+             };
+@@ -182,7 +182,7 @@ fn main() -> eframe::Result {
+             }
+             Startup::Run { control_port, files, sample, show } => (control_port, files, sample, show),
+         };
+-    log::info!("DeckCraft {} ({} {})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH);
++    log::info!("UniCore {} ({} {})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH);
+     // The log file lives under the settings directory; opened after the arguments, so `--help` and
+     // `--version` leave no file behind. Records logged until now are written to it first.
+     if let Some(logger) = logger {
+@@ -197,7 +197,7 @@ fn main() -> eframe::Result {
+     }
+     let mut options = eframe::NativeOptions {
+         viewport: egui::ViewportBuilder::default()
+-            .with_title("DeckCraft")
++            .with_title("UniCore")
+             .with_inner_size([1440.0, 900.0])
+             .with_min_inner_size([900.0, 560.0])
+             .with_drag_and_drop(true)
+@@ -215,9 +215,9 @@ fn main() -> eframe::Result {
+         display::Choice::X11 => true,
+         display::Choice::Default => false,
+         display::Choice::None => {
+-            // winit's own error says little to someone who started DeckCraft from a console.
++            // winit's own error says little to someone who started UniCore from a console.
+             log::error!("no display: DISPLAY and WAYLAND_DISPLAY are not set");
+-            eprintln!("DeckCraft needs a graphical session: neither DISPLAY nor WAYLAND_DISPLAY is set.");
++            eprintln!("UniCore needs a graphical session: neither DISPLAY nor WAYLAND_DISPLAY is set.");
+             false
+         }
+     };
+@@ -232,7 +232,7 @@ fn main() -> eframe::Result {
+     #[cfg(target_os = "windows")]
+     graphics::configure(&mut options, eframe::wgpu::Backends::from_env(), eframe::wgpu::Dx12Compiler::from_env());
+     eframe::run_native(
+-        "DeckCraft",
++        "UniCore",
+         options,
+         Box::new(move |cc| {
+             let mut app = SlideApp::new(Session::new(), services());
+diff --git a/apps/deckcraft/src/pasteboard.rs b/apps/deckcraft/src/pasteboard.rs
+index 9862629..1a49845 100644
+--- a/apps/deckcraft/src/pasteboard.rs
++++ b/apps/deckcraft/src/pasteboard.rs
+@@ -43,11 +43,11 @@ mod tests {
+         }
+         let previous = arboard::Clipboard::new().ok().and_then(|mut cb| cb.get_text().ok());
+         let _restore = Restore(previous);
+-        assert!(super::set_html("<b>DeckCraft</b>", "DeckCraft"), "set html");
++        assert!(super::set_html("<b>UniCore</b>", "UniCore"), "set html");
+         let html = super::html().unwrap_or_default();
+         assert!(html.contains("<b>") || html.contains("<B>"), "{html}");
+         let text = arboard::Clipboard::new().ok().and_then(|mut cb| cb.get_text().ok()).unwrap_or_default();
+-        assert_eq!(text, "DeckCraft");
++        assert_eq!(text, "UniCore");
+         let mut cb = arboard::Clipboard::new().expect("pasteboard");
+         let img = arboard::ImageData { width: 1, height: 1, bytes: Cow::Owned(vec![255, 0, 0, 255]) };
+         cb.set_image(img).expect("set image");
+diff --git a/crates/anim/src/lib.rs b/crates/anim/src/lib.rs
+index cf8fb3f..a9feb3c 100644
+--- a/crates/anim/src/lib.rs
++++ b/crates/anim/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! Slide show timing for DeckCraft.
++//! Slide show timing for UniCore.
+ //!
+ //! - [`Timeline`]: a slide's animation list grouped into click steps, with per-shape (and
+ //!   per-paragraph) [`AnimState`] at any point of the show.
+diff --git a/crates/bitstream/src/lib.rs b/crates/bitstream/src/lib.rs
+index a4f7d40..4caf66e 100644
+--- a/crates/bitstream/src/lib.rs
++++ b/crates/bitstream/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! Bit-level reading and writing shared by DeckCraft's codec crates (ported from FilmCraft).
++//! Bit-level reading and writing shared by UniCore's codec crates (ported from FilmCraft).
+ //!
+ //! - [`BitReader`]: MSB-first reader with Exp-Golomb (`ue(v)`, `se(v)`), as used by H.264/HEVC/AV1 headers.
+ //! - [`BitWriter`]: the matching writer (for encoders and header rewriting).
+diff --git a/crates/color/src/lib.rs b/crates/color/src/lib.rs
+index ba50e9a..56d3844 100644
+--- a/crates/color/src/lib.rs
++++ b/crates/color/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft colour: sRGB colours, theme colour slots and DrawingML-style colour transforms
++//! UniCore colour: sRGB colours, theme colour slots and DrawingML-style colour transforms
+ //! (tint, shade, luminance modulation/offset, alpha…), so theme-relative colours resolve the way
+ //! presentation files expect.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+diff --git a/crates/engine/src/cmd/design.rs b/crates/engine/src/cmd/design.rs
+index 03468f3..72f551d 100644
+--- a/crates/engine/src/cmd/design.rs
++++ b/crates/engine/src/cmd/design.rs
+@@ -1510,7 +1510,7 @@ mod tests {
+         match &s.ui_requests[0] {
+             UiRequest::Dialog { id, params } => {
+                 assert_eq!(id, "themeColors");
+-                assert_eq!(params["name"], "DeckCraft");
++                assert_eq!(params["name"], "UniCore");
+                 let colors = params["colors"].as_object().unwrap();
+                 assert_eq!(colors.len(), 12);
+                 assert_eq!(colors["accent1"].as_str().unwrap(), format!("#{}", original.get(SchemeSlot::Accent1).hex()));
+@@ -1767,10 +1767,10 @@ mod browse_theme_tests {
+         let mut s = crate::Session::with_new();
+         let listed = s.execute("design.themes", &json!({})).unwrap();
+         let names: Vec<String> = listed["effectSchemes"].as_array().unwrap().iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+-        assert_eq!(names, ["DeckCraft", "Soft", "Crisp", "Lift", "Glow", "Plain"]);
++        assert_eq!(names, ["UniCore", "Soft", "Crisp", "Lift", "Glow", "Plain"]);
+ 
+         let n = undo_len(&s);
+-        s.execute("design.effects", &json!({"name": "DeckCraft"})).unwrap();
++        s.execute("design.effects", &json!({"name": "UniCore"})).unwrap();
+         assert_eq!(undo_len(&s), n, "the scheme already on the theme is not an undo step");
+         let err = s.execute("design.effects", &json!({"name": "Office"})).unwrap_err().to_string();
+         assert!(err.contains("no effect scheme"), "{err}");
+diff --git a/crates/engine/src/cmd/file.rs b/crates/engine/src/cmd/file.rs
+index 4761dc1..b07479a 100644
+--- a/crates/engine/src/cmd/file.rs
++++ b/crates/engine/src/cmd/file.rs
+@@ -143,7 +143,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<Presentation> {
+         return Ok(p);
+     }
+     if deckcraft_pptx::is_encrypted(bytes) {
+-        return Err(EngineError::Other(format!("{name} is password-protected. DeckCraft can't open password-protected presentations yet.")));
++        return Err(EngineError::Other(format!("{name} is password-protected. UniCore can't open password-protected presentations yet.")));
+     }
+     let lower = name.to_ascii_lowercase();
+     if lower.ends_with(".txt") || lower.ends_with(".md") {
+@@ -159,7 +159,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<Presentation> {
+         }
+         return Ok(p);
+     }
+-    Err(EngineError::Other(format!("{name}: not a presentation DeckCraft can read")))
++    Err(EngineError::Other(format!("{name}: not a presentation UniCore can read")))
+ }
+ 
+ pub fn add_opened(s: &mut Session, name: &str, path: Option<String>, p: Presentation) -> usize {
+@@ -340,7 +340,7 @@ pub fn pdf_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
+ pub const WRITABLE_EXTENSIONS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "pdf", "png", "jpg", "jpeg", "gif", "txt", "md"];
+ 
+ /// The format a file named `path` is written in, or `None` when its extension names no format
+-/// DeckCraft writes (`.odp`, `.svg`, no extension …): [`format_for_path`] would save
++/// UniCore writes (`.odp`, `.svg`, no extension …): [`format_for_path`] would save
+ /// those as native `.deckcraft` bytes under the wrong name.
+ pub fn writable_format_for_path(path: &str) -> Option<&'static str> {
+     let ext = std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
+diff --git a/crates/engine/src/cmd/format.rs b/crates/engine/src/cmd/format.rs
+index 36d54de..1e9b1db 100644
+--- a/crates/engine/src/cmd/format.rs
++++ b/crates/engine/src/cmd/format.rs
+@@ -1212,12 +1212,12 @@ fn font_add(_s: &mut Session, p: &Value) -> Result<Value> {
+     }
+     let faces = deckcraft_fonts::FontDb::global().add_font(data);
+     if faces == 0 {
+-        return Err(bad("font.add", "not a font DeckCraft can read (or already added)"));
++        return Err(bad("font.add", "not a font UniCore can read (or already added)"));
+     }
+     Ok(json!({"faces": faces}))
+ }
+ 
+-/// Catalog the installed fonts again, so fonts installed while DeckCraft runs appear.
++/// Catalog the installed fonts again, so fonts installed while UniCore runs appear.
+ fn font_rescan(_s: &mut Session, _p: &Value) -> Result<Value> {
+     let db = deckcraft_fonts::FontDb::global();
+     #[cfg(not(target_arch = "wasm32"))]
+diff --git a/crates/engine/src/cmd/insert.rs b/crates/engine/src/cmd/insert.rs
+index 149957d..91fe2d4 100644
+--- a/crates/engine/src/cmd/insert.rs
++++ b/crates/engine/src/cmd/insert.rs
+@@ -1087,7 +1087,7 @@ fn album_seed(s: &Session) -> Result<Value> {
+     let st = s.doc()?;
+     let slides: Vec<&deckcraft_model::Slide> =
+         ids.iter().filter_map(|sid| u32::try_from(*sid).ok()).filter_map(|n| st.doc.slide(deckcraft_model::SlideId(n))).collect();
+-    let theme_now = st.doc.masters.first().map(|m| m.theme.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "DeckCraft".into());
++    let theme_now = st.doc.masters.first().map(|m| m.theme.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "UniCore".into());
+     let inferred = infer_album(&slides, &theme_now);
+     let mark = slides.first().and_then(|sl| sl.raw_ext.as_deref().and_then(parse_album_mark));
+     let (layout, frame, captions, grayscale, theme) = if let Some(mark) = mark {
+@@ -2197,7 +2197,7 @@ mod icon_and_picture_tests {
+         assert!(mark.contains("theme=Harbor"), "{mark}");
+         assert_eq!(s.active().unwrap().doc.slides[1].name, "Photo Album");
+         s.execute("edit.undo", &json!({})).unwrap();
+-        assert_eq!(theme_name(&s), "DeckCraft");
++        assert_eq!(theme_name(&s), "UniCore");
+         assert_eq!(n_slides(&s), 1);
+     }
+ 
+@@ -2216,7 +2216,7 @@ mod icon_and_picture_tests {
+         assert!(s.execute("insert.photoAlbumEdit", &json!({"pictures": [pic("b.png")], "layout": "2"})).is_err());
+         assert_eq!(n_slides(&s), before + 1);
+         assert_eq!(pictures(&s, 1).len(), 1);
+-        assert_eq!(theme_name(&s), "DeckCraft");
++        assert_eq!(theme_name(&s), "UniCore");
+     }
+ 
+     #[test]
+diff --git a/crates/engine/src/cmd/richclip.rs b/crates/engine/src/cmd/richclip.rs
+index 69f7068..53ee7a5 100644
+--- a/crates/engine/src/cmd/richclip.rs
++++ b/crates/engine/src/cmd/richclip.rs
+@@ -1,6 +1,6 @@
+ //! Rich text on the system clipboard, as HTML.
+ //!
+-//! Pages and Keynote put copied text on the pasteboard as HTML (and plain text). DeckCraft writes
++//! Pages and Keynote put copied text on the pasteboard as HTML (and plain text). UniCore writes
+ //! the same pair when it copies, and reads it back on paste: bold, italic and underline survive.
+ //! Anything else in the markup is skipped. A hostile fragment is capped, never executed.
+ 
+diff --git a/crates/engine/src/cmd/smartart.rs b/crates/engine/src/cmd/smartart.rs
+index c58d183..b69e7ea 100644
+--- a/crates/engine/src/cmd/smartart.rs
++++ b/crates/engine/src/cmd/smartart.rs
+@@ -22,7 +22,7 @@ pub const MAX_LEVEL: u8 = 8;
+ /// Most top-level shapes a layout draws.
+ const MAX_SHAPES: usize = 40;
+ 
+-/// DeckCraft's layouts, with the names PowerPoint's gallery gives them.
++/// UniCore's layouts, with the names PowerPoint's gallery gives them.
+ pub const LAYOUTS: [(&str, &str); 45] = [
+     ("list", "Vertical Bullet List"),
+     ("blockList", "Basic Block List"),
+diff --git a/crates/engine/src/cmd/text.rs b/crates/engine/src/cmd/text.rs
+index a0408ef..b6a2b57 100644
+--- a/crates/engine/src/cmd/text.rs
++++ b/crates/engine/src/cmd/text.rs
+@@ -180,7 +180,7 @@ pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
+ }
+ 
+ /// Store the shrink-on-overflow scale the layout computes for `id`, so a save keeps
+-/// `fontScale`/`lnSpcReduction` in step with what DeckCraft draws (#724). Runs after a text
++/// `fontScale`/`lnSpcReduction` in step with what UniCore draws (#724). Runs after a text
+ /// change: a body with no meaningful saved scale — a file's bare `<a:normAutofit/>` (`None`) or
+ /// the reset an edit leaves (`1.0`, no reduction) — is fitted afresh; a scale the file saved is
+ /// left as it is, as PowerPoint draws it.
+diff --git a/crates/engine/src/icons.rs b/crates/engine/src/icons.rs
+index 89c7218..b05680d 100644
+--- a/crates/engine/src/icons.rs
++++ b/crates/engine/src/icons.rs
+@@ -1,7 +1,7 @@
+ //! Insert › Icons: Lucide stroke icons as custom geometry.
+ //!
+ //! The paths in `icon_data.rs` are Lucide 1.56.0 centerlines (24×24, fill none). They are converted
+-//! to DeckCraft's `M`/`L`/`C`/`Q`/`Z` syntax when inserted, so the shape is a stroked outline rather
++//! to UniCore's `M`/`L`/`C`/`Q`/`Z` syntax when inserted, so the shape is a stroked outline rather
+ //! than a filled silhouette or an SVG picture.
+ 
+ use std::collections::HashMap;
+@@ -46,7 +46,7 @@ pub fn outline(name: &str) -> Option<&'static BezPath> {
+     parsed().get(icon.name)
+ }
+ 
+-/// DeckCraft path syntax for `name`, in the 24×24 viewBox.
++/// UniCore path syntax for `name`, in the 24×24 viewBox.
+ pub fn path_data(name: &str) -> Option<String> {
+     outline(name).and_then(deck_path)
+ }
+diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
+index ac25d66..6932c69 100644
+--- a/crates/engine/src/lib.rs
++++ b/crates/engine/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! The DeckCraft engine façade.
++//! The UniCore engine façade.
+ //!
+ //! Every user-visible action is a command with a stable id (`slide.new`, `shape.insert`,
+ //! `text.insert`, `format.bold`…) and JSON parameters. The egui UI, the CLI, the control channel
+@@ -19,7 +19,6 @@ pub mod icons;
+ pub mod inkshape;
+ pub mod io;
+ pub mod keys;
+-pub mod links;
+ pub mod media_refs;
+ pub mod recovery;
+ pub mod sample;
+@@ -469,7 +468,7 @@ pub struct Session {
+     pub gif_paused: std::collections::HashSet<ShapeId>,
+     /// Text keys follow the Mac (Option+arrows move by word, Cmd+arrows to the line or text
+     /// ends) instead of Windows and Linux (Ctrl+arrows by word or paragraph). Defaults to the
+-    /// platform DeckCraft was built for.
++    /// platform UniCore was built for.
+     pub mac_keys: bool,
+     /// Command panics caught by the guard (the document was rolled back); soak tests require 0.
+     pub panics_caught: u64,
+diff --git a/crates/engine/src/recovery.rs b/crates/engine/src/recovery.rs
+index 707d0aa..70948c2 100644
+--- a/crates/engine/src/recovery.rs
++++ b/crates/engine/src/recovery.rs
+@@ -26,10 +26,10 @@ use crate::{DocState, EngineError, Result, Session};
+ pub fn default_dir() -> Option<PathBuf> {
+     let home = std::env::var_os("HOME").map(PathBuf::from);
+     if cfg!(target_os = "macos") {
+-        return home.map(|h| h.join("Library/Application Support/DeckCraft/Recovery"));
++        return home.map(|h| h.join("Library/Application Support/UniCore/Recovery"));
+     }
+     if cfg!(target_os = "windows") {
+-        return std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("DeckCraft").join("Recovery"));
++        return std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("UniCore").join("Recovery"));
+     }
+     std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| home.map(|h| h.join(".local/share"))).map(|d| d.join("deckcraft/recovery"))
+ }
+@@ -43,7 +43,10 @@ pub fn instance_id() -> u64 {
+     static ID: OnceLock<u64> = OnceLock::new();
+     *ID.get_or_init(|| {
+         use std::hash::{BuildHasher, Hasher};
++        #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
+         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
++        // The browser has no process ids (std panics there).
++        #[cfg(not(target_arch = "wasm32"))]
+         h.write_u32(std::process::id());
+         #[cfg(not(target_arch = "wasm32"))]
+         if let Ok(d) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+diff --git a/crates/engine/src/sample.rs b/crates/engine/src/sample.rs
+index 80c11ca..4462b23 100644
+--- a/crates/engine/src/sample.rs
++++ b/crates/engine/src/sample.rs
+@@ -15,13 +15,13 @@ fn last_id(v: &Value) -> u64 {
+ 
+ /// Open the sample presentation in a new document.
+ pub fn open_sample(s: &mut Session) -> Result<()> {
+-    run(s, "file.new", json!({"theme": "DeckCraft"}))?;
++    run(s, "file.new", json!({"theme": "UniCore"}))?;
+     let st = s.doc()?;
+     let title = st.current_slide().and_then(|x| x.shapes.first()).map(|x| x.id.0).unwrap_or(0);
+     let sub = st.current_slide().and_then(|x| x.shapes.get(1)).map(|x| x.id.0).unwrap_or(0);
+     run(s, "text.set", json!({"id": title, "text": "Northern Lights"}))?;
+     run(s, "text.set", json!({"id": sub, "text": "A short tour of the aurora — where it comes from, when to look, and how to photograph it"}))?;
+-    run(s, "slide.notes", json!({"text": "Welcome everyone. This deck was made in DeckCraft."}))?;
++    run(s, "slide.notes", json!({"text": "Welcome everyone. This deck was made in UniCore."}))?;
+     // Decorative bands on the title slide.
+     let b = run(s, "shape.insert", json!({"preset": "rect", "rect": [0, 470, 960, 70]}))?;
+     run(s, "shape.fill", json!({"id": last_id(&b), "gradient": {"stops": [[0, "accent1"], [0.5, "accent4"], [1, "accent2"]], "angle": 0}}))?;
+@@ -114,7 +114,7 @@ pub fn open_sample(s: &mut Session) -> Result<()> {
+     run(s, "transition.set", json!({"kind": "split"}))?;
+ 
+     // Closing.
+-    run(s, "slide.new", json!({"layout": "title", "title": "Clear skies!", "body": "Made with DeckCraft — free and open source"}))?;
++    run(s, "slide.new", json!({"layout": "title", "title": "Clear skies!", "body": "Made with UniCore — free and open source"}))?;
+     let moon = run(s, "shape.insert", json!({"preset": "moon", "rect": [820, 40, 80, 120]}))?;
+     run(s, "shape.fill", json!({"id": last_id(&moon), "color": "accent6"}))?;
+     run(s, "shape.line", json!({"id": last_id(&moon), "none": true}))?;
+diff --git a/crates/engine/src/sounds.rs b/crates/engine/src/sounds.rs
+index 8b97c75..6ee3f75 100644
+--- a/crates/engine/src/sounds.rs
++++ b/crates/engine/src/sounds.rs
+@@ -1,4 +1,4 @@
+-//! Built-in transition sounds, synthesised on demand so DeckCraft ships no sound files: short
++//! Built-in transition sounds, synthesised on demand so UniCore ships no sound files: short
+ //! mono 16-bit WAVs named like PowerPoint's (Chime, Click, Camera, Whoosh, Drum Roll, Laser).
+ 
+ use std::f64::consts::TAU;
+diff --git a/crates/engine/src/spell.rs b/crates/engine/src/spell.rs
+index 2c94783..58f51e5 100644
+--- a/crates/engine/src/spell.rs
++++ b/crates/engine/src/spell.rs
+@@ -6,7 +6,7 @@
+ //! `KEEPCASE`, `TRY`, `REP` and `WORDCHARS`. Compounding, `ICONV`/`OCONV` and morphology are not
+ //! read; words they would accept are reported as misspelt.
+ //!
+-//! No dictionary ships with DeckCraft. They are looked up in the folders the system's own spell
++//! No dictionary ships with UniCore. They are looked up in the folders the system's own spell
+ //! checkers use (and `DECKCRAFT_DICTIONARIES`), so whatever the user installed is used.
+ 
+ use std::collections::{HashMap, HashSet};
+@@ -485,11 +485,11 @@ pub fn search_dirs() -> Vec<PathBuf> {
+     }
+     let home = std::env::var_os("HOME").map(PathBuf::from);
+     if cfg!(target_os = "macos") {
+-        out.extend(home.iter().map(|h| h.join("Library/Application Support/DeckCraft/Dictionaries")));
++        out.extend(home.iter().map(|h| h.join("Library/Application Support/UniCore/Dictionaries")));
+         out.extend(home.iter().map(|h| h.join("Library/Spelling")));
+         out.push("/Library/Spelling".into());
+     } else if cfg!(target_os = "windows") {
+-        out.extend(std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("DeckCraft").join("Dictionaries")));
++        out.extend(std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("UniCore").join("Dictionaries")));
+     } else {
+         let data = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| home.as_ref().map(|h| h.join(".local/share")));
+         out.extend(data.iter().map(|d| d.join("deckcraft/dictionaries")));
+@@ -576,7 +576,7 @@ pub fn dictionary(lang: &str) -> Option<Arc<Dictionary>> {
+     loaded
+ }
+ 
+-/// Where Add to Dictionary keeps words: `user.dic` in DeckCraft's own dictionaries folder, one
++/// Where Add to Dictionary keeps words: `user.dic` in UniCore's own dictionaries folder, one
+ /// word per line (the Hunspell `.dic` format without a count).
+ pub fn user_dictionary_path() -> Option<PathBuf> {
+     if let Ok(p) = user_override().lock()
+@@ -586,9 +586,9 @@ pub fn user_dictionary_path() -> Option<PathBuf> {
+     }
+     let home = std::env::var_os("HOME").map(PathBuf::from);
+     let dir = if cfg!(target_os = "macos") {
+-        home.map(|h| h.join("Library/Application Support/DeckCraft/Dictionaries"))
++        home.map(|h| h.join("Library/Application Support/UniCore/Dictionaries"))
+     } else if cfg!(target_os = "windows") {
+-        std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("DeckCraft").join("Dictionaries"))
++        std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("UniCore").join("Dictionaries"))
+     } else {
+         std::env::var_os("XDG_DATA_HOME")
+             .map(PathBuf::from)
+diff --git a/crates/engine/src/tests.rs b/crates/engine/src/tests.rs
+index cc872e6..995a1ef 100644
+--- a/crates/engine/src/tests.rs
++++ b/crates/engine/src/tests.rs
+@@ -115,7 +115,7 @@ fn editing_text_refits_a_saved_shrink() {
+ }
+ 
+ /// After an edit, the shrink-on-overflow scale the layout computes is stored, so the saved file
+-/// carries the scale DeckCraft draws instead of a bare normAutofit (#724).
++/// carries the scale UniCore draws instead of a bare normAutofit (#724).
+ #[test]
+ fn editing_shrink_text_stores_the_layout_scale() {
+     use deckcraft_model::text::AutoFit;
+@@ -128,7 +128,7 @@ fn editing_shrink_text_stores_the_layout_scale() {
+     let sh = s.doc().unwrap().shape(id).cloned().unwrap();
+     let Some(AutoFit::Shrink { font_scale, line_reduction }) = sh.text.unwrap().body.autofit else { panic!("shrink") };
+     assert!(font_scale.is_some_and(|s| s < 1.0), "the computed fit is stored: {font_scale:?} / {line_reduction}");
+-    // The saved file must carry the scale DeckCraft draws, so PowerPoint opens it the same way.
++    // The saved file must carry the scale UniCore draws, so PowerPoint opens it the same way.
+     let bytes = deckcraft_pptx::export(&s.doc().unwrap().doc).unwrap();
+     let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+     let mut xml = String::new();
+@@ -1099,18 +1099,18 @@ fn an_embedded_face_is_used_when_the_machine_lacks_it() {
+     let mut p = deckcraft_model::Presentation::default();
+     let slide = std::sync::Arc::make_mut(&mut p.slides[0]);
+     let mut body = deckcraft_model::text::TextBody::from_text("Hello");
+-    body.paragraphs[0].runs[0].props.font = Some("DeckCraft Colr Squares".into());
++    body.paragraphs[0].runs[0].props.font = Some("UniCore Colr Squares".into());
+     slide.shapes[0].text = Some(body);
+     let id = p
+         .add_media("font1.fntdata", "application/x-fontdata", include_bytes!("../../render/tests/fixtures/colr-squares.ttf").to_vec())
+         .expect("media");
+-    p.embedded_fonts.push(deckcraft_model::EmbeddedFont { typeface: "DeckCraft Colr Squares".into(), regular: Some(id), ..Default::default() });
++    p.embedded_fonts.push(deckcraft_model::EmbeddedFont { typeface: "UniCore Colr Squares".into(), regular: Some(id), ..Default::default() });
+     let data = crate::cmd::base64_encode(&crate::cmd::file::save_bytes(&p, "pptx").unwrap());
+     let mut s = Session::with_new();
+     let r = s.execute("file.openBytes", &json!({"name": "fonts.pptx", "data": data})).unwrap();
+     assert_eq!(r["missingFonts"], json!([]));
+     let font = s.doc().unwrap().doc.embedded_fonts.first().unwrap();
+-    assert_eq!(font.typeface, "DeckCraft Colr Squares");
++    assert_eq!(font.typeface, "UniCore Colr Squares");
+     assert!(font.regular.is_some());
+ }
+ 
+@@ -3102,8 +3102,8 @@ fn autocorrect_options_as_you_type() {
+     s.execute("text.autocorrect", &json!({"sentenceCaps": false, "days": false})).unwrap();
+     assert_eq!(typed(&mut s, "hello monday "), "hello monday ");
+     // Your own entries, and deleting a built-in one.
+-    s.execute("text.autocorrect", &json!({"add": ["dc", "DeckCraft"], "remove": "teh"})).unwrap();
+-    assert_eq!(typed(&mut s, "dc teh "), "DeckCraft teh ");
++    s.execute("text.autocorrect", &json!({"add": ["dc", "UniCore"], "remove": "teh"})).unwrap();
++    assert_eq!(typed(&mut s, "dc teh "), "UniCore teh ");
+     let v = s.execute("text.autocorrect", &json!({})).unwrap();
+     let entries = v["entries"].as_array().unwrap();
+     assert!(entries.iter().any(|e| e[0] == "dc"));
+@@ -3258,7 +3258,7 @@ fn the_caret_takes_the_colour_of_the_text() {
+         empty
+     };
+     // Dark text on the light theme, light text on the dark one: never black on a dark slide.
+-    let (light, dark) = (caret("DeckCraft"), caret("Nocturne"));
++    let (light, dark) = (caret("UniCore"), caret("Nocturne"));
+     assert!(light.r < 0x60 && light.g < 0x60 && light.b < 0x60, "{light:?}");
+     assert!(dark.r > 0xC0 && dark.g > 0xC0 && dark.b > 0xC0, "{dark:?}");
+     // Text set to red gets a red caret.
+diff --git a/crates/engine/src/tools.rs b/crates/engine/src/tools.rs
+index f1acd9e..ec124bb 100644
+--- a/crates/engine/src/tools.rs
++++ b/crates/engine/src/tools.rs
+@@ -303,7 +303,7 @@ pub fn box_handles(x: &Xfrm) -> ([Point; 8], Point) {
+ }
+ 
+ /// WordArt adjust handles for `sh`, in shape-local points (the text rectangle). Empty when the
+-/// resolved body has no warp DeckCraft draws, or the shape has no text to store one on.
++/// resolved body has no warp UniCore draws, or the shape has no text to store one on.
+ pub fn wordart_handles(
+     doc: &deckcraft_model::Presentation,
+     sel: &crate::Selection,
+diff --git a/crates/fonts/build.rs b/crates/fonts/build.rs
+index 76e7dc4..a650020 100644
+--- a/crates/fonts/build.rs
++++ b/crates/fonts/build.rs
+@@ -7,7 +7,7 @@
+ use std::fmt::Write as _;
+ use std::path::PathBuf;
+ 
+-/// Families DeckCraft never embeds (AGENTS.md §1: no Adobe-authored visual design).
++/// Families UniCore never embeds (AGENTS.md §1: no Adobe-authored visual design).
+ const EXCLUDED_FAMILIES: &[&str] = &["Source Sans 3", "Source Serif 4", "Source Han Sans", "Source Han Serif", "Noto Sans CJK SC"];
+ 
+ fn main() {
+@@ -53,7 +53,7 @@ fn manifest(dir: &std::path::Path, manifest: &std::path::Path) -> Result<String,
+         let [family, style, file, scripts, ..] = f.as_slice() else {
+             return Err(format!("malformed manifest line: {line}"));
+         };
+-        // DeckCraft's asset policy: no Adobe-authored typefaces, even openly licensed ones.
++        // UniCore's asset policy: no Adobe-authored typefaces, even openly licensed ones.
+         if EXCLUDED_FAMILIES.contains(family) {
+             continue;
+         }
+diff --git a/crates/fonts/src/fontdb.rs b/crates/fonts/src/fontdb.rs
+index 0326738..3aebfa8 100644
+--- a/crates/fonts/src/fontdb.rs
++++ b/crates/fonts/src/fontdb.rs
+@@ -88,7 +88,7 @@ fn office_twin(family: &str) -> Option<&'static str> {
+ }
+ 
+ /// Office's downloadable (cloud) families: PowerPoint fetches them when a document uses them, so
+-/// they draw as themselves there, not as Calibri. Without them DeckCraft keeps their closest open
++/// they draw as themselves there, not as Calibri. Without them UniCore keeps their closest open
+ /// substitute ([`substitutes`]; Aptos as Inter).
+ fn is_office_cloud_font(family: &str) -> bool {
+     let f = family.to_ascii_lowercase();
+@@ -510,7 +510,7 @@ pub fn system_font_dirs() -> Vec<std::path::PathBuf> {
+             let l = std::path::PathBuf::from(l);
+             dirs.push(l.join("Microsoft\\Windows\\Fonts"));
+             // Fonts Microsoft Office downloads on demand (Aptos…), used where Office put them;
+-            // DeckCraft never ships or needs them.
++            // UniCore never ships or needs them.
+             dirs.push(l.join("Microsoft\\FontCache\\4\\CloudFonts"));
+         }
+     } else {
+@@ -1030,7 +1030,7 @@ impl FontDb {
+     /// when it is installed or bundled, or a metric-compatible stand-in (Carlito for Calibri,
+     /// Liberation Sans for Arial…), or the family PowerPoint maps it to (Liberation Sans as Arial,
+     /// see `office_twin`); any other missing family is drawn in Calibri (or Carlito).
+-    /// DeckCraft's own default family keeps [`FontDb::face`]'s fallbacks.
++    /// UniCore's own default family keeps [`FontDb::face`]'s fallbacks.
+     pub fn document_face(&self, family: &str, style: &str) -> Arc<FontFace> {
+         if family.eq_ignore_ascii_case(FALLBACK_FAMILY) || has_metric_twin(family) || is_office_cloud_font(family) || self.has_family(family) {
+             return self.face(family, style);
+diff --git a/crates/fonts/src/lib.rs b/crates/fonts/src/lib.rs
+index a9f0c05..b9ae516 100644
+--- a/crates/fonts/src/lib.rs
++++ b/crates/fonts/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft fonts: the font database (craft-fonts families, user and system fonts, and open
++//! UniCore fonts: the font database (craft-fonts families, user and system fonts, and open
+ //! substitutes for the Office fonts presentations ask for), vertical metrics, glyph outlines and
+ //! OpenType shaping, script/slot classification and per-cluster fallback.
+ //!
+@@ -195,7 +195,7 @@ mod tests {
+     fn colour_fonts_are_recognised() {
+         let db = FontDb::with_font_dirs(Vec::new());
+         assert!(db.add_font(include_bytes!("../../render/tests/fixtures/colr-squares.ttf").to_vec()) > 0);
+-        assert!(db.face("DeckCraft Colr Squares", "Regular").is_color());
++        assert!(db.face("UniCore Colr Squares", "Regular").is_color());
+         assert!(!fontdb::last_resort_face().is_color());
+     }
+ 
+@@ -232,7 +232,7 @@ mod tests {
+         db.set_system_fallback(false);
+         assert_eq!(db.add_font(include_bytes!("../tests/fixtures/legacy-regular.ttf").to_vec()), 1);
+         let first = db.fallback_for('A', u32::MAX).unwrap();
+-        let accepted_family = if first.family == LAST_RESORT_FAMILY { "DeckCraft Legacy" } else { LAST_RESORT_FAMILY };
++        let accepted_family = if first.family == LAST_RESORT_FAMILY { "UniCore Legacy" } else { LAST_RESORT_FAMILY };
+         let fallback = db.fallback_for_filtered('A', u32::MAX, |f| f.family == accepted_family).unwrap();
+         assert_eq!(fallback.family, accepted_family);
+         assert!(fallback.covers('A'));
+@@ -247,11 +247,11 @@ mod tests {
+         let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+         let db = FontDb::with_font_dirs(vec![dir]);
+         let first = db.fallback_for('A', u32::MAX).unwrap();
+-        assert_ne!(first.family, "DeckCraft Legacy");
++        assert_ne!(first.family, "UniCore Legacy");
+         assert!(db.fallback_for_filtered('A', u32::MAX, |_| false).is_none());
+         assert!(db.fallback_for('A', u32::MAX).is_some(), "an interface policy miss does not hide document glyphs");
+-        let accepted = db.fallback_for_filtered('A', u32::MAX, |f| f.family == "DeckCraft Legacy").unwrap();
+-        assert_eq!(accepted.family, "DeckCraft Legacy");
++        let accepted = db.fallback_for_filtered('A', u32::MAX, |f| f.family == "UniCore Legacy").unwrap();
++        assert_eq!(accepted.family, "UniCore Legacy");
+         assert!(accepted.covers('A'));
+     }
+ 
+@@ -288,14 +288,14 @@ mod tests {
+         // Documents name fonts by their Windows family ("Segoe UI Semibold"); the font's
+         // typographic family is "Segoe UI" with a "Semibold" style. The fixture is named the same way.
+         let check = |db: &FontDb| {
+-            assert!(db.has_family("DeckCraft Legacy Semibold"));
++            assert!(db.has_family("UniCore Legacy Semibold"));
+             for style in ["Regular", "Bold"] {
+-                let f = db.face("DeckCraft Legacy Semibold", style);
+-                assert_eq!((f.family.as_str(), f.style.as_str()), ("DeckCraft Legacy", "Semibold"), "{style}");
++                let f = db.face("UniCore Legacy Semibold", style);
++                assert_eq!((f.family.as_str(), f.style.as_str()), ("UniCore Legacy", "Semibold"), "{style}");
+             }
+-            assert_eq!(db.document_face("DeckCraft Legacy Semibold", "Regular").family, "DeckCraft Legacy", "installed, so not Calibri");
++            assert_eq!(db.document_face("UniCore Legacy Semibold", "Regular").family, "UniCore Legacy", "installed, so not Calibri");
+             // The typographic name still works.
+-            assert_eq!(db.face("DeckCraft Legacy", "Semibold").style, "Semibold");
++            assert_eq!(db.face("UniCore Legacy", "Semibold").style, "Semibold");
+         };
+         // Loaded directly…
+         let db = FontDb::with_font_dirs(Vec::new());
+@@ -313,8 +313,8 @@ mod tests {
+             // family's Regular must still load and pick the Regular file, not settle for Semibold.
+             let db = FontDb::with_font_dirs(vec![dir]);
+             db.set_system_fallback(false);
+-            assert_eq!(db.face("DeckCraft Legacy Semibold", "Regular").style, "Semibold");
+-            let regular = db.face("DeckCraft Legacy", "Regular");
++            assert_eq!(db.face("UniCore Legacy Semibold", "Regular").style, "Semibold");
++            let regular = db.face("UniCore Legacy", "Regular");
+             assert_eq!((regular.style.as_str(), regular.weight), ("Regular", 400.0));
+         }
+     }
+@@ -330,7 +330,7 @@ mod tests {
+         semibold[glyf..glyf + 4].copy_from_slice(b"gxyz");
+         let loaded = FontDb::with_font_dirs(Vec::new());
+         assert_eq!(loaded.add_font(semibold.clone()), 1);
+-        let face = loaded.face("DeckCraft Legacy", "Semibold");
++        let face = loaded.face("UniCore Legacy", "Semibold");
+         assert!(face.covers('A'));
+         assert!(loaded.outline(&face, face.glyph_for('A')).elements().is_empty());
+         // The system font scan lists the Regular, which has outlines, and leaves out the Semibold
+@@ -343,8 +343,8 @@ mod tests {
+             std::fs::write(dir.join("legacy-regular.ttf"), include_bytes!("../tests/fixtures/legacy-regular.ttf")).unwrap();
+             let db = FontDb::with_font_dirs(vec![dir.clone()]);
+             db.set_system_fallback(false);
+-            assert_eq!(db.styles("DeckCraft Legacy"), ["Regular"]);
+-            assert!(!db.has_family("DeckCraft Legacy Semibold"));
++            assert_eq!(db.styles("UniCore Legacy"), ["Regular"]);
++            assert!(!db.has_family("UniCore Legacy Semibold"));
+             let _ = std::fs::remove_dir_all(&dir);
+         }
+     }
+@@ -365,7 +365,7 @@ mod tests {
+                 assert_eq!(db.document_face(missing, "Regular").family, db.face(twin, "Regular").family, "{missing}");
+             }
+         }
+-        // Metric-compatible stand-ins and DeckCraft's default keep their own fallbacks.
++        // Metric-compatible stand-ins and UniCore's default keep their own fallbacks.
+         // So do Office's cloud fonts, which PowerPoint downloads and draws as themselves.
+         for kept in ["Arial", "Times New Roman", "Cambria", "Courier New", FALLBACK_FAMILY, "Aptos", "Aptos Display", "Grandview"] {
+             assert_eq!(db.document_face(kept, "Regular").family, db.face(kept, "Regular").family, "{kept}");
+diff --git a/crates/format/src/lib.rs b/crates/format/src/lib.rs
+index f1d0dc8..4f6c0fc 100644
+--- a/crates/format/src/lib.rs
++++ b/crates/format/src/lib.rs
+@@ -13,7 +13,7 @@ use deckcraft_model::text::{Paragraph, TextBody};
+ use deckcraft_model::{LayoutType, Presentation, defaults};
+ 
+ pub const MIMETYPE: &str = "application/vnd.storyteller.deckcraft+zip";
+-/// Files written before the SlideCraft → DeckCraft rename (`.slidecraft`) are still read.
++/// Files written before the SlideCraft → UniCore rename (`.slidecraft`) are still read.
+ pub const LEGACY_MIMETYPE: &str = concat!("application/vnd.storyteller.", "slide", "craft+zip");
+ pub const EXTENSION: &str = "deckcraft";
+ /// Format version written into the manifest.
+@@ -34,7 +34,7 @@ struct Budget {
+ 
+ #[derive(Debug, thiserror::Error)]
+ pub enum FormatError {
+-    #[error("not a DeckCraft file: {0}")]
++    #[error("not a UniCore file: {0}")]
+     NotOurs(String),
+     #[error("damaged file: {0}")]
+     Damaged(String),
+@@ -65,7 +65,7 @@ pub fn save(p: &Presentation) -> Result<Vec<u8>> {
+         let m = Manifest {
+             format: "deckcraft".into(),
+             version: VERSION,
+-            generator: format!("DeckCraft {}", env!("CARGO_PKG_VERSION")),
++            generator: format!("UniCore {}", env!("CARGO_PKG_VERSION")),
+             presentation: p.clone(),
+         };
+         let json = serde_json::to_vec(&finite::Finite(&m)).map_err(|e| FormatError::Write(e.to_string()))?;
+@@ -152,7 +152,7 @@ fn load_within(bytes: &[u8], budget: Budget) -> Result<(Presentation, Vec<String
+         let name = format!("media/{}", item.id.0);
+         let linked_only = item.link.is_some() && z.index_for_name(&name).is_none();
+         if z.by_name(&name).is_ok_and(|f| f.size() > left) {
+-            return Err(FormatError::Damaged("embedded media is larger than DeckCraft can open".into()));
++            return Err(FormatError::Damaged("embedded media is larger than UniCore can open".into()));
+         }
+         match read_entry_max(&mut z, &name, left.min(MAX_ENTRY)) {
+             Ok(data) => {
+@@ -259,7 +259,7 @@ fn failure(src: &[u8]) -> std::result::Result<Manifest, (String, (usize, usize))
+ }
+ 
+ /// Parse `presentation.json`. serde_json writes a NaN or infinite number as `null`, which then
+-/// fails to read back as a number ("invalid type: null, expected f64"), so DeckCraft could save
++/// fails to read back as a number ("invalid type: null, expected f64"), so UniCore could save
+ /// a file it couldn't open. Each such `null` is read as 0 instead ([`repair`] then brings the
+ /// value into range); anything else that doesn't parse is damage.
+ ///
+diff --git a/crates/geom/src/lib.rs b/crates/geom/src/lib.rs
+index 3be72e0..29018c0 100644
+--- a/crates/geom/src/lib.rs
++++ b/crates/geom/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft geometry: units, shape transforms and preset shape generators.
++//! UniCore geometry: units, shape transforms and preset shape generators.
+ //!
+ //! The document model keeps positions in points (1/72 inch) as `f64`. Office Open XML stores EMU
+ //! (English Metric Units, 12 700 per point); [`emu_to_pt`] and [`pt_to_emu`] convert losslessly for
+diff --git a/crates/geom/src/warp.rs b/crates/geom/src/warp.rs
+index d3035d5..733472c 100644
+--- a/crates/geom/src/warp.rs
++++ b/crates/geom/src/warp.rs
+@@ -229,7 +229,7 @@ pub fn adjust_count(name: &str) -> usize {
+     adjust_defaults(name).len()
+ }
+ 
+-/// Whether `name` is a warp preset DeckCraft draws.
++/// Whether `name` is a warp preset UniCore draws.
+ pub fn is_supported(name: &str) -> bool {
+     !adjust_defaults(name).is_empty()
+ }
+@@ -242,7 +242,7 @@ pub struct Preset {
+     pub label: &'static str,
+ }
+ 
+-/// The 40 presets DeckCraft draws, Follow Path first, then Warp.
++/// The 40 presets UniCore draws, Follow Path first, then Warp.
+ pub const CATALOG: &[Preset] = &[
+     Preset { id: "textArchUp", label: "Arch Up" },
+     Preset { id: "textArchDown", label: "Arch Down" },
+diff --git a/crates/mcp/src/backend.rs b/crates/mcp/src/backend.rs
+index fb809c0..66e7efb 100644
+--- a/crates/mcp/src/backend.rs
++++ b/crates/mcp/src/backend.rs
+@@ -21,7 +21,7 @@ pub trait Backend {
+     fn describe(&self) -> String;
+ }
+ 
+-/// A running DeckCraft app, reached through its loopback control port.
++/// A running UniCore app, reached through its loopback control port.
+ pub struct Remote {
+     addr: String,
+     conn: Option<(BufReader<TcpStream>, TcpStream)>,
+@@ -127,13 +127,13 @@ impl Backend for Remote {
+             self.conn = None;
+             self.send(&line).map_err(|e| {
+                 self.conn = None;
+-                format!("DeckCraft app at {} is not reachable: {e}", self.addr)
++                format!("UniCore app at {} is not reachable: {e}", self.addr)
+             })?;
+         }
+         self.receive(id).map_err(|e| {
+             self.conn = None;
+             format!(
+-                "lost the reply from the DeckCraft app at {} ({e}); the command may or may not have run, check the document before retrying",
++                "lost the reply from the UniCore app at {} ({e}); the command may or may not have run, check the document before retrying",
+                 self.addr
+             )
+         })?
+@@ -144,7 +144,7 @@ impl Backend for Remote {
+     }
+ 
+     fn describe(&self) -> String {
+-        format!("connected to the DeckCraft app at {}", self.addr)
++        format!("connected to the UniCore app at {}", self.addr)
+     }
+ }
+ 
+diff --git a/crates/mcp/src/lib.rs b/crates/mcp/src/lib.rs
+index b51ff31..28fbe43 100644
+--- a/crates/mcp/src/lib.rs
++++ b/crates/mcp/src/lib.rs
+@@ -1,7 +1,7 @@
+-//! DeckCraft's MCP server.
++//! UniCore's MCP server.
+ //!
+ //! [Model Context Protocol](https://modelcontextprotocol.io) over stdio: newline-delimited
+-//! JSON-RPC 2.0, hand-written (no async runtime). The server exposes DeckCraft as a set of MCP
++//! JSON-RPC 2.0, hand-written (no async runtime). The server exposes UniCore as a set of MCP
+ //! tools and resources and forwards everything to a [`Backend`]:
+ //!
+ //! - [`Remote`] talks to a running desktop app through its loopback JSON-lines control channel
+diff --git a/crates/mcp/src/server.rs b/crates/mcp/src/server.rs
+index 710067c..9b43bcf 100644
+--- a/crates/mcp/src/server.rs
++++ b/crates/mcp/src/server.rs
+@@ -18,7 +18,7 @@ const INVALID_PARAMS: i64 = -32602;
+ const INTERNAL_ERROR: i64 = -32603;
+ const RESOURCE_NOT_FOUND: i64 = -32002;
+ 
+-const INSTRUCTIONS: &str = "DeckCraft is a presentation app (a PowerPoint clone). Coordinates are points on the \
++const INSTRUCTIONS: &str = "UniCore is a presentation app (a PowerPoint clone). Coordinates are points on the \
+ current slide (y down; the default 16:9 slide is 960×540). Every action is a command: find ids and parameters with \
+ list_commands and run them with run_command (or several with batch). Typical flow: new_presentation → add_slide \
+ {layout:\"titleAndContent\", title, body} → add_shape / add_text_box / insert_picture / insert_chart → \
+@@ -136,14 +136,8 @@ impl Server {
+                 Ok(json!({
+                     "protocolVersion": version,
+                     "capabilities": {"tools": {}, "resources": {}},
+-                    "serverInfo": {"name": "deckcraft", "title": "DeckCraft", "version": env!("CARGO_PKG_VERSION"), "websiteUrl": deckcraft_engine::links::APP_PAGE},
+-                    "instructions": format!(
+-                        "{INSTRUCTIONS} Backend: {}. Community: {} (Discord), {} (app page), {} (source). The `app.links` command returns these links.",
+-                        self.backend.describe(),
+-                        deckcraft_engine::links::DISCORD,
+-                        deckcraft_engine::links::APP_PAGE,
+-                        deckcraft_engine::links::GITHUB
+-                    ),
++                    "serverInfo": {"name": "deckcraft", "title": "UniCore", "version": env!("CARGO_PKG_VERSION")},
++                    "instructions": format!("{INSTRUCTIONS} Backend: {}.", self.backend.describe()),
+                 }))
+             }
+             "ping" => Ok(json!({})),
+diff --git a/crates/mcp/src/tools.rs b/crates/mcp/src/tools.rs
+index b964ea1..b93b6f4 100644
+--- a/crates/mcp/src/tools.rs
++++ b/crates/mcp/src/tools.rs
+@@ -94,7 +94,7 @@ pub fn tool_definitions() -> Vec<Value> {
+         tool(
+             "new_presentation",
+             "New presentation",
+-            "Start a new presentation (one title slide). Optional theme: DeckCraft, Harbor, Ember, Meadow, Nocturne, Paper, Coral Reef, Slate.",
++            "Start a new presentation (one title slide). Optional theme: UniCore, Harbor, Ember, Meadow, Nocturne, Paper, Coral Reef, Slate.",
+             obj(json!({"theme": string("Theme name"), "blank": boolean("No first slide")}), &[]),
+             false,
+         ),
+@@ -279,7 +279,7 @@ pub fn tool_definitions() -> Vec<Value> {
+             obj(json!({"text": string("Text")}), &["text"]),
+             false,
+         ),
+-        tool("screenshot", "Screenshot", &format!("Screenshot of the whole DeckCraft window (UI included).{APP_ONLY}"), obj(json!({}), &[]), true),
++        tool("screenshot", "Screenshot", &format!("Screenshot of the whole UniCore window (UI included).{APP_ONLY}"), obj(json!({}), &[]), true),
+         tool(
+             "call_app",
+             "Call app method",
+diff --git a/crates/media/src/lib.rs b/crates/media/src/lib.rs
+index dc1a892..f15882c 100644
+--- a/crates/media/src/lib.rs
++++ b/crates/media/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft media: everything between embedded media bytes and the speakers / the screen.
++//! UniCore media: everything between embedded media bytes and the speakers / the screen.
+ //!
+ //! - [`probe`]: container, duration, audio channels / sample rate, video size / frame rate.
+ //! - [`audio::decode`]: every common audio format to interleaved f32 [`audio::Pcm`] — MP3, AAC
+diff --git a/crates/media/src/probe.rs b/crates/media/src/probe.rs
+index 2453317..dd85b8c 100644
+--- a/crates/media/src/probe.rs
++++ b/crates/media/src/probe.rs
+@@ -9,7 +9,7 @@ pub struct AudioInfo {
+     pub codec: String,
+     pub sample_rate: u32,
+     pub channels: u16,
+-    /// DeckCraft can decode it.
++    /// UniCore can decode it.
+     pub decodable: bool,
+ }
+ 
+diff --git a/crates/metafile/src/lib.rs b/crates/metafile/src/lib.rs
+index 8e10cdf..6c37baf 100644
+--- a/crates/metafile/src/lib.rs
++++ b/crates/metafile/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft metafiles (ported from WordCraft's `crates/metafile`): reads Windows Metafiles (WMF)
++//! UniCore metafiles (ported from UniCore's `crates/metafile`): reads Windows Metafiles (WMF)
+ //! and Enhanced Metafiles (EMF) into a neutral vector model of filled and stroked paths, pattern
+ //! fills, RGBA bitmaps and text strings, in a picture frame with y down.
+ //!
+diff --git a/crates/model/src/bidi.rs b/crates/model/src/bidi.rs
+index 0b11352..c7dfd7a 100644
+--- a/crates/model/src/bidi.rs
++++ b/crates/model/src/bidi.rs
+@@ -61,7 +61,7 @@ mod tests {
+     #[test]
+     fn detects_latin_as_not_rtl() {
+         assert!(!first_strong_is_rtl("Hello"));
+-        assert!(!first_strong_is_rtl("DeckCraft"));
++        assert!(!first_strong_is_rtl("UniCore"));
+     }
+ 
+     #[test]
+diff --git a/crates/model/src/lib.rs b/crates/model/src/lib.rs
+index 275f944..cc073aa 100644
+--- a/crates/model/src/lib.rs
++++ b/crates/model/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! The DeckCraft document model.
++//! The UniCore document model.
+ //!
+ //! A [`Presentation`] has slide masters (each with a theme and layouts) and slides. Each slide
+ //! uses a layout; placeholders on a slide inherit position, formatting and text styles from the
+@@ -947,7 +947,7 @@ fn lenient_size<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<S
+     Ok(Size::new(side("width"), side("height")))
+ }
+ 
+-/// An XML package part DeckCraft doesn't model, kept as written.
++/// An XML package part UniCore doesn't model, kept as written.
+ #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+ #[serde(default, rename_all = "camelCase")]
+ pub struct KeptPart {
+diff --git a/crates/model/src/tests.rs b/crates/model/src/tests.rs
+index da234d5..de14c86 100644
+--- a/crates/model/src/tests.rs
++++ b/crates/model/src/tests.rs
+@@ -11,7 +11,7 @@ fn new_presentation_is_valid() {
+     let s = &p.slides[0];
+     let (m, l) = p.master_for(s).unwrap();
+     assert_eq!(l.unwrap().kind, LayoutType::Title);
+-    assert_eq!(m.theme.name, "DeckCraft");
++    assert_eq!(m.theme.name, "UniCore");
+     // Title slide has a centred title and a subtitle.
+     let kinds: Vec<_> = s.shapes.iter().filter_map(|x| x.ph_type()).collect();
+     assert_eq!(kinds, vec![PhType::CtrTitle, PhType::SubTitle]);
+diff --git a/crates/model/src/theme.rs b/crates/model/src/theme.rs
+index 870a8bb..1997549 100644
+--- a/crates/model/src/theme.rs
++++ b/crates/model/src/theme.rs
+@@ -68,8 +68,8 @@ pub struct Theme {
+ impl Default for Theme {
+     fn default() -> Self {
+         builtin_themes().into_iter().next().unwrap_or_else(|| Theme {
+-            name: "DeckCraft".into(),
+-            colors: ColorScheme { name: "DeckCraft".into(), colors: [Rgba::BLACK; 12] },
++            name: "UniCore".into(),
++            colors: ColorScheme { name: "UniCore".into(), colors: [Rgba::BLACK; 12] },
+             fonts: FontScheme::default(),
+             format: FormatScheme::default(),
+             raw_extra: None,
+@@ -118,7 +118,7 @@ pub fn default_format() -> FormatScheme {
+         })
+     };
+     FormatScheme {
+-        name: "DeckCraft".into(),
++        name: "UniCore".into(),
+         fills: vec![Fill::solid(ph()), grad(110000, 92000), grad(105000, 80000)],
+         lines: vec![Line::solid(ph(), 0.75), Line::solid(ph(), 1.0), Line::solid(ph(), 1.5)],
+         effects: vec![
+@@ -189,9 +189,9 @@ pub fn builtin_themes() -> Vec<Theme> {
+     };
+     vec![
+         t(
+-            "DeckCraft",
++            "UniCore",
+             scheme(
+-                "DeckCraft",
++                "UniCore",
+                 ["000000", "FFFFFF", "1E2B3C", "EDEBE7", "2E6FD8", "F26B1D", "2EA36F", "8A5CD8", "D83F6B", "E3B21C", "2E6FD8", "7A5BA6"],
+             ),
+             "Inter",
+diff --git a/crates/pdf/README.md b/crates/pdf/README.md
+index a3402a0..cc29da6 100644
+--- a/crates/pdf/README.md
++++ b/crates/pdf/README.md
+@@ -1,13 +1,13 @@
+-# DeckCraft PDF export
++# UniCore PDF export
+ 
+-DeckCraft uses `craft-pdf` for writer construction, metadata, fallible font preparation and
++UniCore uses `craft-pdf` for writer construction, metadata, fallible font preparation and
+ final serialization. Slide rasterization, the selectable text overlay, font discovery and
+ shaping, hyperlinks, bookmarks, notes and handout layout remain app-owned. The existing
+ renderer also resolves and rasterizes WMF/EMF pictures before export.
+ 
+ Only the shared `write` feature is enabled, with default features disabled. Krilla retains
+ its raster-image and simple-text features, including notes/footer shaping. PDF embedding is
+-disabled: DeckCraft does not use it. The production exporter has no Hayro parser, interpreter,
++disabled: UniCore does not use it. The production exporter has no Hayro parser, interpreter,
+ image-decoder, fallback-font or CMap dependencies. Tests use `hayro-syntax` 0.7.2 directly,
+ with only `std` enabled, to inspect the generated PDFs.
+ 
+diff --git a/crates/pdf/src/lib.rs b/crates/pdf/src/lib.rs
+index 3faec84..a43176c 100644
+--- a/crates/pdf/src/lib.rs
++++ b/crates/pdf/src/lib.rs
+@@ -1,6 +1,6 @@
+ //! PDF export.
+ //!
+-//! Each slide is drawn by the DeckCraft renderer at print resolution (so the PDF looks exactly like
++//! Each slide is drawn by the UniCore renderer at print resolution (so the PDF looks exactly like
+ //! the slide, effects included) and overlaid with an invisible layer of real text from the text
+ //! layout engine with embedded font subsets, so the text can be searched, selected and copied.
+ //! Hyperlinks and shape actions become link annotations, slide titles become bookmarks.
+@@ -141,8 +141,8 @@ fn export_inner(pres: &Presentation, opts: &PdfOptions) -> Result<Vec<u8>> {
+     }
+     let title = opts.title.clone().unwrap_or_else(|| pres.props.title.clone());
+     let metadata = Metadata {
+-        creator: "DeckCraft".into(),
+-        producer: "DeckCraft".into(),
++        creator: "UniCore".into(),
++        producer: "UniCore".into(),
+         title: (!title.trim().is_empty()).then_some(title),
+         authors: if pres.props.author.trim().is_empty() { Vec::new() } else { vec![pres.props.author.clone()] },
+         ..Default::default()
+diff --git a/crates/pdf/src/tests.rs b/crates/pdf/src/tests.rs
+index fd85888..db24592 100644
+--- a/crates/pdf/src/tests.rs
++++ b/crates/pdf/src/tests.rs
+@@ -93,8 +93,8 @@ fn metadata_retains_values_and_omits_blank_fields() {
+     let pdf = hayro_syntax::Pdf::new(bytes.clone()).unwrap();
+     assert_eq!(pdf.metadata().title.as_deref(), Some(b"  Deck title  ".as_slice()));
+     assert_eq!(pdf.metadata().author.as_deref(), Some(b"  Author  ".as_slice()));
+-    assert_eq!(pdf.metadata().creator.as_deref(), Some(b"DeckCraft".as_slice()));
+-    assert_eq!(pdf.metadata().producer.as_deref(), Some(b"DeckCraft".as_slice()));
++    assert_eq!(pdf.metadata().creator.as_deref(), Some(b"UniCore".as_slice()));
++    assert_eq!(pdf.metadata().producer.as_deref(), Some(b"UniCore".as_slice()));
+     assert!(pdf.metadata().creation_date.is_none());
+     p.props.author = " ".into();
+     let bytes = export(&p, &PdfOptions { title: Some(" ".into()), ..opts(PageLayout::Slides) }).unwrap();
+diff --git a/crates/pptx/src/cfb.rs b/crates/pptx/src/cfb.rs
+index 3155d19..683e35f 100644
+--- a/crates/pptx/src/cfb.rs
++++ b/crates/pptx/src/cfb.rs
+@@ -1,7 +1,7 @@
+ //! Just enough of the Compound File Binary (CFB/OLE2) container to tell a password-protected
+ //! presentation apart: PowerPoint wraps an encrypted `.pptx` in a CFB holding `EncryptionInfo`
+ //! and `EncryptedPackage` streams (ECMA-376 / [MS-OFFCRYPTO]) instead of a zip. Every read is
+-//! bounds-checked and every loop bounded. Copied from GridCraft's `crates/xlsx/src/cfb.rs`.
++//! bounds-checked and every loop bounded. Copied from UniCore's `crates/xlsx/src/cfb.rs`.
+ 
+ /// The CFB signature at the start of the file.
+ const SIGNATURE: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+diff --git a/crates/pptx/src/dgm.rs b/crates/pptx/src/dgm.rs
+index 5f85db0..73fe5be 100644
+--- a/crates/pptx/src/dgm.rs
++++ b/crates/pptx/src/dgm.rs
+@@ -1,5 +1,5 @@
+ //! SmartArt (DrawingML diagrams): the outline ⇄ the data model, and the layout, quick style and
+-//! colour definitions DeckCraft writes for its own layouts.
++//! colour definitions UniCore writes for its own layouts.
+ //!
+ //! A diagram's data part holds its points (`dgm:pt`: the document, one per node, and the
+ //! transitions PowerPoint pairs with each link) and its links (`dgm:cxn` of type `parOf`, parent →
+@@ -92,7 +92,7 @@ pub fn colors_for(cs: &str) -> String {
+ /// Most nodes read from one diagram.
+ const MAX_NODES: usize = 2000;
+ 
+-/// PowerPoint's built-in layout DeckCraft's layout `kind` is written as.
++/// PowerPoint's built-in layout UniCore's layout `kind` is written as.
+ pub fn layout_id(kind: &str) -> &'static str {
+     match kind {
+         "blockList" => "urn:microsoft.com/office/officeart/2005/8/layout/default",
+@@ -143,15 +143,15 @@ pub fn layout_id(kind: &str) -> &'static str {
+     }
+ }
+ 
+-/// The DeckCraft layout closest to a PowerPoint layout (by its id and category).
++/// The UniCore layout closest to a PowerPoint layout (by its id and category).
+ pub fn kind_for(layout_id: &str, category: &str) -> &'static str {
+     let last = layout_id.rsplit('/').next().unwrap_or("").to_ascii_lowercase();
+-    // DeckCraft before Picture Accent Process got its own id wrote it as pList2 (Horizontal
++    // UniCore before Picture Accent Process got its own id wrote it as pList2 (Horizontal
+     // Picture List) with its own layout part in the process category; PowerPoint's pList2 is a list.
+     if last == "plist2" && category.eq_ignore_ascii_case("process") {
+         return "pictureProcess";
+     }
+-    // Exact ids first: the layouts DeckCraft writes, and their closest siblings.
++    // Exact ids first: the layouts UniCore writes, and their closest siblings.
+     for k in [
+         "blockList",
+         "hBulletList",
+@@ -513,7 +513,7 @@ fn paragraphs(t: &El) -> String {
+         .join(" ")
+ }
+ 
+-/// The layout algorithm and node shape of a DeckCraft layout.
++/// The layout algorithm and node shape of a UniCore layout.
+ fn alg(kind: &str) -> (&'static str, Vec<(&'static str, &'static str)>, &'static str) {
+     match kind {
+         "process" | "stepUp" | "pictureProcess" | "pictureCaption" | "pictureHList" | "timeline" => {
+@@ -581,7 +581,7 @@ fn space(w: &mut W) {
+     w.close("dgm:forEach");
+ }
+ 
+-/// `ppt/diagrams/layoutN.xml`: a layout definition for DeckCraft's layout `kind`, under the id of
++/// `ppt/diagrams/layoutN.xml`: a layout definition for UniCore's layout `kind`, under the id of
+ /// the closest built-in PowerPoint layout.
+ pub fn layout_xml(kind: &str) -> Vec<u8> {
+     let mut w = W::new();
+@@ -826,7 +826,7 @@ mod tests {
+         assert!(String::from_utf8(style_xml("cartoon")).unwrap().contains("bevelT"));
+         assert!(layout_id("pictureProcess").ends_with("/hProcess10"), "Picture Accent Process");
+         assert!(layout_id("pictureHList").ends_with("/pList2"), "Horizontal Picture List");
+-        // Picture Accent Process as an earlier DeckCraft wrote it (pList2, process category).
++        // Picture Accent Process as an earlier UniCore wrote it (pList2, process category).
+         assert_eq!(kind_for("urn:microsoft.com/office/officeart/2005/8/layout/pList2", "process"), "pictureProcess");
+         assert_eq!(kind_for("urn:microsoft.com/office/officeart/2005/8/layout/pList2", "list"), "pictureHList");
+         for k in [
+diff --git a/crates/pptx/src/lib.rs b/crates/pptx/src/lib.rs
+index ec37b76..67b99c6 100644
+--- a/crates/pptx/src/lib.rs
++++ b/crates/pptx/src/lib.rs
+@@ -2,7 +2,7 @@
+ //! ECMA-376 standard.
+ //!
+ //! [`import`] reads a package leniently (unknown parts are skipped, malformed parts are logged and
+-//! ignored, every size and depth is bounded) into the DeckCraft model; [`export`] writes a valid
++//! ignored, every size and depth is bounded) into the UniCore model; [`export`] writes a valid
+ //! package that PowerPoint opens without repair.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+diff --git a/crates/pptx/src/maps.rs b/crates/pptx/src/maps.rs
+index 0dfc8ae..58441ae 100644
+--- a/crates/pptx/src/maps.rs
++++ b/crates/pptx/src/maps.rs
+@@ -69,7 +69,7 @@ fn transition_from_xml_raw(e: &El) -> Option<(String, String)> {
+             if e.attr("pattern") == Some("hexagon") { (k("glitter"), format!("hex{}", d.to_ascii_uppercase())) } else { (k("glitter"), d) }
+         }
+         "shred" => {
+-            // `crush` is what DeckCraft wrote before it knew PowerPoint's `rectangle`.
++            // `crush` is what UniCore wrote before it knew PowerPoint's `rectangle`.
+             let particles = matches!(e.attr("pattern"), Some("rectangle" | "crush"));
+             let out = e.attr("dir") == Some("out");
+             (k("shred"), format!("{}{}", if particles { "particles" } else { "strips" }, if out { "Out" } else { "In" }))
+diff --git a/crates/pptx/src/read/chartex.rs b/crates/pptx/src/read/chartex.rs
+index d8f3e9c..e8dcf45 100644
+--- a/crates/pptx/src/read/chartex.rs
++++ b/crates/pptx/src/read/chartex.rs
+@@ -71,7 +71,7 @@ fn kind_of(layout: &str) -> Option<ChartType> {
+     })
+ }
+ 
+-/// Parse a `chartEx` part. `None` for anything else, and for layouts DeckCraft has no type for.
++/// Parse a `chartEx` part. `None` for anything else, and for layouts UniCore has no type for.
+ pub fn read_chartex_xml(bytes: &[u8]) -> Option<Chart> {
+     let doc = crate::xml::parse(bytes).ok()?;
+     let mut root = doc.root;
+diff --git a/crates/pptx/src/read/mod.rs b/crates/pptx/src/read/mod.rs
+index ac83dfc..d3d2e26 100644
+--- a/crates/pptx/src/read/mod.rs
++++ b/crates/pptx/src/read/mod.rs
+@@ -159,7 +159,7 @@ pub fn keep_xml(el: &El, ns: &[(String, String)]) -> String {
+ /// Namespace prefixes whose `mc:Choice` content we understand.
+ const SUPPORTED_MC: [&str; 10] = ["p14", "p15", "p159", "a14", "a16", "p1510", "a15", "c14", "p188", "cx1"];
+ 
+-/// Office 2016 charts sit in a `cx1` choice; take it only for a layout DeckCraft reads (the
++/// Office 2016 charts sit in a `cx1` choice; take it only for a layout UniCore reads (the
+ /// fallback is a picture or "this chart isn't available" text). The part is checked later, when
+ /// the frame is read, so here only the namespace counts.
+ fn chartex_readable(ch: &El) -> bool {
+diff --git a/crates/pptx/src/read/shapes.rs b/crates/pptx/src/read/shapes.rs
+index 3f7072f..1d4de00 100644
+--- a/crates/pptx/src/read/shapes.rs
++++ b/crates/pptx/src/read/shapes.rs
+@@ -732,7 +732,7 @@ fn table(imp: &mut Imp, part: &Part, tbl: &El) -> Table {
+         t.band_col = pr.bool("bandCol").unwrap_or(false);
+         if let Some(id) = pr.child("tableStyleId").map(|e| e.text()) {
+             // A style the file defines is drawn from its definition (by its GUID).
+-            // DeckCraft's own styles (written with GUIDs derived from their ids) map back to them.
++            // UniCore's own styles (written with GUIDs derived from their ids) map back to them.
+             let up = id.trim().to_ascii_uppercase();
+             t.style =
+                 if imp.table_style_ids.contains(&up) && !crate::tables::is_own_guid(&up) { up } else { crate::tables::style_from_guid(id.trim()) };
+diff --git a/crates/pptx/src/tables.rs b/crates/pptx/src/tables.rs
+index 67d25d6..9db79ef 100644
+--- a/crates/pptx/src/tables.rs
++++ b/crates/pptx/src/tables.rs
+@@ -1,5 +1,5 @@
+ //! Table styles: our style ids ↔ table style GUIDs, and `tableStyles.xml` definitions for the
+-//! styles we write (generated from theme accents, matching how DeckCraft draws them).
++//! styles we write (generated from theme accents, matching how UniCore draws them).
+ 
+ use crate::opc::NS_A;
+ use crate::xml::{A, W};
+@@ -47,7 +47,7 @@ fn own_guid(style: &str) -> String {
+     guid(&format!("deckcraft-table-style:{style}"))
+ }
+ 
+-/// Is `g` the GUID DeckCraft writes for one of its own styles?
++/// Is `g` the GUID UniCore writes for one of its own styles?
+ pub fn is_own_guid(g: &str) -> bool {
+     let up = g.to_ascii_uppercase();
+     deckcraft_model::table::table_styles().iter().any(|(id, _)| own_guid(id) == up)
+@@ -226,7 +226,7 @@ pub fn table_styles_xml(used: &[String], defs: &[deckcraft_model::table::TableSt
+         if !define {
+             continue;
+         }
+-        let name = names.iter().find(|(id, _)| id == s).map(|(_, n)| format!("DeckCraft {n}")).unwrap_or_else(|| s.clone());
++        let name = names.iter().find(|(id, _)| id == s).map(|(_, n)| format!("UniCore {n}")).unwrap_or_else(|| s.clone());
+         style_def(&mut w, s, &name);
+     }
+     // Styles the file defined but no table uses still belong to the deck.
+diff --git a/crates/pptx/src/write/mod.rs b/crates/pptx/src/write/mod.rs
+index bea8dc6..68b34f8 100644
+--- a/crates/pptx/src/write/mod.rs
++++ b/crates/pptx/src/write/mod.rs
+@@ -39,7 +39,7 @@ const CT_CHARTEX: &str = "application/vnd.ms-office.chartex+xml";
+ const RT_CHARTEX: &str = "http://schemas.microsoft.com/office/2014/relationships/chartEx";
+ const CT_COMMENTS: &str = "application/vnd.openxmlformats-officedocument.presentationml.comments+xml";
+ const CT_AUTHORS: &str = "application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml";
+-/// Modern threaded comments (read by PowerPoint 2021+ and DeckCraft; the flattened legacy
++/// Modern threaded comments (read by PowerPoint 2021+ and UniCore; the flattened legacy
+ /// part next to it serves older readers).
+ pub(crate) const CT_COMMENTS_MODERN: &str = "application/vnd.ms-powerpoint.comments+xml";
+ const CT_AUTHORS_MODERN: &str = "application/vnd.ms-powerpoint.authors+xml";
+@@ -664,7 +664,7 @@ pub fn export(p: &Presentation, main_ct: &str) -> Result<Vec<u8>, PptxError> {
+             so.rels.add("comments", &opc::relative(&sname, &cname), false);
+             x.pkg.xml_part(&cname, CT_COMMENTS, comments_xml(&s.comments, &mut authors));
+             // The modern threaded part next to the flattened legacy one (issue #70):
+-            // PowerPoint 2021+ and DeckCraft read replies and resolved state from it,
++            // PowerPoint 2021+ and UniCore read replies and resolved state from it,
+             // older readers keep the legacy part.
+             let mname = format!("ppt/comments/modernComment{n_comments}.xml");
+             let rid = so.rels.add(RT_COMMENTS_MODERN, &opc::relative(&sname, &mname), false);
+@@ -1252,7 +1252,7 @@ fn app_xml(p: &Presentation) -> Vec<u8> {
+             .a("xmlns", "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties")
+             .a("xmlns:vt", "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"),
+     );
+-    w.elt("Application", "DeckCraft");
++    w.elt("Application", "UniCore");
+     w.elt("Slides", &p.slides.len().to_string());
+     w.elt("Notes", &p.slides.iter().filter(|s| !s.notes.is_empty()).count().to_string());
+     w.elt("HiddenSlides", &p.slides.iter().filter(|s| s.hidden).count().to_string());
+diff --git a/crates/render/src/camera.rs b/crates/render/src/camera.rs
+index af5187c..513b6f7 100644
+--- a/crates/render/src/camera.rs
++++ b/crates/render/src/camera.rs
+@@ -1,7 +1,7 @@
+ //! 3-D cameras (`a:scene3d/a:camera`) turning a flat shape, approximated in 2-D.
+ //!
+ //! A shape seen through a 3-D camera preset (isometric, perspective…) or rotated with
+-//! `a:camera/a:rot` is drawn by PowerPoint as its plane turned in space and projected. DeckCraft
++//! `a:camera/a:rot` is drawn by PowerPoint as its plane turned in space and projected. UniCore
+ //! turns the shape's corners the same way and draws the shape under the affine transform that best
+ //! fits them: exact for orthographic cameras, within about 2% of the shape's size for the
+ //! perspective ones (whose foreshortening an affine transform can't show). Depth, bevels' sides and
+diff --git a/crates/render/src/chartex.rs b/crates/render/src/chartex.rs
+index e62105e..40e290c 100644
+--- a/crates/render/src/chartex.rs
++++ b/crates/render/src/chartex.rs
+@@ -76,7 +76,7 @@ fn mix(a: Rgba, b: Rgba, t: f64) -> Rgba {
+ }
+ 
+ /// A region map without its geography: the boundaries PowerPoint caches come from an online
+-/// map service in an undocumented format and DeckCraft ships no map data, so each region is a
++/// map service in an undocumented format and UniCore ships no map data, so each region is a
+ /// tile in a grid, coloured on the map's value scale, with the scale below and a note saying
+ /// the map itself is not drawn.
+ fn region_tiles(ctx: &mut RenderContext, rctx: &Ctx, c: &Chart, m: Affine, area: Rect, base: f64, text_col: Rgba) {
+diff --git a/crates/render/src/lib.rs b/crates/render/src/lib.rs
+index 93b0dc9..6a60201 100644
+--- a/crates/render/src/lib.rs
++++ b/crates/render/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! The DeckCraft renderer: draws slides, layouts and masters with `vello_cpu`.
++//! The UniCore renderer: draws slides, layouts and masters with `vello_cpu`.
+ //!
+ //! One code path serves the editor canvas, thumbnails, image/PDF-raster export and the slide show:
+ //! [`render_slide`] draws the background, the master and layout graphics, then the slide's shapes
+@@ -1074,7 +1074,7 @@ impl Renderer {
+                 paint::picture(ctx, f.pres, &paint::resolved(rctx, pf, None), bounds, m, t);
+                 ctx.pop_layer();
+             }
+-            // An object DeckCraft doesn't model (an embedded OLE object, an unknown graphic): its
++            // An object UniCore doesn't model (an embedded OLE object, an unknown graphic): its
+             // preview picture, stretched over the frame, as PowerPoint draws it.
+             ShapeKind::Opaque { preview: Some(media), .. } => {
+                 ctx.set_transform(m);
+@@ -2079,7 +2079,7 @@ pub fn text_transform(m: Affine, tr: Rect, rotation: f64) -> Affine {
+     t
+ }
+ 
+-/// The WordArt warp of `s`'s text over its text rectangle `tr`, if it has one DeckCraft draws.
++/// The WordArt warp of `s`'s text over its text rectangle `tr`, if it has one UniCore draws.
+ pub fn text_warp(rctx: &Ctx, s: &Shape, tr: Rect) -> Option<deckcraft_geom::warp::Warp> {
+     let bp = resolve::body(rctx, s);
+     let name = bp.warp.as_deref()?;
+diff --git a/crates/render/src/tests.rs b/crates/render/src/tests.rs
+index 05d7c91..82d1c8a 100644
+--- a/crates/render/src/tests.rs
++++ b/crates/render/src/tests.rs
+@@ -1001,7 +1001,7 @@ fn colour_glyphs_paint_their_layers() {
+     let mut t = TextBody::from_text("\u{E000} \u{E001}");
+     let props = &mut t.paragraphs[0].runs[0].props;
+     props.size = Some(72.0);
+-    props.font = Some("DeckCraft Colr Squares".into());
++    props.font = Some("UniCore Colr Squares".into());
+     props.fill = Some(deckcraft_model::style::Fill::solid(ColorRef::rgb(deckcraft_color::Rgba::rgb(0, 160, 0))));
+     sh.text = Some(t);
+     let p = deck_with(vec![sh]);
+@@ -1237,7 +1237,7 @@ fn soft_edges_fade_to_the_outline() {
+ #[test]
+ fn a_file_defined_table_style_draws_its_parts() {
+     // Red table background (tblBg), see-through white on banded rows, a 4 pt blue left border and
+-    // no inside lines: drawn from the definition, not DeckCraft's own look for the style.
++    // no inside lines: drawn from the definition, not UniCore's own look for the style.
+     use deckcraft_model::style::{Fill, Line};
+     use deckcraft_model::table::{TableBorder, TablePart, TablePartStyle, TableStyleDef};
+     let rgb = |r, g, b| ColorRef::rgb(deckcraft_color::Rgba::rgb(r, g, b));
+diff --git a/crates/text/src/tests.rs b/crates/text/src/tests.rs
+index a9d936c..34b17e0 100644
+--- a/crates/text/src/tests.rs
++++ b/crates/text/src/tests.rs
+@@ -207,7 +207,7 @@ fn saved_shrink_scale_is_drawn() {
+ }
+ 
+ /// A body whose file has `<a:normAutofit/>` with no `fontScale` is the schema default 100 %:
+-/// PowerPoint draws it as it is, even overflowing. DeckCraft draws it the same (#724).
++/// PowerPoint draws it as it is, even overflowing. UniCore draws it the same (#724).
+ #[test]
+ fn bare_normautofit_draws_at_full_size() {
+     let text = (0..30).map(|i| format!("Line number {i}")).collect::<Vec<_>>().join("\n");
+diff --git a/crates/ui-egui/examples/icon_gallery.rs b/crates/ui-egui/examples/icon_gallery.rs
+index 6b1a38a..d0cfd87 100644
+--- a/crates/ui-egui/examples/icon_gallery.rs
++++ b/crates/ui-egui/examples/icon_gallery.rs
+@@ -1,4 +1,4 @@
+-//! Renders every DeckCraft icon into a labelled PNG grid, on a light and a dark background.
++//! Renders every UniCore icon into a labelled PNG grid, on a light and a dark background.
+ //!
+ //! ```sh
+ //! cargo run -p deckcraft-ui-egui --example icon_gallery -- /tmp/gallery.png
+diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
+index f7bfe25..acf079a 100644
+--- a/crates/ui-egui/src/backstage.rs
++++ b/crates/ui-egui/src/backstage.rs
+@@ -213,7 +213,7 @@ impl Backstage {
+ /// Save As and Change File Type: (id for [`SlideApp::export_as`], label, detail).
+ pub const SAVE_TYPES: [(&str, &str, &str); 6] = [
+     ("pptx", "PowerPoint Presentation (*.pptx)", "Opens in PowerPoint and other presentation apps"),
+-    ("deckcraft", "DeckCraft Presentation (*.deckcraft)", "DeckCraft's own format: everything is kept"),
++    ("deckcraft", "UniCore Presentation (*.deckcraft)", "UniCore's own format: everything is kept"),
+     ("pdf", "PDF (*.pdf)", "A fixed copy that keeps its layout on any device"),
+     ("outline", "Outline (*.txt)", "The slide titles and bullet text as plain text"),
+     ("png", "PNG Picture (*.png)", "The current slide as a picture"),
+@@ -537,7 +537,7 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank:
+             shown += 1;
+         }
+         if sample && shown < limit {
+-            let th = deckcraft_model::theme::builtin_themes().into_iter().find(|t| t.name == "DeckCraft");
++            let th = deckcraft_model::theme::builtin_themes().into_iter().find(|t| t.name == "UniCore");
+             if tile(ui, "Sample deck: Northern Lights", th.as_ref(), false).clicked()
+                 && let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session)
+             {
+@@ -685,15 +685,11 @@ fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &str, enable
+ 
+ // ---------------------------------------------------------------- pages
+ 
+-/// Home: DeckCraft's mark, new presentations (the first themes, with a link to New) and recent
++/// Home: UniCore's mark, new presentations (the first themes, with a link to New) and recent
+ /// presentations (with a link to Open). The same page is the start screen.
+ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) {
+     let t = Tokens::get(ui.ctx());
+-    ui.horizontal(|ui| {
+-        let (r, _) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::hover());
+-        crate::dialogs::paint_logo(ui.painter(), r);
+-        ui.label(RichText::new("DeckCraft").font(theme::bold(24.0)).color(t.text));
+-    });
++    ui.label(RichText::new("UniCore").font(theme::bold(24.0)).color(t.text));
+     ui.add_space(18.0);
+     ui.horizontal(|ui| {
+         ui.label(RichText::new("New").font(theme::bold(16.0)).color(t.text));
+@@ -733,8 +729,6 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome)
+             }
+         });
+     }
+-    ui.add_space(30.0);
+-    ui.hyperlink_to("Join the ArtCraft community on Discord", deckcraft_engine::links::DISCORD);
+ }
+ 
+ /// New: a blank presentation, then every theme and starter template, with a search box.
+@@ -1040,9 +1034,9 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
+             dim(
+                 ui,
+                 if app.services.pick_save.is_some() {
+-                    "DeckCraft prints through a PDF: it opens in your PDF viewer, where you choose the printer."
++                    "UniCore prints through a PDF: it opens in your PDF viewer, where you choose the printer."
+                 } else {
+-                    "DeckCraft prints through a PDF: it downloads, ready to print from your browser or PDF viewer."
++                    "UniCore prints through a PDF: it downloads, ready to print from your browser or PDF viewer."
+                 },
+             );
+             ui.add_space(14.0);
+@@ -1330,7 +1324,7 @@ fn bullets(ui: &mut Ui, items: &[&str]) {
+     ui.add_space(10.0);
+ }
+ 
+-/// Account: the interface's appearance and what DeckCraft is. DeckCraft has no accounts, so
++/// Account: the interface's appearance and what UniCore is. UniCore has no accounts, so
+ /// there is nothing to sign in to.
+ fn account(app: &mut SlideApp, ui: &mut Ui) {
+     let t = Tokens::get(ui.ctx());
+@@ -1348,31 +1342,18 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
+             });
+             ui.add_space(16.0);
+             heading(ui, "User Information");
+-            dim(ui, "DeckCraft has no accounts: there is nothing to sign in to, and your presentations stay on your device.");
++            dim(ui, "UniCore has no accounts: there is nothing to sign in to, and your presentations stay on your device.");
+         });
+         ui.add_space(40.0);
+         ui.vertical(|ui| {
+             heading(ui, "Product Information");
+-            ui.horizontal(|ui| {
+-                let (r, _) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::hover());
+-                crate::dialogs::paint_logo(ui.painter(), r);
+-                ui.label(RichText::new("DeckCraft").font(theme::bold(24.0)).color(t.text));
+-            });
++            ui.label(RichText::new("UniCore").font(theme::bold(24.0)).color(t.text));
+             dim(ui, &crate::dialogs::version_line());
+             dim(ui, "Open source under MIT OR Apache-2.0. Not affiliated with Microsoft.");
+             ui.add_space(14.0);
+-            if task(
+-                ui,
+-                Icon::Help,
+-                "About DeckCraft",
+-                "About DeckCraft",
+-                "The version, the people and models who built it, and where to find us.",
+-                true,
+-            ) {
++            if task(ui, Icon::Help, "About UniCore", "About UniCore", "The version.", true) {
+                 let _ = app.run("app.about", json!({}));
+             }
+-            ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+-            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
+         });
+     });
+ }
+diff --git a/crates/ui-egui/src/backstage_tests.rs b/crates/ui-egui/src/backstage_tests.rs
+index 9b3906a..575b952 100644
+--- a/crates/ui-egui/src/backstage_tests.rs
++++ b/crates/ui-egui/src/backstage_tests.rs
+@@ -166,7 +166,7 @@ fn every_page_renders() {
+         (Page::SaveAs, "Not saved yet"),
+         (Page::Print, "Print Hidden Slides"),
+         (Page::Export, "Create PDF Document"),
+-        (Page::Account, "About DeckCraft"),
++        (Page::Account, "About UniCore"),
+     ];
+     for (p, marker) in checks {
+         h.state_mut().run("app.backstage", json!({"page": p.id()})).unwrap();
+@@ -454,7 +454,7 @@ fn a_file_that_cant_be_opened_says_why() {
+     }
+     h.run_steps(2);
+     assert!(h.state().session.documents().is_empty());
+-    assert!(h.query_by_label_contains("not a presentation DeckCraft can read").is_some(), "the error is on screen");
++    assert!(h.query_by_label_contains("not a presentation UniCore can read").is_some(), "the error is on screen");
+     let _ = std::fs::remove_dir_all(&dir);
+ }
+ 
+diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
+index 576a229..dd61319 100644
+--- a/crates/ui-egui/src/dialogs.rs
++++ b/crates/ui-egui/src/dialogs.rs
+@@ -2,7 +2,7 @@
+ //! About window. The start screen is File › Home (`backstage.rs`).
+ 
+ use deckcraft_color::SchemeSlot;
+-use egui::{Align2, Color32, CornerRadius, Rect, Sense, Stroke, Ui, pos2, vec2};
++use egui::{Align2, Color32, CornerRadius, Sense, Stroke, Ui, vec2};
+ use serde_json::{Value, json};
+ 
+ use crate::SlideApp;
+@@ -47,7 +47,7 @@ fn title(id: &str) -> &'static str {
+         "paragraph" => "Paragraph",
+         "tabs" => "Tabs",
+         "font" => "Font",
+-        "about" => "About DeckCraft",
++        "about" => "About UniCore",
+         "preferences" => "Preferences",
+         "autocorrect" => "AutoCorrect",
+         "gridOptions" => "Grid Options",
+@@ -68,10 +68,10 @@ fn title(id: &str) -> &'static str {
+         "smartart" => "Choose a SmartArt Graphic",
+         "bullets" => "Bullets and Numbering",
+         "action" => "Action Settings",
+-        "quit" => "DeckCraft",
++        "quit" => "UniCore",
+         "themeColors" => "Create New Theme Colors",
+         "themeFonts" => "Create New Theme Fonts",
+-        _ => "DeckCraft",
++        _ => "UniCore",
+     }
+ }
+ 
+@@ -274,7 +274,7 @@ fn album_choice(ui: &mut Ui, d: &mut Dialog, id: &str, key: &str, default: &str,
+     opened.response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, label));
+ }
+ 
+-const ALBUM_THEMES: &[&str] = &["DeckCraft", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Coral Reef", "Slate"];
++const ALBUM_THEMES: &[&str] = &["UniCore", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Coral Reef", "Slate"];
+ 
+ fn current_theme(app: &SlideApp) -> String {
+     app.session
+@@ -282,7 +282,7 @@ fn current_theme(app: &SlideApp) -> String {
+         .and_then(|d| d.doc.masters.first())
+         .map(|m| m.theme.name.clone())
+         .filter(|n| !n.is_empty())
+-        .unwrap_or_else(|| "DeckCraft".into())
++        .unwrap_or_else(|| "UniCore".into())
+ }
+ 
+ fn album_json_id(v: &Value) -> Option<u64> {
+@@ -465,7 +465,7 @@ fn photo_album_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+         check(ui, d, "Captions under pictures", "captions", false);
+         check(ui, d, "ALL pictures black and white", "grayscale", false);
+         ui.label("Album theme");
+-        album_choice(ui, d, "album_theme", "theme", "DeckCraft", &ALBUM_THEMES.iter().map(|n| (*n, *n)).collect::<Vec<_>>());
++        album_choice(ui, d, "album_theme", "theme", "UniCore", &ALBUM_THEMES.iter().map(|n| (*n, *n)).collect::<Vec<_>>());
+     });
+     let captions = d.fields.get("captions").is_some_and(|v| v == "1");
+     let grayscale = d.fields.get("grayscale").is_some_and(|v| v == "1");
+@@ -482,7 +482,7 @@ fn photo_album_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+         }
+         let layout = d.get("layout", "1");
+         let frame = d.get("frame", "rect");
+-        let theme = d.get("theme", "DeckCraft");
++        let theme = d.get("theme", "UniCore");
+         let theme_was = d.fields.get("themeWas").cloned().unwrap_or_default();
+         let mut payload = json!({"pictures": list, "layout": layout, "frame": frame, "captions": captions, "grayscale": grayscale});
+         if theme != theme_was
+@@ -2067,24 +2067,7 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+             ok || cancel
+         }
+         "about" => {
+-            let tab = d.get("tab", "about");
+-            ui.horizontal(|ui| {
+-                for (k, l) in [("about", "About"), ("contributors", "Contributors"), ("models", "Models")] {
+-                    if ui.selectable_label(tab == k, l).clicked() {
+-                        d.fields.insert("tab".into(), k.into());
+-                    }
+-                }
+-            });
+-            ui.separator();
+-            match tab.as_str() {
+-                "contributors" | "models" => {
+-                    // The credits need room for the table; the About tab keeps its compact size.
+-                    ui.set_min_size(vec2(640.0, 380.0));
+-                    ui.set_max_height(380.0);
+-                    if tab == "models" { crate::credits::models_ui(ui) } else { crate::credits::contributors_ui(ui) }
+-                }
+-                _ => about(app, ui),
+-            }
++            about(app, ui);
+             let (ok, _) = buttons(ui, "Close");
+             ok
+         }
+@@ -2603,21 +2586,9 @@ fn pretty_equation(s: &str) -> String {
+ }
+ 
+ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
+-    let t = Tokens::get(ui.ctx());
+     ui.vertical_centered(|ui| {
+-        let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
+-        paint_logo(ui.painter(), r);
+-        ui.label(egui::RichText::new("DeckCraft").font(theme::bold(22.0)));
+-        ui.label(egui::RichText::new(version_line()).color(t.text_dim));
+-        ui.add_space(6.0);
+-        ui.label("Presentations and slide shows, rebuilt from scratch in pure Rust.");
+-        ui.label("An open-source, clean-room project. Not affiliated with Microsoft.");
+-        ui.add_space(6.0);
+-        ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+-        ui.hyperlink_to("getartcraft.com/apps/deckcraft", deckcraft_engine::links::APP_PAGE);
+-        ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
+-        ui.add_space(6.0);
+-        ui.label(egui::RichText::new("MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors").size(11.0).color(t.text_faint));
++        ui.label(egui::RichText::new("UniCore").font(theme::bold(22.0)));
++        ui.label(egui::RichText::new(version_line()));
+     });
+ }
+ 
+@@ -2636,22 +2607,6 @@ pub fn version_line() -> String {
+     s
+ }
+ 
+-/// DeckCraft's mark, drawn in code: a slide card with a play triangle in our orange.
+-pub fn paint_logo(p: &egui::Painter, r: Rect) {
+-    let orange = Color32::from_rgb(0xF2, 0x6B, 0x1D);
+-    let deep = Color32::from_rgb(0xC2, 0x4E, 0x14);
+-    let card = r.shrink(r.width() * 0.08);
+-    p.rect_filled(card.translate(vec2(r.width() * 0.04, r.width() * 0.05)), CornerRadius::same((r.width() * 0.14) as u8), deep);
+-    p.rect_filled(card, CornerRadius::same((r.width() * 0.14) as u8), orange);
+-    let c = card.center();
+-    let s = card.width() * 0.22;
+-    p.add(egui::Shape::convex_polygon(
+-        vec![pos2(c.x - s * 0.7, c.y - s), pos2(c.x + s, c.y), pos2(c.x - s * 0.7, c.y + s)],
+-        Color32::WHITE,
+-        Stroke::NONE,
+-    ));
+-}
+-
+ /// The selection's proofing language and whether it's marked Do Not Check Spelling: the run at
+ /// the caret, else the first run of the first selected shape; US English when none says.
+ pub fn selected_language(app: &SlideApp) -> (String, bool) {
+@@ -3217,7 +3172,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+                 p["with"] = json!(d.get("with", ""));
+                 let msg = match app.session.execute("text.replace", &p) {
+                     Ok(v) => format!("Replaced {} occurrence(s).", v.get("replaced").and_then(Value::as_u64).unwrap_or(0)),
+-                    Err(_) => format!("DeckCraft can't find “{text}”."),
++                    Err(_) => format!("UniCore can't find “{text}”."),
+                 };
+                 d.fields.insert("status".into(), msg);
+                 d.fields.remove("cur");
+@@ -3232,7 +3187,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+     if find_next {
+         let list = app.session.execute("text.find", &q).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default();
+         if list.is_empty() {
+-            d.fields.insert("status".into(), format!("DeckCraft can't find “{text}”."));
++            d.fields.insert("status".into(), format!("UniCore can't find “{text}”."));
+             d.fields.remove("cur");
+         } else {
+             let n = d.get("next", "0").parse::<usize>().unwrap_or(0) % list.len();
+diff --git a/crates/ui-egui/src/effects_tests.rs b/crates/ui-egui/src/effects_tests.rs
+index 37d856f..08acbe8 100644
+--- a/crates/ui-egui/src/effects_tests.rs
++++ b/crates/ui-egui/src/effects_tests.rs
+@@ -27,7 +27,7 @@ fn format_name(h: &Harness<'_, SlideApp>) -> String {
+ #[test]
+ fn effects_menu_applies_a_scheme_once() {
+     let mut h = harness();
+-    assert_eq!(format_name(&h), "DeckCraft");
++    assert_eq!(format_name(&h), "UniCore");
+     let n = h.state().session.active().unwrap().history.undo.len();
+     h.get_by_label("Effects").click();
+     h.run_steps(2);
+@@ -35,7 +35,7 @@ fn effects_menu_applies_a_scheme_once() {
+     h.run_steps(2);
+     assert_eq!(format_name(&h), "Soft");
+     assert_eq!(h.state().session.active().unwrap().history.undo.len(), n + 1);
+-    assert_eq!(h.state().session.active().unwrap().doc.masters[0].theme.name, "DeckCraft");
++    assert_eq!(h.state().session.active().unwrap().doc.masters[0].theme.name, "UniCore");
+ 
+     h.get_by_label("Effects").click();
+     h.run_steps(2);
+diff --git a/crates/ui-egui/src/icons.rs b/crates/ui-egui/src/icons.rs
+index 5450914..3924578 100644
+--- a/crates/ui-egui/src/icons.rs
++++ b/crates/ui-egui/src/icons.rs
+@@ -29,7 +29,7 @@ const DARK: Color32 = Color32::from_rgb(0x2B, 0x2B, 0x2B);
+ 
+ macro_rules! icons {
+     ($($(#[$m:meta])* $v:ident => $n:literal,)*) => {
+-        /// Every icon DeckCraft draws.
++        /// Every icon UniCore draws.
+         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+         pub enum Icon {
+             $($(#[$m])* $v,)*
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 8867407..5563e8a 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft's egui frontend: a PowerPoint-style UI over `deckcraft-engine`.
++//! UniCore's egui frontend: a PowerPoint-style UI over `deckcraft-engine`.
+ //!
+ //! The UI is thin: every action goes through [`SlideApp::run`], which handles UI commands
+ //! (views, panes, zoom) here and sends everything else to the engine. The ribbon, menus,
+@@ -10,7 +10,6 @@ pub mod animtimeline;
+ pub mod backstage;
+ pub mod canvas;
+ pub mod control;
+-pub mod credits;
+ pub mod dialogs;
+ pub mod doc_window;
+ pub mod eyedropper;
+@@ -191,7 +190,7 @@ fn command_for(purpose: FilePurpose, name: &str, bytes: &[u8]) -> Result<&'stati
+         FilePurpose::Open => open_command(name),
+         FilePurpose::Infer => infer_command(name, bytes),
+     };
+-    cmd.ok_or_else(|| format!("{name}: DeckCraft can't open this kind of file"))
++    cmd.ok_or_else(|| format!("{name}: UniCore can't open this kind of file"))
+ }
+ 
+ /// How long a transient status message stays visible.
+@@ -392,7 +391,7 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+         Some("Cmd+P"),
+         "{layout?, perPage?, slides?, includeHidden?, frame?, paper?: letter|a4|legal|a3, orientation?: portrait|landscape}",
+     ),
+-    ("app.about", "About DeckCraft", None, "{}"),
++    ("app.about", "About UniCore", None, "{}"),
+     ("app.palette", "Command Palette", Some("Cmd+Shift+P"), "{}"),
+     ("app.preferences", "Preferences…", Some("Cmd+,"), "{}"),
+     ("app.openDialog", "Open…", None, "{purpose?}"),
+@@ -411,7 +410,6 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+     ("app.qat", "Quick Access Toolbar", None, "{add: command id, params?, label?, icon?} | {remove: id, params?} | {reset: true} → [buttons]"),
+     ("app.find", "Find…", Some("Cmd+F"), "{}"),
+     ("app.replace", "Replace…", Some("Cmd+H"), "{}"),
+-    ("app.links", "Community Links", None, "{}"),
+ ];
+ 
+ pub struct Perf {
+@@ -433,6 +431,9 @@ struct AnimPreview {
+ }
+ 
+ pub struct SlideApp {
++    /// The format Save picks for a presentation without a file yet: the app's own, or `pptx` when
++    /// a host page stores the files (web bridge).
++    pub save_format: &'static str,
+     /// Table Design's border pen (`color`, `width`, `dash` for `table.borders`).
+     pub table_pen: serde_json::Value,
+     pub session: Session,
+@@ -531,6 +532,7 @@ impl SlideApp {
+     pub fn new(session: Session, mut services: Services) -> Self {
+         let audio_out = services.audio_out.take();
+         SlideApp {
++            save_format: "deckcraft",
+             table_pen: serde_json::json!({"width": 1.0}),
+             session,
+             services,
+@@ -744,7 +746,7 @@ impl SlideApp {
+             "deckcraft" => ("deckcraft", "deckcraft", false),
+             "gif" => ("gif", "gif", false),
+             other => {
+-                self.set_status(format!("DeckCraft can't export “{other}”"));
++                self.set_status(format!("UniCore can't export “{other}”"));
+                 return false;
+             }
+         };
+@@ -800,7 +802,7 @@ impl SlideApp {
+         }
+     }
+ 
+-    /// File › Print: DeckCraft prints through a PDF. On the desktop the PDF (with the Print page's
++    /// File › Print: UniCore prints through a PDF. On the desktop the PDF (with the Print page's
+     /// layout, slides and options) is written to the temporary folder and opened in the system's
+     /// PDF viewer, which has the printers; on the web it downloads.
+     pub fn print_pdf(&mut self, params: Value) -> bool {
+@@ -1012,7 +1014,7 @@ impl SlideApp {
+             "app.insertAudioDialog" => self.pick_and_insert("audio", "insert.audio"),
+             "app.reuseSlidesDialog" => self.pick_and_reuse(p.get("keepFormatting").and_then(Value::as_bool).unwrap_or(false)),
+             "app.insertVideoDialog" => self.pick_and_insert("video", "insert.video"),
+-            "app.saveAsDialog" => self.save_as_dialog("deckcraft"),
++            "app.saveAsDialog" => self.save_as_dialog(self.save_format),
+             "app.exportDialog" => self.dialog = Some(dialogs::Dialog::new("export")),
+             "app.pasteSpecial" => self.dialog = Some(dialogs::Dialog::new("pasteSpecial")),
+             "app.browseThemeDialog" => {
+@@ -1048,10 +1050,6 @@ impl SlideApp {
+                 let d = p.get("id").and_then(Value::as_str).ok_or("missing `id`")?;
+                 self.dialog = Some(dialogs::Dialog::new(d));
+             }
+-            "app.links" => {
+-                use deckcraft_engine::links::*;
+-                return Ok(json!({"discord": DISCORD, "website": WEBSITE, "apps": APPS, "appPage": APP_PAGE, "github": GITHUB}));
+-            }
+             _ => return Err(format!("unknown UI command `{id}`")),
+         }
+         Ok(Value::Null)
+@@ -1300,7 +1298,7 @@ impl SlideApp {
+                 Err(e) => self.set_status(e.to_string()),
+             }
+         } else {
+-            self.save_as_dialog("deckcraft");
++            self.save_as_dialog(self.save_format);
+         }
+     }
+ 
+@@ -1318,7 +1316,7 @@ impl SlideApp {
+                 UiRequest::Message { text } => self.set_status(text),
+                 UiRequest::PickFile { purpose } => {
+                     if purpose == "saveAs" {
+-                        self.save_as_dialog("deckcraft");
++                        self.save_as_dialog(self.save_format);
+                     }
+                 }
+                 UiRequest::Media { action, shape, ms } => {
+@@ -1755,7 +1753,7 @@ impl SlideApp {
+     /// Offer the copy or cut on the system clipboard.
+     ///
+     /// Slides go out as plain text. Text goes out as HTML plus the same plain words, so a paste
+-    /// back into DeckCraft still uses the internal clipboard. A textless shape leaves the
++    /// back into UniCore still uses the internal clipboard. A textless shape leaves the
+     /// invisible [`OBJECTS_MARKER`] rather than a picture: with only an image on the clipboard
+     /// egui-winit drops Ctrl+V, and the shortcut could no longer paste the shape here (#182).
+     fn publish_clipboard(&mut self, ctx: &egui::Context, cut: bool) {
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index 440fd93..498e3ed 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -289,7 +289,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
+                 ("Set Up Show…", "show.setup"),
+             ],
+         ),
+-        ("Help", vec![("About DeckCraft", "app.about"), ("Command Palette", "app.palette")]),
++        ("Help", vec![("About UniCore", "app.about"), ("Command Palette", "app.palette")]),
+     ]
+ }
+ 
+diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
+index 3e43a68..15f0ae6 100644
+--- a/crates/ui-egui/src/ribbon.rs
++++ b/crates/ui-egui/src/ribbon.rs
+@@ -76,7 +76,7 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
+         let dirty = app.session.active().is_some_and(|d| d.is_dirty());
+         crate::qat::show(app, &mut child);
+         let title =
+-            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "DeckCraft".into());
++            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "UniCore".into());
+         ui.painter().text(rect.center(), Align2::CENTER_CENTER, title, theme::font(13.0), t.text);
+         // Right side.
+         let mut right = ui.new_child(
+@@ -502,7 +502,7 @@ fn font_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
+                         }
+                     }
+                     ui.separator();
+-                    // Fonts installed while DeckCraft runs (e.g. into ~/.local/share/fonts).
++                    // Fonts installed while UniCore runs (e.g. into ~/.local/share/fonts).
+                     if ui.button("Rescan Installed Fonts").clicked() {
+                         run(app, "font.rescan", json!({}));
+                         ui.close();
+@@ -2113,11 +2113,6 @@ fn record(app: &mut SlideApp, ui: &mut Ui) {
+             }
+         }
+     });
+-    group(ui, |ui| {
+-        if big_button(ui, Icon::Help, "Learn\nMore", true).clicked() {
+-            app.open_url(deckcraft_engine::links::APP_PAGE);
+-        }
+-    });
+ }
+ 
+ fn comment_nav(app: &mut SlideApp, ui: &mut Ui, forward: bool) {
+diff --git a/crates/ui-egui/src/show.rs b/crates/ui-egui/src/show.rs
+index a875773..0a04dfd 100644
+--- a/crates/ui-egui/src/show.rs
++++ b/crates/ui-egui/src/show.rs
+@@ -1754,7 +1754,7 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
+     };
+     ctx.show_viewport_immediate(
+         egui::ViewportId::from_hash_of("deckcraft_presenter"),
+-        egui::ViewportBuilder::default().with_title("Presenter View — DeckCraft").with_inner_size([1100.0, 700.0]),
++        egui::ViewportBuilder::default().with_title("Presenter View — UniCore").with_inner_size([1100.0, 700.0]),
+         |ui, _| {
+             if !keyboard(ui.ctx(), show, doc, now) {
+                 *keep = false;
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 1847d47..6829740 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -30,7 +30,7 @@ pub struct Tokens {
+     pub hover: Color32,
+     pub pressed: Color32,
+     pub selected: Color32,
+-    /// DeckCraft's accent (tabs underline, selected thumbnail, primary buttons).
++    /// UniCore's accent (tabs underline, selected thumbnail, primary buttons).
+     pub accent: Color32,
+     pub accent_text: Color32,
+     pub contextual: Color32,
+diff --git a/crates/ui-egui/src/theme_colors_tests.rs b/crates/ui-egui/src/theme_colors_tests.rs
+index d7dba9b..48f0635 100644
+--- a/crates/ui-egui/src/theme_colors_tests.rs
++++ b/crates/ui-egui/src/theme_colors_tests.rs
+@@ -130,7 +130,7 @@ fn typing_a_hex_replaces_accent_1() {
+     h.get_by_label("Save").click();
+     h.run_steps(2);
+     assert!(h.state().dialog.is_none(), "status: {:?}", h.state().status);
+-    assert_eq!(scheme(&h).name, "DeckCraft");
++    assert_eq!(scheme(&h).name, "UniCore");
+     assert_eq!(scheme(&h).get(SchemeSlot::Accent1).hex(), "11AA22");
+     assert_eq!(undo_len(&h), n + 1);
+ }
+diff --git a/crates/ui-egui/src/uifonts.rs b/crates/ui-egui/src/uifonts.rs
+index f2212a9..d89b6dc 100644
+--- a/crates/ui-egui/src/uifonts.rs
++++ b/crates/ui-egui/src/uifonts.rs
+@@ -6,7 +6,7 @@
+ //! Sans CJK) and added after the interface faces. Nothing is bundled for it: on the web, where
+ //! there are no installed fonts, only the embedded faces are used.
+ //!
+-//! Ported from WordCraft's IME composition and window-caption fallback (#565, #840), widened from
++//! Ported from UniCore's IME composition and window-caption fallback (#565, #840), widened from
+ //! the composition and caption to every text the interface draws from the presentation.
+ 
+ use std::collections::HashSet;

@@ -18,6 +18,8 @@ import type { ViewState } from "../workspace";
 import type { ApiTool } from "./server";
 import { readPage, webSearch } from "./web";
 import { parseVideoUrl, videoInfo } from "../video";
+import { EDITOR_TOOL_DEFS, runEditorTool } from "./editor-tools";
+import { UTIL_TOOL_DEFS, runUtilTool } from "./util-tools";
 
 export interface ToolContext {
   confirm: (title: string, detail: string) => Promise<boolean>;
@@ -540,6 +542,8 @@ export const TOOL_DEFS: ApiTool[] = [
       ),
     },
   },
+  ...EDITOR_TOOL_DEFS,
+  ...UTIL_TOOL_DEFS,
 ];
 
 // ---------- Ejecución ----------
@@ -666,6 +670,8 @@ async function resolveDeletable(tipo: string, id: string): Promise<Deletable | n
 }
 
 export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<ToolResult> {
+  const fromEditor = (await runEditorTool(name, a, ctx)) ?? (await runUtilTool(name, a));
+  if (fromEditor) return fromEditor;
   switch (name) {
     case "listar_materias": {
       const [degrees, subjects] = await Promise.all([db.degrees.toArray(), db.subjects.toArray()]);

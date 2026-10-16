@@ -1,8 +1,11 @@
 "use client";
 
+import { newSubmenu, type NewMenuOpts } from "@/components/ui/new-menu";
+import { renameFolder, useFolderNames } from "@/lib/folder-names";
+import { addIdea } from "@/views/ideas-view";
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, ExternalLink, FilePlus, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
@@ -11,9 +14,8 @@ import { useOpen } from "@/components/workspace/use-open";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
-import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Degree } from "@/lib/types";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Degree } from "@/lib/types";
 import {
-  addCanvas,
   addNote,
   deleteCanvas,
   deleteNote,
@@ -21,6 +23,7 @@ import {
   moveItem,
   newCanvasForView,
   newNoteForView,
+  newOfficeForView,
   openDailyNote,
   renameItem,
   runSafe,
@@ -28,6 +31,9 @@ import {
   type ModifierEvent,
 } from "@/lib/nav/actions";
 import { MoveDialog } from "./move-dialog";
+import { createSubnote, nestNote } from "@/lib/notes/subnotes";
+import { toast } from "@/lib/undo";
+import { deleteOfficeDoc, downloadOfficeDoc, EDITOR_KINDS } from "@/lib/editors/editors";
 import { SubjectDialog } from "@/components/careers/subject-dialog";
 import { DegreeDialog } from "@/components/careers/degree-dialog";
 import { deleteDegreeCascade } from "@/components/careers/actions";
@@ -40,13 +46,15 @@ const LS_OPEN = "uc-explorer-open";
 const LS_SORT = "uc-explorer-sort";
 const DRAG_MIME = "application/x-unicore-item";
 
-type Payload = { kind: "note" | "canvas"; id: string };
-type Target = { subjectId: string; unit?: number };
+type Payload = { kind: "note" | "canvas" | "file"; id: string };
+type Target = { subjectId: string; unit?: number; parentId?: string };
 
 type Dialog =
-  | { type: "rename"; kind: "note" | "canvas" | "subject"; id: string; value: string }
-  | { type: "move"; kind: "note" | "canvas"; id: string }
-  | { type: "delete"; kind: "note" | "canvas"; id: string; title: string };
+  | { type: "rename"; kind: "note" | "canvas" | "subject" | "file" | "folder"; id: string; value: string }
+  | { type: "move"; kind: "note" | "canvas" | "file"; id: string }
+  | { type: "delete"; kind: "note" | "canvas" | "file"; id: string; title: string };
+
+const FILE_ICONS = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation } as const;
 
 const SORT_LABEL: Record<SortMode, string> = { nombre: "Nombre", modificacion: "Modificación", creacion: "Creación" };
 
@@ -77,7 +85,9 @@ export function FileExplorer() {
   const [career, setCareer] = useState<{ type: "subject"; degreeId: string; year?: number } | { type: "degree"; degree: Degree } | null>(null);
   const [dropKey, setDropKey] = useState<string | null>(null);
 
-  const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort) : []), [data, degreeFilter, sort]);
+  const namesVersion = useFolderNames();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- namesVersion: los nombres de las carpetas fijas
+  const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort) : []), [data, degreeFilter, sort, namesVersion]);
   const treeRef = useRef(tree);
   useEffect(() => {
     treeRef.current = tree;
@@ -136,8 +146,18 @@ export function FileExplorer() {
       if (payload.kind === "note") {
         const note = await db.notes.get(payload.id);
         if (!note) return;
-        if (note.subjectId === target.subjectId && (target.unit === undefined || note.unitNumber === target.unit)) return;
-      }
+        // Soltar una nota sobre otra la vuelve su subnota.
+        if (target.parentId) {
+          if (target.parentId === note.parentId) return;
+          try {
+            await nestNote(note.id, target.parentId);
+          } catch (err) {
+            toast(err instanceof Error ? err.message : "No se pudo mover.", { tone: "error" });
+          }
+          return;
+        }
+        if (!note.parentId && note.subjectId === target.subjectId && (target.unit === undefined || note.unitNumber === target.unit)) return;
+      } else if (target.parentId) return;
       await moveItem(payload.kind, payload.id, target);
     });
   };
@@ -164,12 +184,12 @@ export function FileExplorer() {
     });
     const openTab = (view: ViewState): MenuItem => ({ label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => open(view, { ctrlKey: true }) });
     const openSplit = (view: ViewState): MenuItem => ({ label: "Abrir a la derecha", icon: Columns2, onSelect: () => open(view, { ctrlKey: true, altKey: true }) });
-    const rename = (kind: "note" | "canvas" | "subject", id: string, value: string): MenuItem => ({
+    const rename = (kind: "note" | "canvas" | "subject" | "file", id: string, value: string): MenuItem => ({
       label: kind === "subject" ? "Renombrar materia" : "Renombrar",
       icon: Pencil,
       onSelect: () => setDialog({ type: "rename", kind, id, value }),
     });
-    const remove = (kind: "note" | "canvas", id: string): MenuItem => ({
+    const remove = (kind: "note" | "canvas" | "file", id: string): MenuItem => ({
       label: "Eliminar",
       icon: Trash2,
       danger: true,
@@ -178,14 +198,29 @@ export function FileExplorer() {
     const sep: MenuItem = { type: "separator" };
     const pdf = (target: ExportTarget): MenuItem[] => [exportMenuItem(target)];
     const item = node.item;
+    const nuevo = (o: Partial<NewMenuOpts> = {}) => newSubmenu({ open: (v) => openView(v), openTask: (d) => openTaskDialog(d), activeView, ...o });
 
     switch (item.kind) {
-      case "folder":
+      case "folder": {
+        const renameFolderItem: MenuItem = {
+          label: "Renombrar",
+          icon: Pencil,
+          onSelect: () => setDialog({ type: "rename", kind: "folder", id: item.folder, value: node.label }),
+        };
         if (item.folder === DAILY_FOLDER)
           return [
             { label: "Nota del día", icon: CalendarDays, onSelect: () => safe(async () => openView({ type: "nota", id: await openDailyNote(new Date()) })) },
+            nuevo(),
+            renameFolderItem,
             sep,
             ...pdf({ kind: "folder", folder: DAILY_FOLDER }),
+          ];
+        if (item.folder === IDEAS_FOLDER)
+          return [
+            { label: "Nueva idea", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addIdea("") })) },
+            nuevo(),
+            { label: "Ver ideas", icon: ExternalLink, onSelect: () => openView({ type: "ideas" }) },
+            renameFolderItem,
           ];
         if (item.folder === TEMPLATES_FOLDER)
           return [
@@ -193,15 +228,15 @@ export function FileExplorer() {
             { label: "Nueva plantilla", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(TEMPLATES_FOLDER) })) },
           ];
         return [
-          { label: "Nueva nota", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(LOOSE_FOLDER) })) },
-          { label: "Nuevo lienzo", icon: Shapes, onSelect: () => safe(async () => openView({ type: "canvas", id: await addCanvas(LOOSE_FOLDER) })) },
+          nuevo({ subjectId: LOOSE_FOLDER }),
+          renameFolderItem,
           sep,
           ...pdf({ kind: "folder", folder: LOOSE_FOLDER }),
         ];
+      }
       case "subject":
         return [
-          { label: "Nueva nota", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(item.id) })) },
-          { label: "Nuevo lienzo", icon: Shapes, onSelect: () => safe(async () => openView({ type: "canvas", id: await addCanvas(item.id) })) },
+          nuevo({ subjectId: item.id }),
           sep,
           ...(node.view ? [{ label: "Abrir materia", onSelect: () => open(node.view!) }] : []),
           rename("subject", item.id, node.label),
@@ -210,19 +245,27 @@ export function FileExplorer() {
           bm("subject", item.id),
         ];
       case "unit":
-        return [
-          {
-            label: "Nueva nota en esta unidad",
-            icon: FilePlus,
-            onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(item.subjectId, { unitNumber: item.unit }) })),
-          },
-        ];
+        return [nuevo({ subjectId: item.subjectId, unitNumber: item.unit })];
       case "note":
         return [
           openTab(node.view!),
           openSplit(node.view!),
           sep,
           rename("note", item.id, node.label),
+          {
+            label: "Nueva subnota",
+            icon: FilePlus,
+            onSelect: () =>
+              safe(async () => {
+                try {
+                  const id = await createSubnote(item.id);
+                  setOpenMap((prev) => saveOpen({ ...prev, [node.key]: true }));
+                  openView({ type: "nota", id });
+                } catch (err) {
+                  toast(err instanceof Error ? err.message : "No se pudo crear.", { tone: "error" });
+                }
+              }),
+          },
           { label: "Duplicar", icon: Copy, onSelect: () => safe(() => duplicateNote(item.id)) },
           {
             label: "Crear tarea desde esta nota",
@@ -250,13 +293,26 @@ export function FileExplorer() {
           sep,
           remove("canvas", item.id),
         ];
+      case "file":
+        return [
+          openTab(node.view!),
+          openSplit(node.view!),
+          sep,
+          rename("file", item.id, node.label),
+          { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "file", id: item.id }) },
+          { label: "Descargar copia", icon: Download, onSelect: () => safe(() => downloadOfficeDoc(item.id)) },
+          sep,
+          remove("file", item.id),
+        ];
       case "pdf":
         return [openTab(node.view!), sep, bm("document", item.id)];
       case "degree": {
         const degree = data?.degrees.find((d) => d.id === item.id);
         return [
-          { label: "Nueva materia", icon: FilePlus, onSelect: () => setCareer({ type: "subject", degreeId: item.id }) },
-          { label: "Nueva tarea de esta carrera", icon: ListPlus, onSelect: () => openTaskDialog({ degreeId: item.id }) },
+          nuevo({
+            taskDefaults: { degreeId: item.id },
+            extra: [{ label: "Materia", icon: GraduationCap, onSelect: () => setCareer({ type: "subject", degreeId: item.id }) }],
+          }),
           { label: "Ver plan de estudios", icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
           sep,
           { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
@@ -275,8 +331,10 @@ export function FileExplorer() {
       }
       case "year":
         return [
-          { label: `Nueva materia en ${node.label}`, icon: FilePlus, onSelect: () => setCareer({ type: "subject", degreeId: item.degreeId, year: item.year }) },
-          { label: "Nueva tarea de esta carrera", icon: ListPlus, onSelect: () => openTaskDialog({ degreeId: item.degreeId }) },
+          nuevo({
+            taskDefaults: { degreeId: item.degreeId },
+            extra: [{ label: `Materia en ${node.label}`, icon: GraduationCap, onSelect: () => setCareer({ type: "subject", degreeId: item.degreeId, year: item.year }) }],
+          }),
           sep,
           { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
           { label: "Colapsar todo", icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
@@ -288,13 +346,18 @@ export function FileExplorer() {
 
   const headerNewNote = () => safe(async () => openView({ type: "nota", id: await newNoteForView(activeView) }));
   const headerNewCanvas = () => safe(async () => openView({ type: "canvas", id: await newCanvasForView(activeView) }));
+  const headerNewFile: MenuItem[] = (["doc", "sheet", "deck"] as const).map((kind) => ({
+    label: EDITOR_KINDS[kind].newLabel,
+    icon: FILE_ICONS[kind],
+    onSelect: () => safe(async () => openView({ type: "editor", id: await newOfficeForView(kind, activeView) })),
+  }));
   const sortMenu: MenuItem[] = (Object.keys(SORT_LABEL) as SortMode[]).map((mode) => ({
     label: SORT_LABEL[mode],
     icon: sort === mode ? Check : undefined,
     onSelect: () => changeSort(mode),
   }));
 
-  const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? "Renombrar materia" : dialog.kind === "canvas" ? "Renombrar lienzo" : "Renombrar nota") : "";
+  const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? "Renombrar materia" : dialog.kind === "canvas" ? "Renombrar lienzo" : dialog.kind === "file" ? "Renombrar archivo" : dialog.kind === "folder" ? "Renombrar carpeta" : "Renombrar nota") : "";
   const deleteTitle = dialog?.type === "delete" ? dialog.title : "";
 
   return (
@@ -305,6 +368,9 @@ export function FileExplorer() {
         </button>
         <button type="button" className="icon-btn" aria-label="Nuevo lienzo" title="Nuevo lienzo" onClick={headerNewCanvas}>
           <Shapes strokeWidth={1.75} />
+        </button>
+        <button type="button" className="icon-btn" aria-label="Nuevo archivo" title="Nuevo documento, planilla o presentación" onClick={(e) => menu.open(e, headerNewFile)}>
+          <FileSpreadsheet strokeWidth={1.75} />
         </button>
         <button
           type="button"
@@ -330,7 +396,12 @@ export function FileExplorer() {
         initial={dialog?.type === "rename" ? dialog.value : ""}
         confirmLabel="Renombrar"
         onConfirm={(value) => {
-          if (dialog?.type === "rename") safe(() => renameItem(dialog.kind, dialog.id, value));
+          if (dialog?.type !== "rename") return;
+          if (dialog.kind === "folder") renameFolder(dialog.id, value);
+          else {
+            const kind = dialog.kind;
+            safe(() => renameItem(kind, dialog.id, value));
+          }
         }}
         onClose={() => setDialog(null)}
       />
@@ -350,7 +421,7 @@ export function FileExplorer() {
         text={`¿Eliminar "${deleteTitle}"? No se puede deshacer.`}
         confirmLabel="Eliminar"
         onConfirm={() => {
-          if (dialog?.type === "delete") safe(() => (dialog.kind === "note" ? deleteNote(dialog.id) : deleteCanvas(dialog.id)));
+          if (dialog?.type === "delete") safe(() => (dialog.kind === "note" ? deleteNote(dialog.id) : dialog.kind === "file" ? deleteOfficeDoc(dialog.id) : deleteCanvas(dialog.id)));
           setDialog(null);
         }}
         onClose={() => setDialog(null)}

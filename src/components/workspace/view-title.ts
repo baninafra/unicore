@@ -2,6 +2,8 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { folderName, useFolderNames } from "@/lib/folder-names";
+import { IDEAS_FOLDER } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
 
 const STATIC_TITLES: Partial<Record<ViewState["type"], string>> = {
@@ -21,6 +23,7 @@ const STATIC_TITLES: Partial<Record<ViewState["type"], string>> = {
 
 // Título de una pestaña (lee nombres de la base cuando hace falta).
 export function useViewTitle(view: ViewState): string {
+  useFolderNames();
   const dynamic = useLiveQuery(async () => {
     switch (view.type) {
       case "materia":
@@ -32,6 +35,8 @@ export function useViewTitle(view: ViewState): string {
         return (await db.documents.get(view.id))?.fileName;
       case "canvas":
         return (await db.canvases.get(view.id))?.name;
+      case "editor":
+        return (await db.officeDocs.get(view.id))?.name;
       case "grafo":
         return view.noteId ? `Grafo de ${(await db.notes.get(view.noteId))?.title ?? "nota"}` : "Grafo";
       default:
@@ -39,6 +44,7 @@ export function useViewTitle(view: ViewState): string {
     }
   }, [JSON.stringify(view)]);
 
+  if (view.type === "ideas") return folderName(IDEAS_FOLDER) ?? "Ideas";
   if (view.type === "web") {
     try {
       return new URL(view.url).hostname;

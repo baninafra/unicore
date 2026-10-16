@@ -23,12 +23,13 @@ import {
   TextSelect,
   Undo2,
   Command as CommandIcon,
-  Shapes,
+  GraduationCap,
 } from "lucide-react";
 import { Menu, type MenuItem } from "@/components/ui/menu";
 import { useAppState } from "@/lib/app-state";
 import { consumeOpened, useWorkspace, withOpenMode } from "@/lib/workspace";
-import { newCanvasForView, newNoteForView } from "@/lib/nav/actions";
+import { newNoteForView } from "@/lib/nav/actions";
+import { newSubmenu } from "@/components/ui/new-menu";
 import { openPalette } from "@/lib/nav/palette-bus";
 import { saveBlob, safeFileName } from "@/lib/export/save";
 import { db, resolveFileUrl } from "@/lib/db";
@@ -243,9 +244,12 @@ export function GlobalMouse() {
       if (!items.length || items.every((i) => i.type === "separator")) {
         items.length = 0;
         items.push(
-          { label: "Nueva nota", icon: FilePlus, onSelect: async () => ctx.current.openView({ type: "nota", id: await newNoteForView(ctx.current.activeView) }, "tab") },
-          { label: "Nueva tarea", icon: ListPlus, onSelect: async () => ctx.current.openTaskDialog(await taskDefaults(ctx.current.activeView, "")) },
-          { label: "Nuevo lienzo", icon: Shapes, onSelect: async () => ctx.current.openView({ type: "canvas", id: await newCanvasForView(ctx.current.activeView) }, "tab") },
+          newSubmenu({
+            open: (v) => ctx.current.openView(v, "tab"),
+            openTask: () => void taskDefaults(ctx.current.activeView, "").then((d) => ctx.current.openTaskDialog(d)),
+            activeView: ctx.current.activeView,
+            extra: [{ label: "Materia o carrera", icon: GraduationCap, onSelect: () => ctx.current.openView({ type: "carreras" }, "tab") }],
+          }),
           { label: "Preguntar a la IA", icon: Sparkles, onSelect: () => ctx.current.setRight(true, "ia") },
           { type: "separator" },
           { label: "Buscar", icon: Search, hint: "Ctrl+Shift+F", onSelect: () => ctx.current.openView({ type: "busqueda" }, "tab") },

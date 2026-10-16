@@ -1,6 +1,7 @@
 // Operaciones sobre notas que tocan varias tablas: guardar con índice, copias de recuperación,
 // combinar, mover y borrar. Todo lo que cambia contenido pasa por saveNoteContent.
 
+import { detachAndCarry, liftChildren } from "./subnotes";
 import { db, newId, nowIso } from "@/lib/db";
 import { syncInlineCards } from "./cards";
 import { indexNote, mapWikilinks, normalizeTag, type BlockLike } from "./index-note";
@@ -90,9 +91,11 @@ export async function moveNote(noteId: string, subjectId: string): Promise<void>
     await db.notes.update(noteId, { subjectId, updatedAt: nowIso() });
     await db.flashcards.where("noteId").equals(noteId).modify({ subjectId });
   });
+  await detachAndCarry(noteId, subjectId);
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
+  await liftChildren(noteId);
   await db.transaction("rw", [db.notes, db.snapshots, db.flashcards, db.bookmarks], async () => {
     await db.notes.delete(noteId);
     await db.snapshots.where("noteId").equals(noteId).delete();

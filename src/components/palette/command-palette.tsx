@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import clsx from "clsx";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Modal } from "@/components/ui/modal";
+import { EDITOR_KINDS } from "@/lib/editors/editors";
 import { db } from "@/lib/db";
 import { useWorkspace } from "@/lib/workspace";
 import { useOpen } from "@/components/workspace/use-open";
@@ -71,13 +72,14 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
   // Archivos para el selector rápido
   const files = useLiveQuery(async () => {
     if (detail.mode !== "quick") return undefined;
-    const [notes, canvases, subjects, documents] = await Promise.all([
+    const [notes, canvases, subjects, documents, officeDocs] = await Promise.all([
       db.notes.toArray(),
       db.canvases.toArray(),
       db.subjects.toArray(),
       db.documents.toArray(),
+      db.officeDocs.toArray(),
     ]);
-    return { notes, canvases, subjects, documents };
+    return { notes, canvases, subjects, documents, officeDocs };
   }, [detail.mode]);
 
   const quickItems = useMemo<PaletteItem[]>(() => {
@@ -109,6 +111,12 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
         label: d.fileName,
         hint: "PDF",
         run: (e) => open({ type: "pdf", id: d.id }, e),
+      })),
+      ...files.officeDocs.map((d): PaletteItem => ({
+        id: `e:${d.id}`,
+        label: d.name,
+        hint: EDITOR_KINDS[d.kind].label,
+        run: (e) => open({ type: "editor", id: d.id }, e),
       })),
     ];
   }, [files, open]);

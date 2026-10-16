@@ -6,6 +6,9 @@ import { createNote, plainTextOf } from "@/components/notes/note-utils";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Note } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
 import { foldText } from "./fold";
+import { detachAndCarry, liftChildren } from "@/lib/notes/subnotes";
+import { createOfficeDoc, renameOfficeDoc } from "@/lib/editors/editors";
+import type { OfficeKind } from "@/lib/types";
 
 // Modificadores de un clic o de una tecla (Ctrl = pestaña nueva, Ctrl+Alt = dividir).
 export interface ModifierEvent {
@@ -99,6 +102,7 @@ export async function folderForView(view: ViewState): Promise<string> {
   else if (view.type === "nota") subjectId = (await db.notes.get(view.id))?.subjectId;
   else if (view.type === "canvas") subjectId = (await db.canvases.get(view.id))?.subjectId;
   else if (view.type === "pdf") subjectId = (await db.documents.get(view.id))?.subjectId;
+  else if (view.type === "editor") subjectId = (await db.officeDocs.get(view.id))?.subjectId;
   if (!subjectId || isSpecialFolder(subjectId)) return LOOSE_FOLDER;
   return (await db.subjects.get(subjectId)) ? subjectId : LOOSE_FOLDER;
 }
@@ -131,6 +135,11 @@ export async function newNoteForView(view: ViewState): Promise<string> {
 
 export async function newCanvasForView(view: ViewState): Promise<string> {
   return addCanvas(await folderForView(view));
+}
+
+// Documento, planilla o presentación vacíos, en la carpeta de la vista activa.
+export async function newOfficeForView(kind: OfficeKind, view: ViewState): Promise<string> {
+  return createOfficeDoc({ kind, subjectId: await folderForView(view) });
 }
 
 // ---------- Notas diarias ----------
@@ -178,9 +187,10 @@ export function shiftDays(day: Date, delta: number): Date {
 
 // ---------- Notas, lienzos y materias ----------
 
-export async function renameItem(kind: "note" | "canvas" | "subject", id: string, name: string): Promise<void> {
+export async function renameItem(kind: "note" | "canvas" | "subject" | "file", id: string, name: string): Promise<void> {
   const title = name.trim();
   if (!title) return;
+  if (kind === "file") return renameOfficeDoc(id, title);
   if (kind === "note") await db.notes.update(id, { title });
   else if (kind === "canvas") await db.canvases.update(id, { name: title });
   else await db.subjects.update(id, { name: title });
@@ -214,6 +224,7 @@ export async function moveNote(id: string, subjectId: string, unitNumber?: numbe
     delete next.dailyDate;
     await db.notes.put(next);
   });
+  await detachAndCarry(id, subjectId, unitNumber);
 }
 
 export async function moveCanvas(id: string, subjectId: string): Promise<void> {
@@ -221,12 +232,16 @@ export async function moveCanvas(id: string, subjectId: string): Promise<void> {
 }
 
 // Mueve una nota o un lienzo. Los lienzos no van a Plantillas.
-export async function moveItem(kind: "note" | "canvas", id: string, target: { subjectId: string; unit?: number }): Promise<void> {
+export async function moveItem(kind: "note" | "canvas" | "file", id: string, target: { subjectId: string; unit?: number }): Promise<void> {
   if (kind === "note") await moveNote(id, target.subjectId, target.unit);
+  else if (kind === "file") {
+    if (target.subjectId !== TEMPLATES_FOLDER) await db.officeDocs.update(id, { subjectId: target.subjectId });
+  }
   else if (target.subjectId !== TEMPLATES_FOLDER) await moveCanvas(id, target.subjectId);
 }
 
 export async function deleteNote(id: string): Promise<void> {
+  await liftChildren(id);
   await db.transaction("rw", db.notes, db.snapshots, db.bookmarks, async () => {
     await db.notes.delete(id);
     await db.snapshots.where("noteId").equals(id).delete();

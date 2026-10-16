@@ -1,0 +1,1928 @@
+diff --git a/apps/gridcraft-cli/src/check.rs b/apps/gridcraft-cli/src/check.rs
+index 2b85298..f6878eb 100644
+--- a/apps/gridcraft-cli/src/check.rs
++++ b/apps/gridcraft-cli/src/check.rs
+@@ -2,12 +2,12 @@
+ //!
+ //! **Calc oracle.** A workbook saved by Excel (or another calculating producer) carries the
+ //! producer's own result next to every formula (`<v>` beside `<f>`). The file is read keeping
+-//! those cached values, recalculated from scratch by GridCraft, and every formula cell's new value
++//! those cached values, recalculated from scratch by UniCore, and every formula cell's new value
+ //! is compared with the cached one. Formulas without a cached value (files from writers that don't
+ //! calculate) count as *no oracle*; volatile formulas (`RAND`, `NOW`…) and the formulas that read
+ //! them are skipped.
+ //!
+-//! **Round trip.** The recalculated workbook is written with GridCraft's XLSX writer, the package is
++//! **Round trip.** The recalculated workbook is written with UniCore's XLSX writer, the package is
+ //! validated (content types cover every part, every internal relationship target exists, no kind of
+ //! relationship the source had is missing) and read back, and the two workbooks are compared feature
+ //! by feature.
+@@ -40,7 +40,7 @@ const MAX_XML_PART: u64 = 64 * 1024 * 1024;
+ /// Most zip entries looked at while validating a written package.
+ const MAX_ENTRIES: usize = 200_000;
+ /// Relationship kinds (lower case) whose absence after a save isn't a loss: the calculation chain is
+-/// a cache Excel rebuilds, and GridCraft never writes it.
++/// a cache Excel rebuilds, and UniCore never writes it.
+ const REBUILT_KINDS: [&str; 1] = ["calcchain"];
+ 
+ #[derive(Clone, Copy, Debug)]
+@@ -84,7 +84,7 @@ pub struct Mismatch {
+     pub formula: String,
+     pub expected: Value,
+     pub actual: Value,
+-    /// `numeric`, `text`, `bool`, `error`, `blank` (GridCraft produced no value) or `type`.
++    /// `numeric`, `text`, `bool`, `error`, `blank` (UniCore produced no value) or `type`.
+     pub kind: &'static str,
+     pub functions: Vec<String>,
+     pub primary: bool,
+@@ -101,7 +101,7 @@ pub struct CalcReport {
+     /// aren't results, so every formula counts as no oracle.
+     pub stale_cache: bool,
+     pub volatile: usize,
+-    /// Matched cells whose producer saved GridCraft's TRUE or FALSE as the number 1 or 0 (no
++    /// Matched cells whose producer saved UniCore's TRUE or FALSE as the number 1 or 0 (no
+     /// `t="b"`, as Business Central's Excel exports do); counted in `matched` too.
+     pub bool_as_number: usize,
+     /// The first `max_report` mismatches, primary ones first.
+@@ -139,7 +139,7 @@ impl RoundTrip {
+ #[derive(Clone, Debug, Default, PartialEq)]
+ pub struct FileReport {
+     pub path: String,
+-    /// GridCraft couldn't open the file: its message.
++    /// UniCore couldn't open the file: its message.
+     pub error: Option<String>,
+     pub warnings: usize,
+     pub calc: CalcReport,
+@@ -268,7 +268,7 @@ fn walk(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+ }
+ 
+ /// Checks one file's bytes. Never fails: problems are recorded in the report. A panic escaping
+-/// GridCraft's reader, calculator or writer is caught and reported as an internal error, so one
++/// UniCore's reader, calculator or writer is caught and reported as an internal error, so one
+ /// bad file doesn't end a corpus run.
+ pub fn check_bytes(path: &str, bytes: &[u8], opts: &Options) -> FileReport {
+     let guarded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| check_inner(path, bytes, opts)));
+@@ -354,14 +354,14 @@ fn cell_name(wb: &Workbook, (sheet, c): Key) -> String {
+     format!("{}!{}", quote_sheet(name), c.a1())
+ }
+ 
+-/// Whether the producer cached GridCraft's logical result as the number 1 or 0. Excel types a
++/// Whether the producer cached UniCore's logical result as the number 1 or 0. Excel types a
+ /// logical result `t="b"`; a writer that leaves the type out (`<c><f>TRUE()</f><v>1</v></c>`, as
+ /// Business Central's "Open in Excel" exports do) stores the same value, read back as a number.
+ pub fn bool_cached_as_number(expected: &Value, actual: &Value) -> bool {
+     matches!((expected, actual), (Value::Number(n), Value::Bool(b)) if *n == if *b { 1.0 } else { 0.0 })
+ }
+ 
+-/// Whether GridCraft's `actual` agrees with the producer's `expected`.
++/// Whether UniCore's `actual` agrees with the producer's `expected`.
+ pub fn values_match(expected: &Value, actual: &Value, tolerance: f64) -> bool {
+     match (expected, actual) {
+         (Value::Number(a), Value::Number(b)) => (a - b).abs() <= tolerance * a.abs().max(b.abs()).max(1.0),
+@@ -420,7 +420,7 @@ impl MismatchIndex {
+ }
+ 
+ /// Compares every formula cell of `cached` (as the producer saved it) with `fresh` (recalculated
+-/// by GridCraft). Without `trust_cache` nothing is compared (see [`CalcReport::stale_cache`]).
++/// by UniCore). Without `trust_cache` nothing is compared (see [`CalcReport::stale_cache`]).
+ pub fn oracle(cached: &Workbook, fresh: &Workbook, calc: &Calc, trust_cache: bool, opts: &Options) -> CalcReport {
+     let mut r = CalcReport { stale_cache: !trust_cache, ..Default::default() };
+     let vnames = volatile_names(cached);
+@@ -532,7 +532,7 @@ pub fn oracle(cached: &Workbook, fresh: &Workbook, calc: &Calc, trust_cache: boo
+ 
+ // ---------------------------------------------------------------- round trip
+ 
+-/// Writes `wb` with GridCraft's XLSX writer, validates the package against itself and against
++/// Writes `wb` with UniCore's XLSX writer, validates the package against itself and against
+ /// `source` (the file `wb` was read from), reads it back and compares.
+ pub fn round_trip(wb: &Workbook, source: &[u8], opts: &Options) -> RoundTrip {
+     let bytes = match gridcraft_engine::io::save_bytes(wb, "roundtrip.xlsx") {
+@@ -1231,7 +1231,7 @@ fn print_human(reports: &[FileReport], opts: &Options) {
+     sigs.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+     if !sigs.is_empty() {
+         outln!("");
+-        outln!("mismatch signatures (expected → GridCraft):");
++        outln!("mismatch signatures (expected → UniCore):");
+         for (sig, n) in sigs.iter().take(opts.max_report.max(1)) {
+             outln!("  {n:>8}  {sig}");
+         }
+@@ -1310,7 +1310,7 @@ mod tests {
+ 
+     #[test]
+     fn wrong_cached_value_is_a_mismatch_and_ranks_its_function() {
+-        // Excel "said" SUM gives 7; GridCraft computes 6. C1 reads B1 and is consistent with
++        // Excel "said" SUM gives 7; UniCore computes 6. C1 reads B1 and is consistent with
+         // Excel's 7, so it mismatches too, but only as a downstream effect.
+         let wb = book(&[("A1", "2", n(2.0)), ("A2", "4", n(4.0)), ("B1", "=SUM(A1:A2)", n(7.0)), ("C1", "=B1+1", n(8.0))]);
+         let r = check(&wb, &Options::default());
+@@ -1389,7 +1389,7 @@ mod tests {
+ 
+     #[test]
+     fn full_calc_on_load_means_no_oracle() {
+-        // A formula without a cached value makes GridCraft's writer flag the file
++        // A formula without a cached value makes UniCore's writer flag the file
+         // `fullCalcOnLoad`, like libraries that store 0 for every formula: B1's wrong "cached"
+         // value must not count as a mismatch then.
+         let wb = book(&[("A1", "=1+1", Value::Empty), ("B1", "=2+2", n(0.0))]);
+@@ -1552,7 +1552,7 @@ mod tests {
+ 
+     #[test]
+     fn package_reports_relationship_kinds_the_output_lost() {
+-        // A kind GridCraft doesn't know is dropped on save; a calculation chain is never written
++        // A kind UniCore doesn't know is dropped on save; a calculation chain is never written
+         // (Excel rebuilds it), so its absence isn't a loss.
+         let calc_chain = r#"<Relationship Id="rId91" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/calcChain" Target="calcChain.xml"/>"#;
+         let source = with_rels(&plain(), &[(WB_RELS, &format!("{MADE_UP}{calc_chain}"))], &[MADE_UP_PART, ("xl/calcChain.xml", "<calcChain/>")]);
+@@ -1564,7 +1564,7 @@ mod tests {
+ 
+     #[test]
+     fn an_internal_link_written_as_a_relationship_is_not_a_loss() {
+-        // openpyxl writes `#Sheet1!B2` as an external relationship; GridCraft writes `location`.
++        // openpyxl writes `#Sheet1!B2` as an external relationship; UniCore writes `location`.
+         let link = r##"<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="#Sheet1!B2" TargetMode="External"/>"##;
+         let source = with_rels(&plain(), &[(WB_RELS, MADE_UP), (SHEET_RELS, link)], &[MADE_UP_PART]);
+         assert_eq!(package_of(&source), ["lost relationship madeUp"]);
+diff --git a/apps/gridcraft-cli/src/main.rs b/apps/gridcraft-cli/src/main.rs
+index 152ddbc..a0e3254 100644
+--- a/apps/gridcraft-cli/src/main.rs
++++ b/apps/gridcraft-cli/src/main.rs
+@@ -1,4 +1,4 @@
+-//! Headless GridCraft.
++//! Headless UniCore.
+ //!
+ //! ```text
+ //! gridcraft-cli info <file> [--json]
+@@ -503,7 +503,7 @@ fn mcp(args: &[String]) -> Result<(), String> {
+             let addr = control_addr(c);
+             Box::new(
+                 Remote::connect(&addr)
+-                    .map_err(|e| format!("cannot connect to the GridCraft app at {addr}: {e} (start it with `gridcraft --control PORT`)"))?,
++                    .map_err(|e| format!("cannot connect to the UniCore app at {addr}: {e} (start it with `gridcraft --control PORT`)"))?,
+             )
+         }
+         None => {
+@@ -539,7 +539,7 @@ fn send(args: &[String]) -> Result<(), String> {
+     }
+     let addr = control_addr(port);
+     let mut r = Remote::connect(&addr)
+-        .map_err(|e| format!("cannot connect to the GridCraft app at {addr}: {e} (start it with `gridcraft --control {port}`)"))?;
++        .map_err(|e| format!("cannot connect to the UniCore app at {addr}: {e} (start it with `gridcraft --control {port}`)"))?;
+     let v = r.call(method, params)?;
+     outln!("{}", pretty(&v));
+     Ok(())
+diff --git a/apps/gridcraft-web/index.html b/apps/gridcraft-web/index.html
+index 5fdd1ea..8178308 100644
+--- a/apps/gridcraft-web/index.html
++++ b/apps/gridcraft-web/index.html
+@@ -3,8 +3,7 @@
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+-  <title>GridCraft</title>
+-  <link data-trunk rel="icon" href="../../assets/app-icon/gridcraft.ico" />
++  <title>UniCore</title>
+   <link data-trunk rel="rust" data-bin="gridcraft-web" data-wasm-opt="z" data-weak-refs />
+   <style>
+     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f3f3f3; }
+@@ -15,6 +14,6 @@
+ </head>
+ <body>
+   <canvas id="gridcraft_canvas"></canvas>
+-  <div id="gridcraft_loading">Loading GridCraft&hellip;</div>
++  <div id="gridcraft_loading">Cargando&hellip;</div>
+ </body>
+ </html>
+diff --git a/apps/gridcraft-web/src/host.rs b/apps/gridcraft-web/src/host.rs
+index 2286023..136c4de 100644
+--- a/apps/gridcraft-web/src/host.rs
++++ b/apps/gridcraft-web/src/host.rs
+@@ -1,33 +1,57 @@
+ //! The `postMessage` bridge to a same-origin parent page (`?host=parent`), for pages that embed
+-//! GridCraft in an `<iframe>` (such as a Nextcloud app). Messages are plain objects with a `type`:
++//! UniCore in an `<iframe>` (such as the UniCore host app). Messages are plain objects with a
++//! `type`; the bridge is active only when the page is framed by a parent on the page's own origin.
++//! Only messages whose `origin` equals our origin *and* whose `source` is `window.parent` are
++//! accepted, and replies are posted only to `window.parent` with our origin.
+ //!
+-//! - `gridcraft:ready` (to the parent): `{ version }`, the app is listening; send a file now.
+-//! - `gridcraft:open` (from the parent): `{ name, bytes }`, bytes an `ArrayBuffer` or
+-//!   `Uint8Array`. It opens like a workbook picked with File › Open or dropped on the window.
+-//! - `gridcraft:save` (to the parent): `{ name, bytes }` (a transferred `ArrayBuffer`) for every
+-//!   file GridCraft would otherwise download: Save and Save As (an .xlsx workbook) and Export
+-//!   as PDF. The parent stores it and reports failures itself.
+-//! - `gridcraft:dirty` (to the parent): `{ dirty }` whenever unsaved changes appear or go away.
+-//! - `gridcraft:failed` (to the parent): `{ error }` when the app couldn't start.
++//! To the parent:
++//! - `uc:ready` `{ version }`: the app is up and can receive files.
++//! - `uc:failed` `{ error }`: the app couldn't start.
++//! - `uc:save` `{ name, bytes, saveAs }`: a transferred `ArrayBuffer` for every file the app would
++//!   otherwise download or write — Save, Save As and Export (PDF, images, CSV, web page…). Only a
++//!   save of the native editable format (`.xlsx`/`.json`) marks the document saved (not dirty).
++//!   `saveAs` is `true` for anything that is not the native editable format (a copy/export).
++//! - `uc:dirty` `{ dirty }`: sent whenever unsaved changes appear or go away (only on change).
++//! - `uc:result` `{ id, ok, result }` / `{ id, ok: false, error }`: the reply to a `uc:command`.
+ //!
+-//! Only the parent window on the page's own origin is heard or answered. In host mode the page
+-//! starts with an empty workbook instead of a sample, and the parent guards leaving the page.
++//! From the parent:
++//! - `uc:open` `{ name, bytes }` (`bytes` an `ArrayBuffer` or `Uint8Array`): open that file exactly
++//!   like File ▸ Open or a drop. In host mode the page starts with an empty document (no sample).
++//! - `uc:command` `{ id, command, params }`: run one app command on the active document with the
++//!   normal undo support. Commands are queued and drained at the start of the next frame, where
++//!   the app can be borrowed mutably, then the result is posted back (`uc:result`).
++//!   Two special commands are handled by the bridge itself:
++//!   - `uc.commands` → `{ id, label, description, params }` for every command in the engine
++//!     catalog (`params` is the parameter description string).
++//!   - `uc.read` → `{ name, text }`, a Markdown rendering of the active workbook (each sheet's
++//!     used range as a table labelled with its top-left cell), at most ~60000 characters.
+ 
+ use std::cell::{Cell, RefCell};
+ use std::rc::Rc;
+ 
+ use gridcraft_ui_egui::{Inbox, Services, SheetApp};
++use serde_json::{Value as Json, json};
+ use wasm_bindgen::JsCast as _;
+ use wasm_bindgen::JsValue;
+ use wasm_bindgen::closure::Closure;
+ 
+-/// Saving one of these hands the whole workbook to the parent, which stores it: the workbook
+-/// counts as saved under that name, as it would after Save on the desktop.
+-const WORKBOOK_EXTS: &[&str] = &["xlsx"];
++/// Saving one of these counts as saving the document itself (the engine clears the dirty flag for
++/// these formats): the workbook is handed to the parent, which stores it.
++const WORKBOOK_EXTS: &[&str] = &["xlsx", "json"];
+ 
+ /// The longest user name taken from `?author=`.
+ const MAX_AUTHOR_CHARS: usize = 200;
+ 
++/// The cap on the Markdown `uc.read` returns.
++const MAX_READ_CHARS: usize = 60_000;
++
++/// One command from the parent, waiting for the next frame's mutable access to the app.
++struct Queued {
++    id: Json,
++    command: String,
++    params: Json,
++}
++
+ #[derive(Clone)]
+ pub struct Bridge {
+     window: web_sys::Window,
+@@ -37,6 +61,8 @@ pub struct Bridge {
+     saved: Rc<RefCell<Vec<String>>>,
+     /// The unsaved-changes state last reported to the parent.
+     reported: Rc<Cell<Option<bool>>>,
++    /// Commands from the parent, drained on the next frame.
++    queue: Rc<RefCell<Vec<Queued>>>,
+ }
+ 
+ impl Bridge {
+@@ -48,11 +74,11 @@ impl Bridge {
+             return None;
+         }
+         let origin = window.location().origin().ok()?;
+-        Some(Self { window, parent, origin, saved: Rc::default(), reported: Rc::default() })
++        Some(Self { window, parent, origin, saved: Rc::default(), reported: Rc::default(), queue: Rc::default() })
+     }
+ 
+-    /// Send saved and exported files to the parent instead of downloading them, and hear files
+-    /// from it.
++    /// Send saved and exported files to the parent instead of downloading them, and hear files and
++    /// commands from it.
+     pub fn connect(&self, services: &mut Services, inbox: Inbox, ctx: egui::Context) {
+         self.listen(inbox, ctx);
+         let bridge = self.clone();
+@@ -72,11 +98,11 @@ impl Bridge {
+     }
+ 
+     pub fn post_ready(&self) {
+-        self.send(&[("type", "gridcraft:ready".into()), ("version", env!("CARGO_PKG_VERSION").into())]);
++        self.send(&[("type", "uc:ready".into()), ("version", env!("CARGO_PKG_VERSION").into())]);
+     }
+ 
+     pub fn post_failed(&self, error: &str) {
+-        self.send(&[("type", "gridcraft:failed".into()), ("error", error.into())]);
++        self.send(&[("type", "uc:failed".into()), ("error", error.into())]);
+     }
+ 
+     /// After each frame: a workbook handed to the parent this frame counts as saved under the
+@@ -92,16 +118,45 @@ impl Bridge {
+             }
+         }
+         let dirty = app.session.documents().iter().any(|d| d.is_dirty());
+-        if self.reported.get() != Some(dirty) && self.send(&[("type", "gridcraft:dirty".into()), ("dirty", dirty.into())]) {
++        if self.reported.get() != Some(dirty) && self.send(&[("type", "uc:dirty".into()), ("dirty", dirty.into())]) {
+             self.reported.set(Some(dirty));
+         }
+     }
+ 
++    /// Runs the commands the parent queued since the last frame and replies to each. Called once
++    /// per frame, where the whole [`SheetApp`] can be borrowed mutably.
++    pub fn drain(&self, app: &mut SheetApp) {
++        let queued = std::mem::take(&mut *self.queue.borrow_mut());
++        for Queued { id, command, params } in queued {
++            let (ok, value) = match command.as_str() {
++                "uc.commands" => (true, commands(app)),
++                "uc.read" => (true, read(app)),
++                _ => match app.run(&command, params) {
++                    Ok(result) => (true, result),
++                    Err(error) => (false, Json::String(error)),
++                },
++            };
++            let mut fields: Vec<(&str, JsValue)> = vec![("type", "uc:result".into()), ("id", json_to_js(&id)), ("ok", ok.into())];
++            if ok {
++                fields.push(("result", json_to_js(&value)));
++            } else {
++                fields.push(("error", value.as_str().unwrap_or("the command failed").into()));
++            }
++            self.send(&fields);
++        }
++    }
++
+     fn post_save(&self, path: &str, bytes: &[u8]) -> Result<(), String> {
+         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
++        let save_as = !is_workbook(&name);
+         let buffer = js_sys::Uint8Array::from(bytes).buffer();
+-        let message = message(&[("type", "gridcraft:save".into()), ("name", name.as_str().into()), ("bytes", buffer.clone().into())])
+-            .ok_or_else(|| "couldn't build the message".to_string())?;
++        let message = message(&[
++            ("type", "uc:save".into()),
++            ("name", name.as_str().into()),
++            ("bytes", buffer.clone().into()),
++            ("saveAs", save_as.into()),
++        ])
++        .ok_or_else(|| "couldn't build the message".to_string())?;
+         self.parent
+             .post_message_with_transfer(&message, &self.origin, &js_sys::Array::of1(&buffer))
+             .map_err(|e| e.as_string().unwrap_or_else(|| format!("{e:?}")))?;
+@@ -112,18 +167,26 @@ impl Bridge {
+     fn listen(&self, inbox: Inbox, ctx: egui::Context) {
+         let parent = self.parent.clone();
+         let origin = self.origin.clone();
++        let queue = self.queue.clone();
+         let on_message = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |event: web_sys::MessageEvent| {
+             if event.origin() != origin || !event.source().is_some_and(|s| js_sys::Object::is(&s, &parent)) {
+                 return;
+             }
+             let data = event.data();
+-            if string(&data, "type").as_deref() != Some("gridcraft:open") {
+-                return;
++            match string(&data, "type").as_deref() {
++                Some("uc:open") => {
++                    let name = string(&data, "name").filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "Book.xlsx".to_string());
++                    let Some(bytes) = bytes(&data) else { return };
++                    inbox.lock().unwrap_or_else(|e| e.into_inner()).push((name, bytes));
++                    ctx.request_repaint();
++                }
++                Some("uc:command") => {
++                    let Some(command) = string(&data, "command").filter(|c| !c.is_empty()) else { return };
++                    queue.borrow_mut().push(Queued { id: json_field(&data, "id"), command, params: json_field(&data, "params") });
++                    ctx.request_repaint();
++                }
++                _ => {}
+             }
+-            let name = string(&data, "name").filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "Book.xlsx".to_string());
+-            let Some(bytes) = bytes(&data) else { return };
+-            inbox.lock().unwrap_or_else(|e| e.into_inner()).push((name, bytes));
+-            ctx.request_repaint();
+         });
+         if self.window.add_event_listener_with_callback("message", on_message.as_ref().unchecked_ref()).is_ok() {
+             // The listener lives as long as the page.
+@@ -137,6 +200,74 @@ impl Bridge {
+     }
+ }
+ 
++/// `uc.commands`: every engine command with its id, label, ribbon path (as `description`) and
++/// parameter description, as plain JSON.
++fn commands(app: &SheetApp) -> Json {
++    Json::Array(
++        app.session
++            .commands()
++            .iter()
++            .map(|c| {
++                let description = if c.menu.is_empty() { c.label.to_string() } else { c.menu.join(" › ") };
++                json!({"id": c.id, "label": c.label, "description": description, "params": c.params})
++            })
++            .collect(),
++    )
++}
++
++/// `uc.read`: the active workbook as Markdown — each sheet's used range as a table labelled with
++/// its top-left cell — capped at [`MAX_READ_CHARS`].
++fn read(app: &SheetApp) -> Json {
++    let Some(doc) = app.session.active() else { return json!({"name": "", "text": ""}) };
++    let mut out = String::new();
++    for sh in &doc.wb.sheets {
++        let Some(r) = sh.used_range() else { continue };
++        out.push_str(&format!("\n## {} ({})\n\n", sh.name, r.start.a1()));
++        for row in r.start.row..=r.end.row {
++            out.push('|');
++            for col in r.start.col..=r.end.col {
++                out.push(' ');
++                push_cell(&mut out, &gridcraft_engine::display::cell_text(&doc.wb, sh, gridcraft_engine::cell(row, col)));
++                out.push_str(" |");
++            }
++            out.push('\n');
++            if row == r.start.row {
++                out.push('|');
++                for _ in r.start.col..=r.end.col {
++                    out.push_str(" --- |");
++                }
++                out.push('\n');
++            }
++        }
++    }
++    if out.is_empty() {
++        out.push_str("(empty workbook)\n");
++    }
++    truncate(&mut out, MAX_READ_CHARS);
++    json!({"name": doc.display_title(), "text": out})
++}
++
++/// A cell's text as one Markdown table cell: pipes escaped and line breaks flattened.
++fn push_cell(out: &mut String, text: &str) {
++    for c in text.chars() {
++        match c {
++            '|' => out.push_str("\\|"),
++            '\r' | '\n' => out.push(' '),
++            c => out.push(c),
++        }
++    }
++}
++
++/// Cut `text` to at most `max` characters, on a character boundary, without splitting a surrogate.
++fn truncate(text: &mut String, max: usize) {
++    if text.chars().count() <= max {
++        return;
++    }
++    let end = text.char_indices().nth(max).map(|(i, _)| i).unwrap_or(text.len());
++    text.truncate(end);
++    text.push('…');
++}
++
+ fn is_workbook(name: &str) -> bool {
+     name.rsplit_once('.').is_some_and(|(_, ext)| WORKBOOK_EXTS.iter().any(|e| ext.eq_ignore_ascii_case(e)))
+ }
+@@ -153,6 +284,26 @@ fn string(data: &JsValue, key: &str) -> Option<String> {
+     js_sys::Reflect::get(data, &JsValue::from_str(key)).ok()?.as_string()
+ }
+ 
++/// A nested field as JSON, via `JSON.stringify` then `serde_json` (numbers, objects, strings…).
++fn json_field(data: &JsValue, key: &str) -> Json {
++    let value = js_sys::Reflect::get(data, &JsValue::from_str(key)).unwrap_or(JsValue::NULL);
++    if value.is_null() || value.is_undefined() {
++        return Json::Null;
++    }
++    match js_sys::JSON::stringify(&value).ok().and_then(|s| s.as_string()) {
++        Some(text) => serde_json::from_str(&text).unwrap_or(Json::Null),
++        None => Json::Null,
++    }
++}
++
++/// A `serde_json::Value` as a JS value, via `JSON.parse` of its serialization.
++fn json_to_js(value: &Json) -> JsValue {
++    match serde_json::to_string(value) {
++        Ok(text) => js_sys::JSON::parse(&text).unwrap_or(JsValue::NULL),
++        Err(_) => JsValue::NULL,
++    }
++}
++
+ /// `bytes` as an `ArrayBuffer` or `Uint8Array`.
+ fn bytes(data: &JsValue) -> Option<Vec<u8>> {
+     let bytes = js_sys::Reflect::get(data, &JsValue::from_str("bytes")).ok()?;
+diff --git a/apps/gridcraft-web/src/main.rs b/apps/gridcraft-web/src/main.rs
+index 2920a87..6e310f8 100644
+--- a/apps/gridcraft-web/src/main.rs
++++ b/apps/gridcraft-web/src/main.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft in the browser.
++//! UniCore in the browser.
+ //!
+ //! Runs the same [`gridcraft_ui_egui::SheetApp`] as the desktop app through eframe's web runner
+ //! (wgpu: WebGPU where available, WebGL2 otherwise). Build with `trunk build --release` from
+@@ -10,7 +10,7 @@
+ //!
+ //! URL query flags: `?webgl` forces WebGL2; `?sample=sales|budget|grades` opens a sample;
+ //! `?host=parent` (inside an `<iframe>`) talks to a same-origin parent page instead: it sends the
+-//! workbook to open and stores what GridCraft saves (`host`), and `&author=` names the user for
++//! workbook to open and stores what UniCore saves (`host`), and `&author=` names the user for
+ //! notes and comments.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ 
+diff --git a/apps/gridcraft-web/src/web.rs b/apps/gridcraft-web/src/web.rs
+index c0fcb22..dab6dad 100644
+--- a/apps/gridcraft-web/src/web.rs
++++ b/apps/gridcraft-web/src/web.rs
+@@ -25,7 +25,7 @@ pub fn start() {
+         {
+             create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
+         }
+-        // `?host=parent`: a same-origin page framing GridCraft (such as a Nextcloud app) opens
++        // `?host=parent`: a same-origin page framing UniCore (such as a Nextcloud app) opens
+         // workbooks in it and stores what it saves (`host`).
+         let bridge = if query_param("host").as_deref() == Some("parent") { crate::host::Bridge::new() } else { None };
+         let app_bridge = bridge.clone();
+@@ -75,7 +75,7 @@ pub fn start() {
+         if let Some(el) = document.get_element_by_id(LOADING_ID) {
+             match result {
+                 Ok(()) => el.remove(),
+-                Err(e) => el.set_inner_html(&format!("<p>GridCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
++                Err(e) => el.set_inner_html(&format!("<p>UniCore failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
+             }
+         }
+     });
+@@ -113,6 +113,10 @@ impl eframe::App for WebShell {
+             });
+         }
+         self.app.logic(ctx);
++        // Commands queued from the host since the last frame run now, with the whole app mutable.
++        if let Some(bridge) = &self.bridge {
++            bridge.drain(&mut self.app);
++        }
+     }
+ 
+     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+diff --git a/apps/gridcraft/build.rs b/apps/gridcraft/build.rs
+index 95d8da3..e9272e2 100644
+--- a/apps/gridcraft/build.rs
++++ b/apps/gridcraft/build.rs
+@@ -14,10 +14,10 @@ fn main() {
+     }
+     let mut res = winresource::WindowsResource::new();
+     res.set_icon("../../assets/app-icon/gridcraft.ico")
+-        .set("ProductName", "GridCraft")
+-        .set("FileDescription", "GridCraft spreadsheet")
++        .set("ProductName", "UniCore")
++        .set("FileDescription", "UniCore spreadsheet")
+         .set("CompanyName", "Learning Machines LLC")
+-        .set("LegalCopyright", "Copyright (c) the GridCraft authors. MIT OR Apache-2.0.")
++        .set("LegalCopyright", "Copyright (c) the UniCore authors. MIT OR Apache-2.0.")
+         .set("OriginalFilename", "gridcraft.exe")
+         .set("InternalName", "gridcraft");
+     if let Err(e) = res.compile() {
+diff --git a/apps/gridcraft/src/apple_events.rs b/apps/gridcraft/src/apple_events.rs
+index 405ee89..ddb54fa 100644
+--- a/apps/gridcraft/src/apple_events.rs
++++ b/apps/gridcraft/src/apple_events.rs
+@@ -1,11 +1,11 @@
+ //! macOS open-documents and quit Apple events (#69).
+ //!
+-//! Finder double-clicks, Open With, drops on the Dock icon and `open -a GridCraft book.xlsx` don't
++//! Finder double-clicks, Open With, drops on the Dock icon and `open -a UniCore book.xlsx` don't
+ //! pass paths on the command line: LaunchServices sends the running (or just-launched) app a
+ //! `kAEOpenDocuments` ('odoc') Apple event. winit 0.30 doesn't handle it and owns the
+-//! `NSApplicationDelegate`, so AppKit answered "GridCraft cannot open files in the Excel Workbook
++//! `NSApplicationDelegate`, so AppKit answered "UniCore cannot open files in the Excel Workbook
+ //! format". Handling it ourselves needs Objective-C class declarations, i.e. `unsafe`, which this
+-//! workspace forbids. The audited `fmv-macos-events` crate (also used by PdfCraft and PhotoCraft)
++//! workspace forbids. The audited `fmv-macos-events` crate (also used by UniCore and PhotoCraft)
+ //! wraps exactly that, an `NSAppleEventManager` handler registered before Finder's launch event
+ //! that leaves winit's delegate alone, behind a safe main-thread API.
+ 
+diff --git a/apps/gridcraft/src/graphics.rs b/apps/gridcraft/src/graphics.rs
+index 83478ed..77d25bd 100644
+--- a/apps/gridcraft/src/graphics.rs
++++ b/apps/gridcraft/src/graphics.rs
+@@ -66,7 +66,7 @@ pub fn fallback_backends(backend_override: Option<Backends>, first: Backends) ->
+ /// The DirectX 12 shader compiler: `env_choice` (normally `Dx12Compiler::from_env()`, i.e.
+ /// `WGPU_DX12_COMPILER`, for troubleshooting) or else FXC.
+ ///
+-/// wgpu's default (`Auto`) loads the first `dxcompiler.dll` on the DLL search path. GridCraft ships
++/// wgpu's default (`Auto`) loads the first `dxcompiler.dll` on the DLL search path. UniCore ships
+ /// none, so that is another program's copy (a Windows SDK, an Edge or WebView folder, anything on
+ /// `PATH`). Without a matching `dxil.dll` beside it, DXC prints "DXIL signing library not found",
+ /// wgpu treats that warning as a compile error, its internal compute pipelines fail, the device is
+diff --git a/apps/gridcraft/src/logging.rs b/apps/gridcraft/src/logging.rs
+index e3b56a8..ff6913b 100644
+--- a/apps/gridcraft/src/logging.rs
++++ b/apps/gridcraft/src/logging.rs
+@@ -8,7 +8,7 @@
+ //! the log of a run that crashed survives the next launch. Runs without preferences
+ //! (`GRIDCRAFT_NO_PREFS`) log to standard error only.
+ //!
+-//! Levels: `info` for GridCraft's own crates, `warn` for everything else (wgpu and naga are
++//! Levels: `info` for UniCore's own crates, `warn` for everything else (wgpu and naga are
+ //! chatty). `RUST_LOG` replaces that with env_logger-style directives: `debug`,
+ //! `warn,gridcraft_engine=trace`, `wgpu_core=info`. A directive ending in `*` matches every target
+ //! that starts with it (`gridcraft*=debug`).
+diff --git a/apps/gridcraft/src/main.rs b/apps/gridcraft/src/main.rs
+index 7c0eb04..2840d67 100644
+--- a/apps/gridcraft/src/main.rs
++++ b/apps/gridcraft/src/main.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft desktop app.
++//! UniCore desktop app.
+ //!
+ //! Usage: `gridcraft [--control <port>] [--sample <name>] [files…]`
+ //!
+@@ -75,9 +75,9 @@ impl eframe::App for App {
+ 
+ fn config_dir() -> Option<std::path::PathBuf> {
+     if cfg!(target_os = "macos") {
+-        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Library/Application Support/GridCraft"))
++        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Library/Application Support/UniCore"))
+     } else if cfg!(windows) {
+-        std::env::var_os("APPDATA").map(|a| std::path::PathBuf::from(a).join("GridCraft"))
++        std::env::var_os("APPDATA").map(|a| std::path::PathBuf::from(a).join("UniCore"))
+     } else {
+         std::env::var_os("XDG_CONFIG_HOME")
+             .map(std::path::PathBuf::from)
+@@ -252,7 +252,7 @@ fn main() -> eframe::Result<()> {
+     }));
+     let args: Vec<String> = std::env::args().skip(1).collect();
+     if args.iter().any(|a| a == "--version" || a == "-V") {
+-        println!("GridCraft {}", env!("CARGO_PKG_VERSION"));
++        println!("UniCore {}", env!("CARGO_PKG_VERSION"));
+         return Ok(());
+     }
+     let mut control_port: Option<u16> = std::env::var("GRIDCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
+@@ -281,7 +281,7 @@ fn main() -> eframe::Result<()> {
+     if let Some(logger) = logger {
+         match log_dir().filter(|_| prefs_enabled()) {
+             Some(dir) => match logger.attach_dir(&dir) {
+-                Ok(path) => log::info!("GridCraft {}, log file {}", env!("CARGO_PKG_VERSION"), path.display()),
++                Ok(path) => log::info!("UniCore {}, log file {}", env!("CARGO_PKG_VERSION"), path.display()),
+                 // Standard error only by now (`attach_dir` gave up on the file); unlike `eprintln!`, never panics.
+                 Err(e) => log::warn!("no log file: {e}"),
+             },
+@@ -309,7 +309,7 @@ fn main() -> eframe::Result<()> {
+         app.open_path(f);
+     }
+     let mut viewport = egui::ViewportBuilder::default()
+-        .with_title("GridCraft")
++        .with_title("UniCore")
+         .with_inner_size([1440.0, 900.0])
+         .with_min_inner_size([640.0, 420.0])
+         .with_app_id("ai.storyteller.gridcraft")
+@@ -344,7 +344,7 @@ fn main() -> eframe::Result<()> {
+     let pending = std::cell::Cell::new(Some(app));
+     let run = |options: eframe::NativeOptions| {
+         eframe::run_native(
+-            "GridCraft",
++            "UniCore",
+             options,
+             Box::new(|cc| {
+                 let Some(mut app) = pending.take() else {
+@@ -396,8 +396,8 @@ mod packaging_tests {
+         v
+     }
+ 
+-    /// macOS Open With (`CFBundleDocumentTypes`) offers GridCraft for the same files as Windows
+-    /// Open with, and GridCraft opens each of them. #321 added `.xlsb` and `.ods` on Windows and
++    /// macOS Open With (`CFBundleDocumentTypes`) offers UniCore for the same files as Windows
++    /// Open with, and UniCore opens each of them. #321 added `.xlsb` and `.ods` on Windows and
+     /// Linux only.
+     #[test]
+     fn macos_and_windows_offer_the_same_file_types() {
+@@ -408,7 +408,7 @@ mod packaging_tests {
+         assert!(mac.iter().any(|e| e == "xlsx"), "Info.plist.in extensions not found: {mac:?}");
+         assert_eq!(mac, win);
+         for ext in &mac {
+-            assert!(FileKind::from_path(&format!("book.{ext}")).is_some(), "GridCraft doesn't open .{ext}");
++            assert!(FileKind::from_path(&format!("book.{ext}")).is_some(), "UniCore doesn't open .{ext}");
+         }
+     }
+ }
+diff --git a/apps/gridcraft/src/native_menu.rs b/apps/gridcraft/src/native_menu.rs
+index 6985af3..4b6a287 100644
+--- a/apps/gridcraft/src/native_menu.rs
++++ b/apps/gridcraft/src/native_menu.rs
+@@ -171,12 +171,7 @@ fn tree() -> Vec<(&'static str, Vec<Entry>)> {
+         ("Window", vec![("New Window", "view.newWindow", None), ("Next Sheet", "sheet.next", None), ("Previous Sheet", "sheet.previous", None)]),
+         (
+             "Help",
+-            vec![
+-                ("Agent Control (MCP)…", "dialog:agents", None),
+-                ("Contributors…", "dialog:about:Contributors", None),
+-                ("GridCraft on getartcraft.com", "url:https://getartcraft.com/apps/gridcraft", None),
+-                ("Join the ArtCraft Discord…", "url:https://discord.gg/artcraft", None),
+-            ],
++            vec![("Agent Control (MCP)…", "dialog:agents", None), ("Contributors…", "dialog:about:Contributors", None)],
+         ),
+     ]
+ }
+@@ -201,8 +196,8 @@ fn select_theme(app: &mut SheetApp, id: &str) -> bool {
+ impl NativeMenu {
+     pub fn install(ctx: &egui::Context) -> NativeMenu {
+         let menu = Menu::new();
+-        let app_menu = Submenu::new("GridCraft", true);
+-        let about = MenuItem::with_id("dialog:about", "About GridCraft", true, None);
++        let app_menu = Submenu::new("UniCore", true);
++        let about = MenuItem::with_id("dialog:about", "About UniCore", true, None);
+         let _ = app_menu.append_items(&[
+             &about,
+             &PredefinedMenuItem::separator(),
+@@ -290,11 +285,7 @@ impl NativeMenu {
+             if select_theme(app, &id) {
+                 continue;
+             }
+-            if let Some(url) = id.strip_prefix("url:") {
+-                if let Some(open) = &app.services.open_url {
+-                    open(url);
+-                }
+-            } else if let Some(rest) = id.strip_prefix("dialog:") {
++            if let Some(rest) = id.strip_prefix("dialog:") {
+                 let (name, arg) = rest.split_once(':').unwrap_or((rest, ""));
+                 let params: Value = match (name, arg) {
+                     ("saveCopy", fmt) => json!({"format": fmt}),
+diff --git a/apps/gridcraft/src/print.rs b/apps/gridcraft/src/print.rs
+index 09bb801..6ea8963 100644
+--- a/apps/gridcraft/src/print.rs
++++ b/apps/gridcraft/src/print.rs
+@@ -39,7 +39,7 @@ pub fn submit() -> Submit {
+                 }),
+                 grayscale: settings.grayscale,
+                 scaling: craft_print::Scaling::ShrinkToFit,
+-                title: "GridCraft document".into(),
++                title: "UniCore document".into(),
+                 ..Default::default()
+             };
+             let _ = sender.send(craft_print::submit(&bytes, &job).map_err(|error| error.to_string()));
+diff --git a/crates/calc/src/lib.rs b/crates/calc/src/lib.rs
+index 27c9e19..3022b34 100644
+--- a/crates/calc/src/lib.rs
++++ b/crates/calc/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft's calculation engine: the evaluator (references, names, tables, LET/LAMBDA,
++//! UniCore's calculation engine: the evaluator (references, names, tables, LET/LAMBDA,
+ //! dynamic arrays) and dependency-driven recalculation with spills and cycle detection.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+diff --git a/crates/chart/src/lib.rs b/crates/chart/src/lib.rs
+index 697e2a7..df1d721 100644
+--- a/crates/chart/src/lib.rs
++++ b/crates/chart/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft charts (layer L3, toolkit-free).
++//! UniCore charts (layer L3, toolkit-free).
+ //!
+ //! - [`resolve`] pulls series names, categories and values out of a workbook,
+ //! - [`render`] lays a chart out into a list of drawing primitives ([`Prim`]) that any UI
+@@ -6,7 +6,7 @@
+ //! - [`render_sparkline`] draws in-cell sparklines,
+ //! - [`rasterize`] turns primitives into RGBA pixels for PNG export and tests.
+ //!
+-//! The look (palette, greys, spacing) is GridCraft's own design.
++//! The look (palette, greys, spacing) is UniCore's own design.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+ 
+diff --git a/crates/core/src/lib.rs b/crates/core/src/lib.rs
+index d5adbc0..e6e0aac 100644
+--- a/crates/core/src/lib.rs
++++ b/crates/core/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft core types: cell addresses, values and Excel's coercion rules, error values,
++//! UniCore core types: cell addresses, values and Excel's coercion rules, error values,
+ //! date serials and typed-input parsing. No dependencies on the rest of the workspace.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+diff --git a/crates/engine/src/cmd/analysis.rs b/crates/engine/src/cmd/analysis.rs
+index 189a95a..c7af890 100644
+--- a/crates/engine/src/cmd/analysis.rs
++++ b/crates/engine/src/cmd/analysis.rs
+@@ -5,7 +5,7 @@
+ //! Every tool is one `tool` value of `data.analysisToolPak`. Distribution values (t, F) come
+ //! from the worksheet functions (`T.DIST.2T`, `F.DIST.RT`, `T.INV.2T`…), so the reports agree
+ //! with the formulas a user would write. Layouts follow Microsoft's public description of the
+-//! tools (row labels and section titles); exact spacing is GridCraft's reading of it.
++//! tools (row labels and section titles); exact spacing is UniCore's reading of it.
+ 
+ use std::collections::{BTreeMap, HashMap};
+ 
+diff --git a/crates/engine/src/cmd/extra.rs b/crates/engine/src/cmd/extra.rs
+index 01e2ac6..e19b5e1 100644
+--- a/crates/engine/src/cmd/extra.rs
++++ b/crates/engine/src/cmd/extra.rs
+@@ -244,7 +244,7 @@ pub fn specs() -> Vec<CommandSpec> {
+             has_doc,
+             new_cell_style
+         ),
+-        cmd!(query "home.addIns", "Add-ins", ["Home", "Add-ins"], None, "{} → GridCraft extends through MCP and scripts instead of add-ins", always, |_, _| Ok(json!({"addIns": [], "hint": "Use gridcraft-cli mcp or Automate › scripts"}))),
++        cmd!(query "home.addIns", "Add-ins", ["Home", "Add-ins"], None, "{} → UniCore extends through MCP and scripts instead of add-ins", always, |_, _| Ok(json!({"addIns": [], "hint": "Use gridcraft-cli mcp or Automate › scripts"}))),
+         cmd!(query "formulas.recentlyUsed", "Recently Used", ["Formulas", "Function Library"], None, "{} → recently used functions in this workbook", has_doc, recently_used),
+         cmd!(query "formulas.financial", "Financial", ["Formulas", "Function Library"], None, "{}", always, |s, _| s.execute("formulas.functions", json!({"category": "Financial"}))),
+         cmd!(query "formulas.logical", "Logical", ["Formulas", "Function Library"], None, "{}", always, |s, _| s.execute("formulas.functions", json!({"category": "Logical"}))),
+@@ -974,7 +974,7 @@ fn all_scripts(s: &mut Session, _: &Json) -> Result<Json> {
+     let all = stash_get(wb, SCRIPTS_NAME);
+     let mut list: Vec<Json> =
+         all.as_object().map(|o| o.iter().map(|(k, v)| json!({"name": k, "steps": v.as_array().map_or(0, Vec::len)})).collect()).unwrap_or_default();
+-    // A preserved VBA project is reported alongside GridCraft's own scripts; it is carried on
++    // A preserved VBA project is reported alongside UniCore's own scripts; it is carried on
+     // save but never executed here, so it has no step count.
+     if let Some(bytes) = &wb.vba_project {
+         list.push(json!({"name": "(VBA)", "steps": 0, "kind": "vba", "size": bytes.len(), "executed": false}));
+diff --git a/crates/engine/src/cmd/review.rs b/crates/engine/src/cmd/review.rs
+index c55aac8..c440a1a 100644
+--- a/crates/engine/src/cmd/review.rs
++++ b/crates/engine/src/cmd/review.rs
+@@ -412,7 +412,7 @@ mod tests {
+         assert_eq!(s.doc().unwrap().wb.active().unwrap().protection.as_ref(), Some(&prot));
+         s.execute("review.unprotectSheet", json!({"password": "pa55"})).unwrap();
+         assert!(!s.doc().unwrap().wb.active().unwrap().is_protected());
+-        // A GridCraft JSON workbook saved before carried the internal hash under `password_hash`.
++        // A UniCore JSON workbook saved before carried the internal hash under `password_hash`.
+         let old = format!(
+             r#"{{"password_hash": {}, "select_locked": true, "select_unlocked": true, "format_cells": false, "format_columns": false, "format_rows": false, "insert_columns": false, "insert_rows": false, "delete_columns": false, "delete_rows": false, "sort": false, "autofilter": false}}"#,
+             password_hash("old")
+diff --git a/crates/engine/src/cmd/solver.rs b/crates/engine/src/cmd/solver.rs
+index 4465874..4a2ad80 100644
+--- a/crates/engine/src/cmd/solver.rs
++++ b/crates/engine/src/cmd/solver.rs
+@@ -7,7 +7,7 @@
+ //! - **Simplex LP**: the model is linearised from `n + 1` evaluations and checked for linearity
+ //!   at one more point; then a dense two-phase simplex (Dantzig's rule, Bland's rule when it
+ //!   stalls) solves it exactly. Integer and binary constraints use depth-first branch and bound.
+-//! - **GRG Nonlinear** (the name Excel's dialog uses): GridCraft's method is *not* a generalised
++//! - **GRG Nonlinear** (the name Excel's dialog uses): UniCore's method is *not* a generalised
+ //!   reduced gradient. It is an augmented-Lagrangian method (Powell–Hestenes–Rockafellar) whose
+ //!   inner problems are solved by projected gradient descent with Barzilai–Borwein steps and an
+ //!   Armijo line search, on central-difference gradients. Variable bounds are kept by
+@@ -1700,7 +1700,7 @@ struct ReportInput<'a> {
+ }
+ 
+ fn title(out: &mut Lines, kind: ReportKind, sheet: &str) -> u32 {
+-    out.push((0, 0, Value::text(format!("GridCraft {} Report", kind.title())), true));
++    out.push((0, 0, Value::text(format!("UniCore {} Report", kind.title())), true));
+     out.push((1, 0, Value::text(format!("Worksheet: {sheet}")), false));
+     3
+ }
+@@ -2333,7 +2333,7 @@ mod tests {
+         assert_eq!(d.wb.active().unwrap().name, "Sheet1", "the model's sheet stays active");
+         assert_eq!(saved(&s), "solver_opt", "the saved model follows its sheet");
+         let a = "Answer Report 1";
+-        assert_eq!(at(&s, a, "A1"), Value::text("GridCraft Answer Report"));
++        assert_eq!(at(&s, a, "A1"), Value::text("UniCore Answer Report"));
+         // Objective: $D$6 "Profit Used", from 0 to 36.
+         let r = row_of(&s, a, "$D$6");
+         assert_eq!(at(&s, a, &format!("C{}", r + 1)), Value::text("Profit Used"));
+diff --git a/crates/engine/src/cmd/spelling.rs b/crates/engine/src/cmd/spelling.rs
+index 1dd3df7..8ffc0e7 100644
+--- a/crates/engine/src/cmd/spelling.rs
++++ b/crates/engine/src/cmd/spelling.rs
+@@ -123,7 +123,7 @@ fn suggestions(w: &str) -> Vec<String> {
+ 
+ fn spelling(s: &mut Session, p: &Json) -> Result<Json> {
+     if dictionary().is_empty() {
+-        return Err(EngineError::Other("No dictionary is available on this system (GridCraft uses the system word list).".into()));
++        return Err(EngineError::Other("No dictionary is available on this system (UniCore uses the system word list).".into()));
+     }
+     let si = target_sheet(s, p)?;
+     let d = s.doc()?;
+diff --git a/crates/engine/src/cmd/view.rs b/crates/engine/src/cmd/view.rs
+index edcacf5..ef3564d 100644
+--- a/crates/engine/src/cmd/view.rs
++++ b/crates/engine/src/cmd/view.rs
+@@ -360,7 +360,7 @@ fn header_footer(s: &mut Session, p: &Json) -> Result<Json> {
+     })
+ }
+ 
+-/// GridCraft's own theme set (original palettes).
++/// UniCore's own theme set (original palettes).
+ pub fn themes() -> Vec<(&'static str, [u32; 12])> {
+     vec![
+         ("Craft", [0xFFFFFF, 0x000000, 0xE8E8E8, 0x0E2841, 0x156082, 0xE97132, 0x196B24, 0x0F9ED5, 0xA02B93, 0x4EA72E, 0x467886, 0x96607D]),
+diff --git a/crates/engine/src/cmd/whatif.rs b/crates/engine/src/cmd/whatif.rs
+index 09c716c..489e181 100644
+--- a/crates/engine/src/cmd/whatif.rs
++++ b/crates/engine/src/cmd/whatif.rs
+@@ -403,7 +403,7 @@ fn store_scenarios(wb: &mut Workbook, list: &[Scenario]) {
+             .map(|c| format!("\"{}\"", c.iter().collect::<String>().replace('"', "\"\"")))
+             .collect::<Vec<_>>()
+             .join("&"),
+-        comment: "GridCraft Scenario Manager data".into(),
++        comment: "UniCore Scenario Manager data".into(),
+         hidden: true,
+     });
+ }
+diff --git a/crates/engine/src/io.rs b/crates/engine/src/io.rs
+index 3e84036..a98a0a4 100644
+--- a/crates/engine/src/io.rs
++++ b/crates/engine/src/io.rs
+@@ -7,7 +7,7 @@ use gridcraft_model::{Sheet, Workbook};
+ 
+ use crate::{EngineError, Result};
+ 
+-/// File formats GridCraft reads or writes.
++/// File formats UniCore reads or writes.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub enum FileKind {
+     Xlsx,
+@@ -44,7 +44,7 @@ pub const PASSWORD_REQUIRED: &str = "is password-protected. Enter its password t
+ /// The error for a wrong password contains this.
+ pub const WRONG_PASSWORD: &str = "The password is incorrect.";
+ /// The first open warning of a workbook decrypted with its password.
+-pub const DECRYPTED_NOTICE: &str = "This workbook was password-protected. GridCraft saves it without the password.";
++pub const DECRYPTED_NOTICE: &str = "This workbook was password-protected. UniCore saves it without the password.";
+ 
+ /// Parses a file's bytes into a workbook. `name` picks the format by extension when the bytes
+ /// don't say. An encrypted workbook needs [`open_bytes_with_password`].
+@@ -105,7 +105,7 @@ fn decrypt_message(name: &str, e: gridcraft_xlsx::DecryptError) -> String {
+     match e {
+         gridcraft_xlsx::DecryptError::WrongPassword => format!("{WRONG_PASSWORD} Check that Caps Lock is off and try again."),
+         gridcraft_xlsx::DecryptError::Unsupported(scheme) => {
+-            format!("'{name}' uses {scheme} encryption, which GridCraft can't open yet. Remove the password in Excel and try again.")
++            format!("'{name}' uses {scheme} encryption, which UniCore can't open yet. Remove the password in Excel and try again.")
+         }
+         gridcraft_xlsx::DecryptError::Malformed(detail) => format!("We can't open '{name}': the encrypted file is damaged ({detail})."),
+     }
+@@ -121,7 +121,7 @@ fn open_plain(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
+     }
+     if sniffed == gridcraft_xlsx::Format::LegacyBinary {
+         return Err(EngineError::Other(format!(
+-            "'{name}' is a legacy binary file but not an Excel workbook (no workbook stream). GridCraft can't open it."
++            "'{name}' is a legacy binary file but not an Excel workbook (no workbook stream). UniCore can't open it."
+         )));
+     }
+     // Content wins over the extension: an ODS or XLSB package is imported as what it is,
+@@ -145,7 +145,7 @@ fn open_plain(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
+     }
+     match kind {
+         Some(FileKind::Json) => {
+-            let mut wb: Workbook = serde_json::from_slice(bytes).map_err(|e| EngineError::Other(format!("not a GridCraft JSON workbook: {e}")))?;
++            let mut wb: Workbook = serde_json::from_slice(bytes).map_err(|e| EngineError::Other(format!("not a UniCore JSON workbook: {e}")))?;
+             wb.styles.rebuild_index();
+             if wb.sheets.is_empty() {
+                 wb = Workbook::new();
+diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
+index 258a1cb..2ec8019 100644
+--- a/crates/engine/src/lib.rs
++++ b/crates/engine/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! The GridCraft engine façade.
++//! The UniCore engine façade.
+ //!
+ //! Every user-visible action is a command with a stable id (`cell.set`, `home.bold`,
+ //! `data.sortAscending`…) and JSON parameters. The egui UI, the CLI, the control channel and MCP
+@@ -206,7 +206,7 @@ impl Default for Prefs {
+         Prefs {
+             enter_direction: "down".into(),
+             autocomplete: true,
+-            user_name: "GridCraft User".into(),
++            user_name: "UniCore User".into(),
+             default_font: gridcraft_model::DEFAULT_FONT.into(),
+             default_font_size: gridcraft_model::DEFAULT_FONT_SIZE,
+             sheets_in_new_workbook: 1,
+diff --git a/crates/functions/src/info.rs b/crates/functions/src/info.rs
+index 84ca72a..dcff5a1 100644
+--- a/crates/functions/src/info.rs
++++ b/crates/functions/src/info.rs
+@@ -103,7 +103,7 @@ fn info(a: &[Arg], _c: &mut dyn Ctx) -> R<Value> {
+         "directory" => "/".into(),
+         "numfile" => Value::Number(1.0),
+         "origin" => "$A:$A$1".into(),
+-        "osversion" => "GridCraft".into(),
++        "osversion" => "UniCore".into(),
+         "recalc" => "Automatic".into(),
+         "release" => "16.0".into(),
+         "system" => "pcdos".into(),
+diff --git a/crates/functions/src/lib.rs b/crates/functions/src/lib.rs
+index 148d682..e1cd412 100644
+--- a/crates/functions/src/lib.rs
++++ b/crates/functions/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft worksheet function library.
++//! UniCore worksheet function library.
+ //!
+ //! Every function is described by a [`FnSpec`] (name, arity, category, which parameters take
+ //! scalars, a signature and a one-line description) and implemented as a plain Rust function over
+diff --git a/crates/mcp/src/backend.rs b/crates/mcp/src/backend.rs
+index adc866d..824f7d1 100644
+--- a/crates/mcp/src/backend.rs
++++ b/crates/mcp/src/backend.rs
+@@ -22,7 +22,7 @@ const IO_TIMEOUT: Duration = Duration::from_secs(30);
+ /// Longest reply line accepted from the app (guards against a runaway peer).
+ const MAX_REPLY: u64 = 256 * 1024 * 1024;
+ 
+-/// A running GridCraft app, reached through its loopback control port.
++/// A running UniCore app, reached through its loopback control port.
+ pub struct Remote {
+     addr: String,
+     conn: Option<(BufReader<TcpStream>, TcpStream)>,
+@@ -91,7 +91,7 @@ impl Backend for Remote {
+                 self.conn = None;
+                 self.roundtrip(&line).map_err(|e| {
+                     self.conn = None;
+-                    format!("GridCraft app at {} is not reachable: {e}", self.addr)
++                    format!("UniCore app at {} is not reachable: {e}", self.addr)
+                 })?
+             }
+         };
+@@ -108,6 +108,6 @@ impl Backend for Remote {
+     }
+ 
+     fn describe(&self) -> String {
+-        format!("connected to the GridCraft app at {}", self.addr)
++        format!("connected to the UniCore app at {}", self.addr)
+     }
+ }
+diff --git a/crates/mcp/src/lib.rs b/crates/mcp/src/lib.rs
+index de3e250..06d5b19 100644
+--- a/crates/mcp/src/lib.rs
++++ b/crates/mcp/src/lib.rs
+@@ -1,7 +1,7 @@
+-//! GridCraft's MCP server.
++//! UniCore's MCP server.
+ //!
+ //! [Model Context Protocol](https://modelcontextprotocol.io) over stdio: newline-delimited
+-//! JSON-RPC 2.0, hand-written (no async runtime). The server exposes GridCraft as MCP tools and
++//! JSON-RPC 2.0, hand-written (no async runtime). The server exposes UniCore as MCP tools and
+ //! resources and forwards everything to a [`Backend`]:
+ //!
+ //! - [`Remote`] talks to a running desktop app through its loopback JSON-lines control channel
+diff --git a/crates/mcp/src/server.rs b/crates/mcp/src/server.rs
+index 75b82d8..d054ff0 100644
+--- a/crates/mcp/src/server.rs
++++ b/crates/mcp/src/server.rs
+@@ -22,7 +22,7 @@ const RESOURCE_NOT_FOUND: i64 = -32002;
+ /// Longest accepted message line (16 MB): bigger payloads belong in files.
+ const MAX_LINE: usize = 16 * 1024 * 1024;
+ 
+-const INSTRUCTIONS: &str = "GridCraft is a spreadsheet app (an Excel clone). Cells use A1 notation (\"B2\", \"A1:D10\", \
++const INSTRUCTIONS: &str = "UniCore is a spreadsheet app (an Excel clone). Cells use A1 notation (\"B2\", \"A1:D10\", \
+ \"Sheet2!A1:B3\"). Every action is a command: find ids and parameters with list_commands and run any of them with \
+ execute_command. Convenience tools cover the common flow: write_range / set_cell to enter values and formulas (strings \
+ starting with = are formulas), read_range / get_cell to read computed values back, format_range, create_table, \
+@@ -154,7 +154,7 @@ impl Server {
+                 Ok(json!({
+                     "protocolVersion": version,
+                     "capabilities": {"tools": {"listChanged": false}, "resources": {"listChanged": false, "subscribe": false}, "prompts": {"listChanged": false}},
+-                    "serverInfo": {"name": "gridcraft", "title": "GridCraft", "version": env!("CARGO_PKG_VERSION")},
++                    "serverInfo": {"name": "gridcraft", "title": "UniCore", "version": env!("CARGO_PKG_VERSION")},
+                     "instructions": format!("{INSTRUCTIONS} Backend: {}.", self.backend.describe()),
+                 }))
+             }
+diff --git a/crates/mcp/src/tools.rs b/crates/mcp/src/tools.rs
+index e6322f0..06ed697 100644
+--- a/crates/mcp/src/tools.rs
++++ b/crates/mcp/src/tools.rs
+@@ -114,7 +114,7 @@ pub fn tool_definitions() -> Vec<Value> {
+         tool(
+             "execute_command",
+             "Execute command",
+-            "Run ANY GridCraft command by id with JSON params — every ribbon/menu action is a command. Find ids and parameter \
++            "Run ANY UniCore command by id with JSON params — every ribbon/menu action is a command. Find ids and parameter \
+              docs with list_commands. Examples: {\"command\":\"cell.set\",\"params\":{\"cell\":\"B2\",\"input\":\"=SUM(A1:A9)\"}}; \
+              {\"command\":\"home.bold\",\"params\":{\"range\":\"A1:C1\"}}; {\"command\":\"sheet.insert\"}; \
+              {\"command\":\"data.removeDuplicates\",\"params\":{\"range\":\"A1:C20\"}}. Most commands act on the current selection \
+@@ -128,7 +128,7 @@ pub fn tool_definitions() -> Vec<Value> {
+         tool(
+             "list_commands",
+             "List commands",
+-            "List GridCraft commands: id, label, ribbon path, shortcut, a parameter description (`params`) and whether it can run \
++            "List UniCore commands: id, label, ribbon path, shortcut, a parameter description (`params`) and whether it can run \
+              right now. Use it to discover what execute_command can do (e.g. search \"sort\", \"border\", \"chart\", \"sheet\").",
+             obj(json!({"search": string("Case-insensitive substring matched against id, label and ribbon path")}), &[]),
+             true,
+@@ -359,7 +359,7 @@ pub fn tool_definitions() -> Vec<Value> {
+         tool(
+             "screenshot",
+             "Screenshot",
+-            "Save a PNG screenshot of the GridCraft window to `path`. Desktop app only (`gridcraft-cli mcp --connect 7979`).",
++            "Save a PNG screenshot of the UniCore window to `path`. Desktop app only (`gridcraft-cli mcp --connect 7979`).",
+             obj(json!({"path": string("Output PNG path")}), &["path"]),
+             true,
+         ),
+diff --git a/crates/model/src/features.rs b/crates/model/src/features.rs
+index b51f7bc..2c98cfb 100644
+--- a/crates/model/src/features.rs
++++ b/crates/model/src/features.rs
+@@ -525,7 +525,7 @@ pub enum ShapeKind {
+     Line,
+     Arrow,
+     TextBox,
+-    /// An icon from GridCraft's own icon set; `Shape::text` holds the icon name.
++    /// An icon from UniCore's own icon set; `Shape::text` holds the icon name.
+     Icon,
+     /// A freehand ink stroke; `Shape::text` holds the points as `x,y;x,y;…` relative to the
+     /// anchor (sheet points), `Shape::line` the ink colour and `fill` unused.
+@@ -816,7 +816,7 @@ pub struct SheetProtection {
+     /// password itself).
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub password: Option<crate::PasswordHash>,
+-    /// The internal hash older GridCraft JSON workbooks stored ([`password_hash`]); still
++    /// The internal hash older UniCore JSON workbooks stored ([`password_hash`]); still
+     /// verified when unprotecting, never written for new passwords.
+     #[serde(rename = "password_hash", default, skip_serializing_if = "Option::is_none")]
+     pub legacy_password_hash: Option<u64>,
+@@ -851,7 +851,7 @@ impl EditRange {
+     }
+ }
+ 
+-/// The non-cryptographic password hash older GridCraft versions stored for sheet protection
++/// The non-cryptographic password hash older UniCore versions stored for sheet protection
+ /// (only verified now, see [`SheetProtection::legacy_password_hash`]).
+ pub fn password_hash(pw: &str) -> u64 {
+     let mut h: u64 = 0xcbf29ce484222325 ^ 0x5348_4545_5443;
+diff --git a/crates/model/src/lib.rs b/crates/model/src/lib.rs
+index a76f30f..f57fb25 100644
+--- a/crates/model/src/lib.rs
++++ b/crates/model/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! The GridCraft document model: workbooks, sheets, a copy-on-write cell store, interned
++//! The UniCore document model: workbooks, sheets, a copy-on-write cell store, interned
+ //! styles, defined names, tables, conditional formats, validation, comments, charts and print
+ //! settings. Pure data; calculation lives in `gridcraft-calc`.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+diff --git a/crates/model/src/preserved.rs b/crates/model/src/preserved.rs
+index eab8501..12f0ee4 100644
+--- a/crates/model/src/preserved.rs
++++ b/crates/model/src/preserved.rs
+@@ -1,4 +1,4 @@
+-//! File content GridCraft does not model, carried through unchanged so that saving a workbook
++//! File content UniCore does not model, carried through unchanged so that saving a workbook
+ //! never silently drops it (XLSX pass-through: custom XML, external links, connections, query
+ //! tables, form controls, OLE objects…).
+ //!
+@@ -13,7 +13,7 @@ use crate::sheet::Visibility;
+ /// to a kept part or to an external target.
+ #[derive(Clone, Debug, Default, PartialEq, Eq)]
+ pub struct PreservedRel {
+-    /// The id in the source file (`rId7`). Ids of an owner GridCraft writes are reassigned on save.
++    /// The id in the source file (`rId7`). Ids of an owner UniCore writes are reassigned on save.
+     pub id: String,
+     /// The full relationship type URI.
+     pub rel_type: String,
+diff --git a/crates/model/src/style.rs b/crates/model/src/style.rs
+index d397687..9e5f21f 100644
+--- a/crates/model/src/style.rs
++++ b/crates/model/src/style.rs
+@@ -122,7 +122,7 @@ pub struct Theme {
+ }
+ 
+ impl Default for Theme {
+-    /// GridCraft's own default theme ("Craft"): original palette.
++    /// UniCore's own default theme ("Craft"): original palette.
+     fn default() -> Self {
+         Theme {
+             name: "Craft".into(),
+diff --git a/crates/model/src/workbook.rs b/crates/model/src/workbook.rs
+index 828ca69..c9bcfad 100644
+--- a/crates/model/src/workbook.rs
++++ b/crates/model/src/workbook.rs
+@@ -104,7 +104,7 @@ pub struct Workbook {
+     pub custom_lists: Vec<Vec<String>>,
+     /// Named cell styles (Cell Styles gallery): name → style.
+     pub cell_styles: Vec<(String, crate::style::Style)>,
+-    /// VBA project (`xl/vbaProject.bin`) carried through unchanged. GridCraft does not run
++    /// VBA project (`xl/vbaProject.bin`) carried through unchanged. UniCore does not run
+     /// macros; the blob is preserved so that saving a macro-enabled workbook never destroys the
+     /// macros it arrived with. base64 in JSON. `None` = the workbook has no macros.
+     #[serde(default, with = "crate::b64::opt")]
+diff --git a/crates/numfmt/src/lib.rs b/crates/numfmt/src/lib.rs
+index 6280e1d..0f46e02 100644
+--- a/crates/numfmt/src/lib.rs
++++ b/crates/numfmt/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft number formats: Excel format codes (`#,##0.00;[Red](#,##0.00)`, dates, fractions,
++//! UniCore number formats: Excel format codes (`#,##0.00;[Red](#,##0.00)`, dates, fractions,
+ //! scientific…), the General display format and the `TEXT()` worksheet function. en-US only.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+diff --git a/crates/pdf/src/lib.rs b/crates/pdf/src/lib.rs
+index b55f247..48e2d73 100644
+--- a/crates/pdf/src/lib.rs
++++ b/crates/pdf/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! A tiny, self-contained PDF 1.7 writer for GridCraft's print and PDF export.
++//! A tiny, self-contained PDF 1.7 writer for UniCore's print and PDF export.
+ //!
+ //! - The 14 standard fonts (no embedding) with WinAnsiEncoding, plus approximate width tables
+ //!   ([`text_width`]) so callers can measure, align and wrap text.
+@@ -695,8 +695,8 @@ impl PdfDoc {
+         objects.push((1, b"<< /Type /Catalog /Pages 2 0 R >>".to_vec()));
+         let kids_s: Vec<String> = kids.iter().map(|k| format!("{k} 0 R")).collect();
+         objects.push((2, format!("<< /Type /Pages /Kids [{}] /Count {} >>", kids_s.join(" "), kids.len()).into_bytes()));
+-        let creator = if self.info.creator.is_empty() { "GridCraft" } else { &self.info.creator };
+-        let mut info = format!("<< /Producer {} /Creator {}", pdf_text_string("GridCraft PDF"), pdf_text_string(creator));
++        let creator = if self.info.creator.is_empty() { "UniCore" } else { &self.info.creator };
++        let mut info = format!("<< /Producer {} /Creator {}", pdf_text_string("UniCore PDF"), pdf_text_string(creator));
+         if !self.info.title.is_empty() {
+             let _ = write!(info, " /Title {}", pdf_text_string(&self.info.title));
+         }
+diff --git a/crates/pdf/src/tests.rs b/crates/pdf/src/tests.rs
+index 7d6a61a..0682c46 100644
+--- a/crates/pdf/src/tests.rs
++++ b/crates/pdf/src/tests.rs
+@@ -266,7 +266,7 @@ fn ascii_info_strings_stay_literal_and_escaped() {
+     doc.info.title = r"Q1 (draft) a\b".into();
+     let pdf = doc.finish();
+     assert!(find(&pdf, br"/Title (Q1 \(draft\) a\\b)").is_some());
+-    assert!(find(&pdf, b"/Producer (GridCraft PDF)").is_some());
++    assert!(find(&pdf, b"/Producer (UniCore PDF)").is_some());
+ }
+ 
+ #[test]
+diff --git a/crates/ui-egui/examples/snapshot.rs b/crates/ui-egui/examples/snapshot.rs
+index a171199..b7a941a 100644
+--- a/crates/ui-egui/examples/snapshot.rs
++++ b/crates/ui-egui/examples/snapshot.rs
+@@ -1,4 +1,4 @@
+-//! Renders the whole GridCraft window offscreen (wgpu, no window) to a PNG.
++//! Renders the whole UniCore window offscreen (wgpu, no window) to a PNG.
+ //!
+ //! `cargo run --release -p gridcraft-ui-egui --example snapshot -- [--sample sales] [--in file.xlsx]
+ //!  [--size 1440x900] [--scale 2] [--cmd 'id={json}']... [--tab Insert] [--dark] [--language en|zh|ja|ko|ru|pt|cs]
+diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
+index 922baab..2f28258 100644
+--- a/crates/ui-egui/src/backstage.rs
++++ b/crates/ui-egui/src/backstage.rs
+@@ -410,6 +410,7 @@ fn recent_list(app: &mut SheetApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Ou
+ }
+ 
+ /// What the file system said about a recent workbook.
++#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // no file metadata on the web
+ #[derive(Clone, Copy, Debug, PartialEq)]
+ enum Modified {
+     /// When it was last changed, in seconds since 1970.
+@@ -888,13 +889,13 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+         return match app.run(id, json!({"path": path})) {
+             Ok(_) => true,
+             Err(e) => {
+-                app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+                 false
+             }
+         };
+     }
+     if app.services.download.is_none() {
+-        app.message = Some(("GridCraft".into(), "Exporting needs a file picker, which this window doesn't have.".into()));
++        app.message = Some(("UniCore".into(), "Exporting needs a file picker, which this window doesn't have.".into()));
+         return false;
+     }
+     if fmt == "pdf" {
+@@ -902,7 +903,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+         return match app.run(id, json!({})) {
+             Ok(_) => true,
+             Err(e) => {
+-                app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+                 false
+             }
+         };
+@@ -921,7 +922,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+             }
+         }
+         Err(e) => {
+-            app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++            app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+             false
+         }
+     }
+diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
+index fb899c7..82345a5 100644
+--- a/crates/ui-egui/src/dialogs.rs
++++ b/crates/ui-egui/src/dialogs.rs
+@@ -674,7 +674,7 @@ impl Dialog {
+             "commandSearch" => Dialog::custom("commandSearch", "Search Commands", json!({})),
+             "agents" => Dialog::custom("agents", "Agent Control", json!({})),
+             "about" => {
+-                let mut d = Dialog::custom("about", "About GridCraft", json!({}));
++                let mut d = Dialog::custom("about", "About UniCore", json!({}));
+                 d.tab = match p("tab").as_str() {
+                     Some(t @ ("Contributors" | "Models")) => t.to_string(),
+                     _ => "About".into(),
+@@ -776,7 +776,7 @@ impl Dialog {
+             "pickList" => Dialog::custom("pickList", "Pick From List", json!({})),
+             "saveCopy" => Dialog::custom("saveCopy", "Save a Copy", json!({"format": p("format")})),
+             "saveChanges" => Dialog::custom("saveChanges", "Save Changes?", json!({"title": p("title")})),
+-            "start" => Dialog::custom("start", "GridCraft", json!({})),
++            "start" => Dialog::custom("start", "UniCore", json!({})),
+             "comments" => {
+                 app.grid.pane = None;
+                 app.run_or_alert("review.showComments", json!({"on": true}));
+@@ -1063,7 +1063,7 @@ pub fn show(app: &mut SheetApp, ctx: &egui::Context) {
+                 "solverResults" => solver_results(app, ui, &mut d, &mut open),
+                 "spelling" => spelling(app, ui, &mut d, &mut open),
+                 "agents" => {
+-                    ui.label("GridCraft is fully drivable by agents. Every menu item, button and gesture is a command:");
++                    ui.label("UniCore is fully drivable by agents. Every menu item, button and gesture is a command:");
+                     ui.add_space(4.0);
+                     ui.monospace("gridcraft --control 7979        # JSON-lines control channel\ngridcraft-cli mcp --connect 7979   # MCP bridged to this window\ngridcraft-cli mcp                   # headless MCP server");
+                     ui.add_space(4.0);
+@@ -1468,7 +1468,7 @@ fn form_fields(ui: &mut egui::Ui, d: &mut Dialog) {
+     });
+ }
+ 
+-/// Help ▸ About GridCraft: the app, its contributors and the AI models that helped. The credits
++/// Help ▸ About UniCore: the app, its contributors and the AI models that helped. The credits
+ /// are compiled in (`crate::credits`, docs/contributors.md).
+ fn about(ui: &mut egui::Ui, d: &mut Dialog) {
+     ui.horizontal(|ui| {
+@@ -1483,21 +1483,17 @@ fn about(ui: &mut egui::Ui, d: &mut Dialog) {
+         "Contributors" => crate::credits::contributors_ui(ui),
+         "Models" => crate::credits::models_ui(ui),
+         _ => {
+-            ui.heading("GridCraft");
++            ui.heading("UniCore");
+             ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+-            ui.add_space(4.0);
+-            ui.label("A clean-room, open-source, Rust-native spreadsheet. Part of ArtCraft.");
+-            ui.hyperlink_to("getartcraft.com/apps/gridcraft", "https://getartcraft.com/apps/gridcraft");
+-            ui.hyperlink_to("Join the ArtCraft Discord", "https://discord.gg/artcraft");
+         }
+     }
+ }
+ 
+-/// The Macros dialog: lists GridCraft's own recorded scripts and (if the file carries one) the
++/// The Macros dialog: lists UniCore's own recorded scripts and (if the file carries one) the
+ /// preserved VBA project. Mirrors Excel's Developer ▸ Macros list, but is honest that VBA is
+ /// preserved and not executed.
+ fn macros(ui: &mut egui::Ui, d: &mut Dialog) {
+-    ui.label("Automation in this workbook. GridCraft runs its own scripts; a file's VBA project is preserved but not executed.");
++    ui.label("Automation in this workbook. UniCore runs its own scripts; a file's VBA project is preserved but not executed.");
+     ui.add_space(6.0);
+     let items: Vec<Json> = d.result.as_ref().and_then(Json::as_array).cloned().unwrap_or_default();
+     if items.is_empty() {
+diff --git a/crates/ui-egui/src/formula_bar.rs b/crates/ui-egui/src/formula_bar.rs
+index 7f1ad87..9a018bd 100644
+--- a/crates/ui-egui/src/formula_bar.rs
++++ b/crates/ui-egui/src/formula_bar.rs
+@@ -127,7 +127,7 @@ fn name_box(app: &mut SheetApp, ui: &mut egui::Ui, t: &Tokens) {
+                     app.run("formulas.defineName", json!({"name": target}))
+                 };
+                 if let Err(e) = r {
+-                    app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                    app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+                 }
+                 app.grid.ensure_visible = true;
+             }
+diff --git a/crates/ui-egui/src/grid.rs b/crates/ui-egui/src/grid.rs
+index 97b787e..22663a8 100644
+--- a/crates/ui-egui/src/grid.rs
++++ b/crates/ui-egui/src/grid.rs
+@@ -2269,7 +2269,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
+                     // Ctrl (Cmd on macOS) swaps copying and extending, as in Excel.
+                     let mode = if mods.command { "alternate" } else { "series" };
+                     if let Err(e) = app.run("edit.autoFill", json!({"source": src.a1(), "target": t.a1(), "mode": mode})) {
+-                        app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                        app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+                     }
+                 }
+             }
+@@ -2290,7 +2290,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
+             }
+             Drag::MoveCols { source, before: Some(before) } => {
+                 if let Err(e) = app.run("sheet.moveColumns", json!({"cols": source.a1(), "before": before})) {
+-                    app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                    app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+                 }
+             }
+             _ => {}
+diff --git a/crates/ui-egui/src/i18n.rs b/crates/ui-egui/src/i18n.rs
+index 061698d..0974fde 100644
+--- a/crates/ui-egui/src/i18n.rs
++++ b/crates/ui-egui/src/i18n.rs
+@@ -411,7 +411,7 @@ const JAPANESE: &[(&str, &str)] = &[
+     ("Command\nPalette", "コマンド パレット"),
+     ("Agent\nControl", "エージェント制御"),
+     ("Action\nJournal", "操作ジャーナル"),
+-    ("About\nGridCraft", "GridCraft について"),
++    ("About\nUniCore", "UniCore について"),
+     ("Share", "共有"),
+     ("Add Chart\nElement", "グラフ要素を追加"),
+     ("Change\nChart Type", "グラフの種類の変更"),
+diff --git a/crates/ui-egui/src/i18n/cs.rs b/crates/ui-egui/src/i18n/cs.rs
+index 7ed8372..d702498 100644
+--- a/crates/ui-egui/src/i18n/cs.rs
++++ b/crates/ui-egui/src/i18n/cs.rs
+@@ -340,7 +340,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Paleta\npříkazů",
+         "Agent\nControl" => "Řízení\nagenty",
+         "Action\nJournal" => "Deník\nakcí",
+-        "About\nGridCraft" => "O aplikaci\nGridCraft",
++        "About\nUniCore" => "O aplikaci\nUniCore",
+         "Share" => "Sdílet",
+         "Add Chart\nElement" => "Přidat prvek\ngrafu",
+         "Change\nChart Type" => "Změnit\ntyp grafu",
+@@ -460,7 +460,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Skrýt list",
+         "Hierarchy & more" => "Hierarchické a další grafy",
+         "Highlighter" => "Zvýrazňovač",
+-        "How agents drive GridCraft (MCP / control channel)" => "Jak agenti ovládají GridCraft (MCP / řídicí kanál)",
++        "How agents drive UniCore (MCP / control channel)" => "Jak agenti ovládají UniCore (MCP / řídicí kanál)",
+         "Import a text or CSV file" => "Importovat textový soubor nebo CSV",
+         "Insert\nSlicer" => "Vložit\nprůřez",
+         "Insert Function (⇧F3)" => "Vložit funkci (⇧F3)",
+diff --git a/crates/ui-egui/src/i18n/de.rs b/crates/ui-egui/src/i18n/de.rs
+index c20c7d1..88f83a9 100644
+--- a/crates/ui-egui/src/i18n/de.rs
++++ b/crates/ui-egui/src/i18n/de.rs
+@@ -338,7 +338,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Befehls-\npalette",
+         "Agent\nControl" => "Agenten-\nsteuerung",
+         "Action\nJournal" => "Aktions-\nprotokoll",
+-        "About\nGridCraft" => "Über\nGridCraft",
++        "About\nUniCore" => "Über\nUniCore",
+         "Share" => "Teilen",
+         "Add Chart\nElement" => "Diagrammelement\nhinzufügen",
+         "Change\nChart Type" => "Diagrammtyp\nändern",
+diff --git a/crates/ui-egui/src/i18n/es.rs b/crates/ui-egui/src/i18n/es.rs
+index 4ce231b..503261f 100644
+--- a/crates/ui-egui/src/i18n/es.rs
++++ b/crates/ui-egui/src/i18n/es.rs
+@@ -337,7 +337,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Paleta de\ncomandos",
+         "Agent\nControl" => "Control\ndel agente",
+         "Action\nJournal" => "Registro\nde acciones",
+-        "About\nGridCraft" => "Acerca de\nGridCraft",
++        "About\nUniCore" => "Acerca de\nUniCore",
+         "Share" => "Compartir",
+         "Add Chart\nElement" => "Agregar elemento\nde gráfico",
+         "Change\nChart Type" => "Cambiar tipo\nde gráfico",
+diff --git a/crates/ui-egui/src/i18n/fr.rs b/crates/ui-egui/src/i18n/fr.rs
+index 5d20ab0..49af92d 100644
+--- a/crates/ui-egui/src/i18n/fr.rs
++++ b/crates/ui-egui/src/i18n/fr.rs
+@@ -238,7 +238,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Palette de\ncommandes",
+         "Agent\nControl" => "Contrôle de\nl'agent",
+         "Action\nJournal" => "Journal des\nactions",
+-        "About\nGridCraft" => "À propos de\nGridCraft",
++        "About\nUniCore" => "À propos de\nUniCore",
+         "Share" => "Partager",
+         "Add Chart\nElement" => "Ajouter un élément\nde graphique",
+         "Change\nChart Type" => "Modifier le type\nde graphique",
+diff --git a/crates/ui-egui/src/i18n/ko.rs b/crates/ui-egui/src/i18n/ko.rs
+index 1902ad3..265205f 100644
+--- a/crates/ui-egui/src/i18n/ko.rs
++++ b/crates/ui-egui/src/i18n/ko.rs
+@@ -227,7 +227,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "명령\n팔레트",
+         "Agent\nControl" => "에이전트\n제어",
+         "Action\nJournal" => "작업\n기록",
+-        "About\nGridCraft" => "GridCraft\n정보",
++        "About\nUniCore" => "UniCore\n정보",
+         "Share" => "공유",
+         "Add Chart\nElement" => "차트\n요소 추가",
+         "Change\nChart Type" => "차트 종류\n변경",
+diff --git a/crates/ui-egui/src/i18n/pt.rs b/crates/ui-egui/src/i18n/pt.rs
+index fb9236c..1e8e12c 100644
+--- a/crates/ui-egui/src/i18n/pt.rs
++++ b/crates/ui-egui/src/i18n/pt.rs
+@@ -228,7 +228,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Paleta de\nComandos",
+         "Agent\nControl" => "Controle\ndo Agente",
+         "Action\nJournal" => "Registro\nde Ações",
+-        "About\nGridCraft" => "Sobre o\nGridCraft",
++        "About\nUniCore" => "Sobre o\nUniCore",
+         "Share" => "Compartilhar",
+         "Add Chart\nElement" => "Adicionar\nElemento de Gráfico",
+         "Change\nChart Type" => "Alterar\nTipo de Gráfico",
+@@ -461,7 +461,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Conditional Formatting Rules Manager" => "Gerenciador de Regras de Formatação Condicional",
+         "Search Commands" => "Pesquisar Comandos",
+         "Agent Control" => "Controle por Agentes",
+-        "About GridCraft" => "Sobre o GridCraft",
++        "About UniCore" => "Sobre o UniCore",
+         "Insert Chart" => "Inserir Gráfico",
+         "Select Data Source" => "Selecionar Fonte de Dados",
+         "Action Journal" => "Registro de Ações",
+@@ -661,7 +661,6 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Contributors" => "Colaboradores",
+         "Models" => "Modelos",
+         "Version {version}" => "Versão {version}",
+-        "Join the ArtCraft Discord" => "Participe do Discord da ArtCraft",
+         "This workbook has no scripts or macros." => "Esta pasta de trabalho não tem scripts nem macros.",
+         "(unnamed)" => "(sem nome)",
+         "— VBA project (preserved, not run)" => "— Projeto VBA (preservado, não executado)",
+@@ -886,7 +885,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Ocultar Planilha",
+         "Hierarchy & more" => "Hierarquia e mais",
+         "Highlighter" => "Marca-texto",
+-        "How agents drive GridCraft (MCP / control channel)" => "Como os agentes controlam o GridCraft (MCP / canal de controle)",
++        "How agents drive UniCore (MCP / control channel)" => "Como os agentes controlam o UniCore (MCP / canal de controle)",
+         "Import a text or CSV file" => "Importar um arquivo de texto ou CSV",
+         "Insert Function" => "Inserir Função",
+         "Insert Function (⇧F3)" => "Inserir Função (⇧F3)",
+diff --git a/crates/ui-egui/src/i18n/ru.rs b/crates/ui-egui/src/i18n/ru.rs
+index 765f6bb..65056ed 100644
+--- a/crates/ui-egui/src/i18n/ru.rs
++++ b/crates/ui-egui/src/i18n/ru.rs
+@@ -227,7 +227,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Палитра\nкоманд",
+         "Agent\nControl" => "Управление\nагентом",
+         "Action\nJournal" => "Журнал\nдействий",
+-        "About\nGridCraft" => "О\nGridCraft",
++        "About\nUniCore" => "О\nUniCore",
+         "Share" => "Поделиться",
+         "Add Chart\nElement" => "Добавить элемент\nдиаграммы",
+         "Change\nChart Type" => "Изменить тип\nдиаграммы",
+diff --git a/crates/ui-egui/src/i18n/sr.rs b/crates/ui-egui/src/i18n/sr.rs
+index cbf18d4..bc691f6 100644
+--- a/crates/ui-egui/src/i18n/sr.rs
++++ b/crates/ui-egui/src/i18n/sr.rs
+@@ -230,7 +230,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Paleta\nkomandi",
+         "Agent\nControl" => "Kontrola\nagenta",
+         "Action\nJournal" => "Dnevnik\nradnji",
+-        "About\nGridCraft" => "O programu\nGridCraft",
++        "About\nUniCore" => "O programu\nUniCore",
+         "Share" => "Deli",
+         "Add Chart\nElement" => "Dodaj element\ngrafikona",
+         "Change\nChart Type" => "Promeni\ntip grafikona",
+diff --git a/crates/ui-egui/src/i18n/zh.rs b/crates/ui-egui/src/i18n/zh.rs
+index 0017592..b6f54ae 100644
+--- a/crates/ui-egui/src/i18n/zh.rs
++++ b/crates/ui-egui/src/i18n/zh.rs
+@@ -227,7 +227,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "命令\n面板",
+         "Agent\nControl" => "智能体\n控制",
+         "Action\nJournal" => "操作\n日志",
+-        "About\nGridCraft" => "关于\nGridCraft",
++        "About\nUniCore" => "关于\nUniCore",
+         "Share" => "分享",
+         "Add Chart\nElement" => "添加图表\n元素",
+         "Change\nChart Type" => "更改\n图表类型",
+diff --git a/crates/ui-egui/src/icons.rs b/crates/ui-egui/src/icons.rs
+index 3e5cdf3..31fee73 100644
+--- a/crates/ui-egui/src/icons.rs
++++ b/crates/ui-egui/src/icons.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft's icon set, drawn in code on a 16×16 design grid (original artwork; see
++//! UniCore's icon set, drawn in code on a 16×16 design grid (original artwork; see
+ //! ATTRIBUTION.md). Large ribbon icons use the same drawings at 32×32 with accent colours.
+ 
+ use egui::epaint::{CubicBezierShape, PathShape, PathStroke};
+diff --git a/crates/ui-egui/src/keytips/keytip_table/generated.rs b/crates/ui-egui/src/keytips/keytip_table/generated.rs
+index 79920b5..2ad630e 100644
+--- a/crates/ui-egui/src/keytips/keytip_table/generated.rs
++++ b/crates/ui-egui/src/keytips/keytip_table/generated.rs
+@@ -8,7 +8,7 @@ use super::{Action, Entry};
+ pub const SEQUENCES: &[(&str, Entry)] = &[
+     ("H", Entry::Tab("Home")),
+     ("N", Entry::Tab("Insert")),
+-    ("JI", Entry::Tab("Draw")), // Two-letter unit. Deeper Draw letters differ between Excel and GridCraft; left blank for future contributors.
++    ("JI", Entry::Tab("Draw")), // Two-letter unit. Deeper Draw letters differ between Excel and UniCore; left blank for future contributors.
+     ("P", Entry::Tab("Page Layout")),
+     ("M", Entry::Tab("Formulas")),
+     ("A", Entry::Tab("Data")),
+diff --git a/crates/ui-egui/src/keytips/keytips.json b/crates/ui-egui/src/keytips/keytips.json
+index 59aeadc..4f1d478 100644
+--- a/crates/ui-egui/src/keytips/keytips.json
++++ b/crates/ui-egui/src/keytips/keytips.json
+@@ -25,7 +25,7 @@
+    "seq": "JI",
+    "kind": "tab",
+    "target": "Draw",
+-   "note": "Two-letter unit. Deeper Draw letters differ between Excel and GridCraft; left blank for future contributors."
++   "note": "Two-letter unit. Deeper Draw letters differ between Excel and UniCore; left blank for future contributors."
+   },
+   {
+    "seq": "P",
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index f96cdac..8fee228 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft's egui frontend: an Excel-style window (title bar with Quick Access Toolbar,
++//! UniCore's egui frontend: an Excel-style window (title bar with Quick Access Toolbar,
+ //! ribbon, formula bar, grid, sheet tabs, status bar) over `gridcraft-engine`.
+ //!
+ //! The UI is thin: it reads engine state and acts through [`SheetApp::run`] (engine commands by
+@@ -152,7 +152,7 @@ pub enum NoticeKind {
+ }
+ 
+ /// A dismissible bar under the ribbon, in the spirit of Excel's message bar. Used to tell the
+-/// user what an opened file carried that GridCraft handled differently (e.g. preserved macros).
++/// user what an opened file carried that UniCore handled differently (e.g. preserved macros).
+ #[derive(Clone, Debug, PartialEq)]
+ pub struct Notice {
+     pub text: String,
+@@ -185,7 +185,7 @@ pub struct Services {
+     pub paste_html: Option<Box<dyn FnMut() -> Option<String>>>,
+     /// Read the system clipboard's plain text for the ribbon and menu Paste commands (Cmd/Ctrl+V
+     /// gets it from egui's `Event::Paste`). `None` from the host, or no service (web), pastes
+-    /// GridCraft's own clipboard.
++    /// UniCore's own clipboard.
+     pub paste_text: Option<Box<dyn FnMut() -> Option<String>>>,
+     /// Web: deliver a file to the user (name, bytes).
+     pub download: Option<Box<dyn Fn(&str, &[u8])>>,
+@@ -254,11 +254,11 @@ pub struct SheetApp {
+     pub(crate) shots: control::Shots,
+     /// Chart selected on the sheet (id).
+     pub selected_chart: Option<u32>,
+-    /// The system clipboard's text when GridCraft last copied without publishing to it (a
++    /// The system clipboard's text when UniCore last copied without publishing to it (a
+     /// control-channel or MCP `edit.copy`/`edit.cut`). While the system clipboard still holds this
+-    /// text, GridCraft's copy is the newer one and Paste uses it.
++    /// text, UniCore's copy is the newer one and Paste uses it.
+     clipboard_text_at_copy: Option<String>,
+-    /// The system clipboard's text right after GridCraft's last cut (the published text, or the
++    /// The system clipboard's text right after UniCore's last cut (the published text, or the
+     /// text noted for an unpublished cut); `None` after a copy, or once the clipboard is seen
+     /// holding other text. Once the cut has been pasted, Paste leaves this text alone.
+     cut_text: Option<String>,
+@@ -342,7 +342,7 @@ impl SheetApp {
+     pub fn run(&mut self, id: &str, params: Json) -> Result<Json, String> {
+         let r = self.run_command(id, params);
+         // This copy leaves the system clipboard alone: note what it holds, so Paste can tell
+-        // that GridCraft's copy is newer while that text is still there.
++        // that UniCore's copy is newer while that text is still there.
+         if matches!(id, "edit.copy" | "edit.cut") && r.is_ok() {
+             self.clipboard_text_at_copy = self.system_clipboard_text();
+             self.cut_text = if id == "edit.cut" { self.clipboard_text_at_copy.clone() } else { None };
+@@ -423,8 +423,8 @@ impl SheetApp {
+     /// Paste text that came from the system clipboard (Cmd/Ctrl+V, or the ribbon and menu Paste),
+     /// with the clipboard's HTML flavour when the host can read it.
+     ///
+-    /// Excel pastes a cut once: after GridCraft's cut has been pasted, the system clipboard text
+-    /// that came with it is not pasted again over the moved block; GridCraft's own (empty)
++    /// Excel pastes a cut once: after UniCore's cut has been pasted, the system clipboard text
++    /// that came with it is not pasted again over the moved block; UniCore's own (empty)
+     /// clipboard is pasted instead, which reports "Nothing to paste.". Other text means the
+     /// clipboard has moved on, so the cut's text is forgotten and pastes normally later.
+     pub fn paste_external(&mut self, text: String) {
+@@ -444,8 +444,8 @@ impl SheetApp {
+     }
+ 
+     /// Ribbon and menu Paste: paste the text on the system clipboard, as Cmd/Ctrl+V does. With no
+-    /// text there, no host clipboard (web), or the text that was there when GridCraft last copied
+-    /// without publishing, GridCraft's own clipboard is pasted.
++    /// text there, no host clipboard (web), or the text that was there when UniCore last copied
++    /// without publishing, UniCore's own clipboard is pasted.
+     pub fn paste_from_clipboard(&mut self) {
+         match self.system_clipboard_text() {
+             Some(text) if self.session.clipboard.is_none() || self.clipboard_text_at_copy.as_ref() != Some(&text) => self.paste_external(text),
+@@ -538,7 +538,7 @@ impl SheetApp {
+         if e.contains("is not available right now") {
+             self.toast = Some((e, now_ms()));
+         } else {
+-            self.message = Some(("GridCraft".into(), clean_error(&e)));
++            self.message = Some(("UniCore".into(), clean_error(&e)));
+         }
+     }
+ 
+@@ -689,7 +689,7 @@ impl SheetApp {
+         for req in self.session.take_ui_requests() {
+             match req {
+                 UiRequest::Dialog(name, params) => self.open_dialog(&name, params),
+-                UiRequest::Message(m) => self.message = Some(("GridCraft".into(), m)),
++                UiRequest::Message(m) => self.message = Some(("UniCore".into(), m)),
+                 UiRequest::EditCell(text) => {
+                     let text = text.map(|text| {
+                         self.session
+@@ -766,7 +766,7 @@ impl SheetApp {
+             Ok(r) => self.after_open(Some(path), &r),
+             // A password-protected workbook: ask for the password; the dialog opens it.
+             Err(e) if e.contains(gridcraft_engine::io::PASSWORD_REQUIRED) => self.open_dialog("openPassword", json!({"path": path})),
+-            Err(e) => self.message = Some(("GridCraft".into(), clean_error(&e))),
++            Err(e) => self.message = Some(("UniCore".into(), clean_error(&e))),
+         }
+         self.after_engine();
+     }
+@@ -801,7 +801,7 @@ impl SheetApp {
+         let vba: Vec<&str> = msgs.iter().copied().filter(|m| m.to_lowercase().contains("macro") || m.contains("VBA")).collect();
+         if !vba.is_empty() {
+             self.notice = Some(Notice {
+-                text: "This workbook contains VBA macros. GridCraft keeps them intact when you save, but does not run them.".into(),
++                text: "This workbook contains VBA macros. UniCore keeps them intact when you save, but does not run them.".into(),
+                 kind: NoticeKind::Warning,
+                 action: Some(("What this means".into(), "macros".into())),
+             });
+@@ -909,7 +909,7 @@ impl SheetApp {
+         let text = match self.session.active().map(|d| formula_locale::canonical(&text, ed.locale, &d.wb, ed.sheet, ed.cell)) {
+             Some(Ok(text)) => text,
+             Some(Err(error)) => {
+-                self.message = Some(("GridCraft".into(), error.to_string()));
++                self.message = Some(("UniCore".into(), error.to_string()));
+                 self.editor = Some(ed);
+                 self.session.mode = gridcraft_engine::Mode::Edit;
+                 return false;
+@@ -921,7 +921,7 @@ impl SheetApp {
+             && let Some((dv, msg)) = gridcraft_engine::cmd::data::check_validation(&d.wb, ed.sheet, ed.cell, &text)
+         {
+             if dv.error_style == gridcraft_engine::model::ErrorStyle::Stop {
+-                let title = if dv.error_title.is_empty() { "GridCraft".to_string() } else { dv.error_title.clone() };
++                let title = if dv.error_title.is_empty() { "UniCore".to_string() } else { dv.error_title.clone() };
+                 self.message = Some((title, msg));
+                 self.editor = Some(ed);
+                 self.session.mode = gridcraft_engine::Mode::Edit;
+@@ -943,7 +943,7 @@ impl SheetApp {
+                 true
+             }
+             Err(e) => {
+-                self.message = Some(("GridCraft".into(), clean_error(&e)));
++                self.message = Some(("UniCore".into(), clean_error(&e)));
+                 self.editor = Some(ed);
+                 self.session.mode = gridcraft_engine::Mode::Edit;
+                 false
+@@ -1046,7 +1046,7 @@ impl SheetApp {
+         }
+         self.effective_dark = ctx.theme() == egui::Theme::Dark;
+         // Interface size: the preference owns the zoom factor, so egui's own Ctrl/Cmd +/-/0 zoom
+-        // keys stay off (they would also swallow GridCraft's shortcuts).
++        // keys stay off (they would also swallow UniCore's shortcuts).
+         if ctx.options(|o| o.zoom_with_keyboard) {
+             ctx.options_mut(|o| o.zoom_with_keyboard = false);
+         }
+@@ -1075,7 +1075,7 @@ impl SheetApp {
+                     self.backstage = None;
+                     self.open_dialog("openPassword", json!({"name": name, "base64": b64}));
+                 }
+-                Err(e) => self.message = Some(("GridCraft".into(), clean_error(&e))),
++                Err(e) => self.message = Some(("UniCore".into(), clean_error(&e))),
+             }
+             self.after_engine();
+         }
+diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
+index 9c6d89e..63e31e9 100644
+--- a/crates/ui-egui/src/ribbon.rs
++++ b/crates/ui-egui/src/ribbon.rs
+@@ -1439,7 +1439,7 @@ fn insert(app: &mut SheetApp, ui: &mut Ui) {
+             // in dialogs.rs) — otherwise the prior cell/range selection is left in place, and
+             // Del right after inserting deletes the source data instead of the chart.
+             Ok(r) => app.selected_chart = r.get("chart").and_then(serde_json::Value::as_u64).and_then(|id| u32::try_from(id).ok()),
+-            Err(e) => app.message = Some(("GridCraft".into(), crate::clean_error(&e))),
++            Err(e) => app.message = Some(("UniCore".into(), crate::clean_error(&e))),
+         }
+     }
+     ui.vertical(|ui| {
+@@ -2248,7 +2248,7 @@ fn automate(app: &mut SheetApp, ui: &mut Ui) {
+     if __k.clicked() {
+         app.open_dialog("commandSearch", json!({}));
+     }
+-    let __k = big_button(ui, Icon::Script, "Agent\nControl", "How agents drive GridCraft (MCP / control channel)", false);
++    let __k = big_button(ui, Icon::Script, "Agent\nControl", "How agents drive UniCore (MCP / control channel)", false);
+     control_keytip(app, ui, &__k, "agents");
+     if __k.clicked() {
+         app.open_dialog("agents", json!({}));
+@@ -2258,7 +2258,7 @@ fn automate(app: &mut SheetApp, ui: &mut Ui) {
+     if __k.clicked() {
+         app.open_dialog("journal", json!({}));
+     }
+-    let __k = big_button(ui, Icon::Script, "About\nGridCraft", "Version, contributors and the AI models that helped", false);
++    let __k = big_button(ui, Icon::Script, "About\nUniCore", "Version, contributors and the AI models that helped", false);
+     control_keytip(app, ui, &__k, "about");
+     if __k.clicked() {
+         app.open_dialog("about", json!({}));
+diff --git a/crates/xlsx/src/feature_bags.rs b/crates/xlsx/src/feature_bags.rs
+index 71a6514..6e24cf2 100644
+--- a/crates/xlsx/src/feature_bags.rs
++++ b/crates/xlsx/src/feature_bags.rs
+@@ -6,7 +6,7 @@
+ //! bag whose `XFControls` key names an `XFControls` bag, whose `CellControl` key names a
+ //! `Checkbox` bag. Bag references are zero-based indexes into the part's list of `bag` elements.
+ //!
+-//! GridCraft keeps a checkbox as the `checkbox` number format in its model, so reading maps each
++//! UniCore keeps a checkbox as the `checkbox` number format in its model, so reading maps each
+ //! `xfComplement` that resolves to a `Checkbox` bag onto that format, and writing emits one chain
+ //! that every checkbox `xf` points at.
+ 
+diff --git a/crates/xlsx/src/lib.rs b/crates/xlsx/src/lib.rs
+index 3300f97..c42a047 100644
+--- a/crates/xlsx/src/lib.rs
++++ b/crates/xlsx/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! GridCraft file formats: XLSX (transitional and strict) and CSV import/export, plus XLSB and ODS data import
++//! UniCore file formats: XLSX (transitional and strict) and CSV import/export, plus XLSB and ODS data import
+ //! and legacy Excel 97-2003 `.xls` (BIFF8) import, and password-encrypted workbooks (Agile and Standard encryption).
+ //!
+ //! Clean-room implementation from ECMA-376 / ISO/IEC 29500 and observed behaviour. All entry
+diff --git a/crates/xlsx/src/passthrough.rs b/crates/xlsx/src/passthrough.rs
+index dd881c1..5c6b809 100644
+--- a/crates/xlsx/src/passthrough.rs
++++ b/crates/xlsx/src/passthrough.rs
+@@ -1,4 +1,4 @@
+-//! Pass-through of package content GridCraft does not model, so that open → edit → save keeps it.
++//! Pass-through of package content UniCore does not model, so that open → edit → save keeps it.
+ //!
+ //! On read, the raw bytes of unmodelled parts are kept with their content type and their
+ //! relationship graph, per owner: the package root (custom document properties, ribbon
+@@ -11,7 +11,7 @@
+ //!
+ //! On write, kept parts get fresh part names where needed and new relationship ids; the `r:id`s in
+ //! kept XML are rewritten to match. Kept content is conservative:
+-//! - Anything whose relationship graph reaches a part GridCraft reads and rewrites (worksheets,
++//! - Anything whose relationship graph reaches a part UniCore reads and rewrites (worksheets,
+ //!   drawings, charts, tables, PivotTables, comments, slicers…) is not kept: it would point at
+ //!   content that no longer exists in the same form.
+ //! - External relationship targets (the path of a linked workbook) are kept as text and never
+@@ -94,7 +94,7 @@ const NS_CALC_FEATURES: &str = "http://schemas.microsoft.com/office/spreadsheetm
+ /// Kept sheet elements, in schema order (all after `<legacyDrawing>`, before `<tableParts>`).
+ const SHEET_SLOTS: &[&str] = &["picture", "oleObjects", "controls"];
+ 
+-/// Relationship kinds GridCraft reads and rewrites, or that depend on content it rewrites:
++/// Relationship kinds UniCore reads and rewrites, or that depend on content it rewrites:
+ /// kept content whose graph reaches one of them is dropped.
+ const REWRITTEN: &[&str] = &[
+     "officedocument",
+@@ -143,7 +143,7 @@ const REWRITTEN: &[&str] = &[
+ /// their style, colour and shape parts are kept byte for byte (the chart sheet is not modelled).
+ const CHART_SHEET_GRAPH: &[&str] = &["chartsheet", "drawing", "chart", "chartex", "chartstyle", "chartcolorstyle", "chartusershapes"];
+ 
+-/// Part-name prefixes (lower case) GridCraft's writer never produces: kept parts there keep their
++/// Part-name prefixes (lower case) UniCore's writer never produces: kept parts there keep their
+ /// original names. Anything else is renamed so it can't collide with written parts.
+ const OWN_DIRS: &[&str] = &[
+     "customxml/",
+@@ -542,7 +542,7 @@ impl KeptReader {
+         }
+     }
+ 
+-    /// The sheet's VML drawing without its notes (GridCraft writes those), and the parts its
++    /// The sheet's VML drawing without its notes (UniCore writes those), and the parts its
+     /// shapes refer to (preview images).
+     fn vml(
+         &mut self,
+@@ -738,7 +738,7 @@ fn shape_numbers(vml: &str) -> Vec<u64> {
+         .collect()
+ }
+ 
+-/// Kept VML (controls, OLE objects) plus GridCraft's note shapes: the notes get ids in a fresh
++/// Kept VML (controls, OLE objects) plus UniCore's note shapes: the notes get ids in a fresh
+ /// shape block so they can't collide with the kept shapes the sheet XML refers to.
+ fn merge_vml(kept: &str, ours: &str) -> String {
+     let Some(close) = kept.rfind("</xml>") else { return ours.to_string() };
+@@ -1127,7 +1127,7 @@ impl<'a> SheetKept<'a> {
+         }
+     }
+ 
+-    /// GridCraft's notes VML for part `name`, merged with the kept control and object shapes.
++    /// UniCore's notes VML for part `name`, merged with the kept control and object shapes.
+     pub fn notes_vml(&self, ours: String, name: &str, out: &mut Out) -> String {
+         let Some(vml) = self.vml() else { return ours };
+         self.write_vml_rels(vml, name, out);
+diff --git a/crates/xlsx/src/pivot.rs b/crates/xlsx/src/pivot.rs
+index 609ae53..24b68e3 100644
+--- a/crates/xlsx/src/pivot.rs
++++ b/crates/xlsx/src/pivot.rs
+@@ -683,7 +683,7 @@ fn cache_xml(c: &Cache, records_rid: Option<&str>, sys: DateSystem) -> String {
+         }
+         _ => s.push_str(" saveData=\"0\""),
+     }
+-    s.push_str(" refreshOnLoad=\"1\" refreshedBy=\"GridCraft\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\">");
++    s.push_str(" refreshOnLoad=\"1\" refreshedBy=\"UniCore\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\">");
+     let _ = write!(s, "<cacheSource type=\"worksheet\">{}</cacheSource>", c.source_xml);
+     let _ = write!(s, "<cacheFields count=\"{}\">", c.fields.len());
+     for f in &c.fields {
+diff --git a/crates/xlsx/src/read.rs b/crates/xlsx/src/read.rs
+index 1a47908..82d50cd 100644
+--- a/crates/xlsx/src/read.rs
++++ b/crates/xlsx/src/read.rs
+@@ -326,7 +326,7 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
+         wb.props.company = x.child("Company").map(|e| e.text.clone()).unwrap_or_default();
+     }
+ 
+-    // A VBA project is carried through unchanged: GridCraft never runs macros, but preserving the
++    // A VBA project is carried through unchanged: UniCore never runs macros, but preserving the
+     // binary keeps macro-enabled workbooks from being silently stripped on save.
+     if let Some(r) = find_rel(&wb_rels, "vbaProject").cloned() {
+         match cx.pkg.read(&r.target) {
+diff --git a/crates/xlsx/src/write.rs b/crates/xlsx/src/write.rs
+index 06761f0..067e530 100644
+--- a/crates/xlsx/src/write.rs
++++ b/crates/xlsx/src/write.rs
+@@ -427,7 +427,7 @@ pub fn write_xlsx(wb: &Workbook, kind: XlsxKind) -> Result<Vec<u8>, IoError> {
+     core.push_str("</cp:coreProperties>");
+     out.part("docProps/core.xml", Some("application/vnd.openxmlformats-package.core-properties+xml"), core.into_bytes());
+     let mut app = String::from(XML_DECL);
+-    app.push_str("<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><Application>GridCraft</Application>");
++    app.push_str("<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><Application>UniCore</Application>");
+     if !p.company.is_empty() {
+         let _ = write!(app, "<Company>{}</Company>", esc(&p.company));
+     }
+diff --git a/crates/xlsx/src/xls/formula.rs b/crates/xlsx/src/xls/formula.rs
+index 3de8607..3a7802c 100644
+--- a/crates/xlsx/src/xls/formula.rs
++++ b/crates/xlsx/src/xls/formula.rs
+@@ -337,7 +337,7 @@ pub(super) fn decode(rgce: &[u8], rgcb: &[u8], base: CellRef, mode: Mode, links:
+                 // A cell using a name the import drops would calculate to #NAME?: keep its
+                 // saved result instead, as for references to other workbooks.
+                 if mode != Mode::Name && i.and_then(|i| links.skipped.get(i)) == Some(&true) {
+-                    return Err(Unsupported("defined names GridCraft skipped"));
++                    return Err(Unsupported("defined names UniCore skipped"));
+                 }
+                 push(&mut stack, kids, Expr::Name(name.clone()))?;
+             }
+diff --git a/crates/xlsx/src/xls/mod.rs b/crates/xlsx/src/xls/mod.rs
+index dde8641..792ce7a 100644
+--- a/crates/xlsx/src/xls/mod.rs
++++ b/crates/xlsx/src/xls/mod.rs
+@@ -47,7 +47,7 @@ pub(crate) fn invalid(msg: impl Into<String>) -> IoError {
+ 
+ /// The message for an encrypted workbook (a FilePass record).
+ const ENCRYPTED: &str =
+-    "this .xls workbook is password-protected (encrypted). GridCraft can't open encrypted .xls files; remove the password in Excel and try again.";
++    "this .xls workbook is password-protected (encrypted). UniCore can't open encrypted .xls files; remove the password in Excel and try again.";
+ 
+ /// Whether the bytes are a compound file holding an Excel workbook stream (BIFF8 `Workbook`
+ /// or BIFF5 `Book`).
+@@ -191,7 +191,7 @@ pub(crate) fn read_xls_with(bytes: &[u8], mut budget: Budget) -> Result<(Workboo
+         wb.sheets.push(Arc::new(sheet));
+     }
+     if wb.sheets.is_empty() {
+-        return Err(invalid("the workbook has no worksheets GridCraft can read"));
++        return Err(invalid("the workbook has no worksheets UniCore can read"));
+     }
+     wb.calc.precision_as_displayed = g.precision_as_displayed;
+     defined_names(&g, &model_index, &mut wb, &mut report);
+@@ -456,7 +456,7 @@ impl SheetState<'_> {
+                 let text = gridcraft_formula::print(&e);
+                 let mut f = Formula::new(&text);
+                 if f.expr.is_none() {
+-                    self.unsupported("syntax GridCraft can't parse yet");
++                    self.unsupported("syntax UniCore can't parse yet");
+                     return;
+                 }
+                 f.array = array.filter(|r| !r.is_single());

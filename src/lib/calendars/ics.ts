@@ -205,8 +205,99 @@ function expand(first: Date, rule: Rule, limit: Date): Date[] {
   return out;
 }
 
-// Devuelve los eventos del calendario que caen entre `from` y `to` (con las repeticiones ya abiertas).
-export function parseIcs(text: string, from: Date, to: Date): IcsEvent[] {
+// Inicios de cada repetición de una regla RRULE (desde `start` hasta `to`). Sin regla válida, sólo `start`.
+export function expandRRule(start: Date, rrule: string, to: Date): Date[] {
+  const rule = parseRule(rrule.replace(/^RRULE:/i, ""));
+  return rule ? expand(start, rule, to) : [start];
+}
+
+// Eventos del archivo tal como vienen (sin abrir las repeticiones), para importarlos a un calendario propio.
+export interface IcsSeries extends IcsEvent {
+  rrule?: string;
+  exdates?: Date[];
+}
+
+export function parseIcsSeries(text: string): IcsSeries[] {
+  const out: IcsSeries[] = [];
+  for (const b of readBlocks(text)) {
+    if (b.STATUS?.[0]?.value.toUpperCase() === "CANCELLED") continue;
+    const startParsed = b.DTSTART?.[0] && parseDate(b.DTSTART[0]);
+    if (!startParsed) continue;
+    const { date: start, allDay } = startParsed;
+    let end = b.DTEND?.[0] ? parseDate(b.DTEND[0])?.date : undefined;
+    if (!end && b.DURATION?.[0]) {
+      const ms = parseDuration(b.DURATION[0].value);
+      if (ms !== null) end = new Date(start.getTime() + ms);
+    }
+    const exdates = (b.EXDATE ?? []).flatMap((ex) => ex.value.split(",").flatMap((v) => parseDate({ params: ex.params, value: v })?.date ?? []));
+    out.push({
+      uid: b.UID?.[0]?.value ?? `${start.getTime()}`,
+      title: unescapeText(b.SUMMARY?.[0]?.value ?? "").trim() || "Sin título",
+      start,
+      end,
+      allDay,
+      location: unescapeText(b.LOCATION?.[0]?.value ?? "").trim() || undefined,
+      description: unescapeText(b.DESCRIPTION?.[0]?.value ?? "").trim() || undefined,
+      rrule: b.RRULE?.[0] && !b["RECURRENCE-ID"] ? b.RRULE[0].value : undefined,
+      exdates: exdates.length ? exdates : undefined,
+    });
+  }
+  return out;
+}
+
+// ---------- Escritura ----------
+
+export interface IcsOut {
+  uid: string;
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+  location?: string;
+  description?: string;
+  categories?: string;
+  rrule?: string;
+  exdates?: Date[];
+  reminders?: number[];
+  status?: string;
+}
+
+const escapeText = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const pad = (n: number) => String(n).padStart(2, "0");
+const utcStamp = (d: Date) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+const dayStamp = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+
+// Corta los renglones largos a 75 caracteres, como pide el formato.
+function fold(line: string): string {
+  if (line.length <= 75) return line;
+  const parts: string[] = [];
+  for (let i = 0; i < line.length; i += i === 0 ? 75 : 74) parts.push(line.slice(i, i + (i === 0 ? 75 : 74)));
+  return parts.join("\r\n ");
+}
+
+// Arma un archivo .ics con eventos (sirve para Google Calendar, Outlook, Thunderbird, el celular…).
+export function buildIcs(name: string, events: IcsOut[]): string {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//UniCore//Calendario//ES", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${escapeText(name)}`];
+  const now = utcStamp(new Date());
+  for (const e of events) {
+    lines.push("BEGIN:VEVENT", `UID:${e.uid}`, `DTSTAMP:${now}`);
+    if (e.allDay) lines.push(`DTSTART;VALUE=DATE:${dayStamp(e.start)}`, `DTEND;VALUE=DATE:${dayStamp(e.end)}`);
+    else lines.push(`DTSTART:${utcStamp(e.start)}`, `DTEND:${utcStamp(e.end)}`);
+    lines.push(`SUMMARY:${escapeText(e.title)}`);
+    if (e.location) lines.push(`LOCATION:${escapeText(e.location)}`);
+    if (e.description) lines.push(`DESCRIPTION:${escapeText(e.description)}`);
+    if (e.categories) lines.push(`CATEGORIES:${escapeText(e.categories)}`);
+    if (e.status) lines.push(`STATUS:${e.status}`);
+    if (e.rrule) lines.push(`RRULE:${e.rrule}`);
+    for (const x of e.exdates ?? []) lines.push(e.allDay ? `EXDATE;VALUE=DATE:${dayStamp(x)}` : `EXDATE:${utcStamp(x)}`);
+    for (const m of e.reminders ?? []) lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${escapeText(e.title)}`, `TRIGGER:-PT${m}M`, "END:VALARM");
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.map(fold).join("\r\n") + "\r\n";
+}
+
+function readBlocks(text: string): Record<string, Prop[]>[] {
   const lines = unfold(text);
   const blocks: Record<string, Prop[]>[] = [];
   let current: Record<string, Prop[]> | null = null;
@@ -228,6 +319,12 @@ export function parseIcs(text: string, from: Date, to: Date): IcsEvent[] {
       (current[name] ??= []).push(prop);
     }
   }
+  return blocks;
+}
+
+// Devuelve los eventos del calendario que caen entre `from` y `to` (con las repeticiones ya abiertas).
+export function parseIcs(text: string, from: Date, to: Date): IcsEvent[] {
+  const blocks = readBlocks(text);
 
   // Cambios de una sola fecha de un evento repetido: se reemplaza esa repetición.
   const overridden = new Set<string>();

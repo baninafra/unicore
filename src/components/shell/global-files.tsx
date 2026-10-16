@@ -7,7 +7,7 @@
 // - el resto (imagen, texto, CSV) se vuelve una nota nueva.
 
 import { useEffect, useRef, useState } from "react";
-import { FileSpreadsheet, FileText, FileType, NotebookPen, Presentation } from "lucide-react";
+import { DraftingCompass, FileSpreadsheet, FileText, FileType, NotebookPen, Presentation } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace";
 import { folderForView } from "@/lib/nav/actions";
 import { importFileAsNote, fileKind } from "@/lib/import/import-file";
@@ -18,13 +18,14 @@ import { isVideoFile } from "@/lib/video";
 import { Modal } from "@/components/ui/modal";
 import type { OfficeKind } from "@/lib/types";
 
-const KIND_ICON = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, pdf: FileType } as const;
-const EDITOR_NAME: Record<OfficeKind, string> = { doc: "documentos", sheet: "planillas", deck: "presentaciones", pdf: "PDF" };
+const KIND_ICON = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, pdf: FileType, geo: DraftingCompass } as const;
+const EDITOR_NAME: Record<OfficeKind, string> = { doc: "documentos", sheet: "planillas", deck: "presentaciones", pdf: "PDF", geo: "construcciones de geometría" };
 const EDITOR_HINT: Record<OfficeKind, string> = {
   doc: "Lo editás con formato, como en Word.",
   sheet: "Lo editás con fórmulas y gráficos, como en Excel.",
   deck: "Lo editás y lo presentás, como en PowerPoint.",
   pdf: "Lo anotás, firmás, ordenás y combinás.",
+  geo: "La abrís con gráficos, geometría, 3D y cálculo simbólico.",
 };
 
 type Ask = { files: File[]; folder: string };

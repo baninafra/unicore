@@ -71,7 +71,7 @@ export function GradesTool() {
   else verdict = `En lo que falta (${grade(pending, 0)} %) necesitás un ${grade(needed)} de promedio.`;
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="tool-pane">
       <div className="grid grid-cols-[1fr_64px_64px_24px] items-center gap-1.5">
         <span className="t-label text-muted">Instancia</span>
         <span className="t-label text-muted">Nota</span>

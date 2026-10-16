@@ -153,8 +153,8 @@ export interface PdfHighlight {
   createdAt: string;
 }
 
-// Archivos que se editan con los editores incrustados (Word, Excel, PowerPoint, PDF).
-export type OfficeKind = "doc" | "sheet" | "deck" | "pdf";
+// Archivos que se editan con los editores incrustados (Word, Excel, PowerPoint, PDF, geometría).
+export type OfficeKind = "doc" | "sheet" | "deck" | "pdf" | "geo";
 
 export interface OfficeDoc {
   id: string;
@@ -210,6 +210,7 @@ export type CalendarColor = "primary" | "cyan" | "mint" | "amber" | "rose";
 export interface CalendarSource {
   id: string;
   name: string;
+  local?: boolean; // calendario propio (sus eventos se editan en UniCore); sin esto, es una suscripción iCal
   url?: string; // enlace iCal (https o webcal)
   ics?: string; // texto del archivo .ics cuando se importó un archivo
   color: CalendarColor;
@@ -231,6 +232,42 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
 }
+
+// Eventos propios, estilo Thunderbird: viven en un calendario local, se pueden repetir, tener recordatorios
+// y estar vinculados a una tarea (por ejemplo, el bloque de estudio para un parcial) o a una materia.
+export type EventCategory = "CLASE" | "ESTUDIO" | "EXAMEN" | "ENTREGA" | "REUNION" | "PERSONAL" | "OTRO";
+export type EventStatus = "CONFIRMED" | "TENTATIVE" | "CANCELLED";
+
+export interface CalEvent {
+  id: string;
+  calendarId: string; // calendario local (CalendarSource con local = true)
+  title: string;
+  start: string; // ISO
+  end: string; // ISO (en eventos de día completo es exclusivo: el día siguiente a las 00:00)
+  allDay: boolean;
+  location?: string;
+  description?: string;
+  category?: EventCategory;
+  status?: EventStatus;
+  rrule?: string; // regla de repetición iCalendar, ej. "FREQ=WEEKLY;BYDAY=MO,WE;UNTIL=20261201T000000Z"
+  exdates?: string[]; // inicios (ISO) de repeticiones borradas
+  reminders?: number[]; // minutos antes del inicio
+  subjectId?: string;
+  taskId?: string; // tarea vinculada
+  noteId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const EVENT_CATEGORY_LABEL: Record<EventCategory, string> = {
+  CLASE: "Clase",
+  ESTUDIO: "Estudio",
+  EXAMEN: "Examen",
+  ENTREGA: "Entrega",
+  REUNION: "Reunión",
+  PERSONAL: "Personal",
+  OTRO: "Otro",
+};
 
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {
   PARCIAL: "Parcial",

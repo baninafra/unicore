@@ -60,7 +60,7 @@ export function BasesTool() {
       : "";
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="tool-pane">
       {BASES.map((b) => (
         <label key={b.base} className="field">
           <span>

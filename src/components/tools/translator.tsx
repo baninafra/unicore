@@ -91,7 +91,7 @@ export function TranslatorTool() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="tool-pane">
       <div className="flex items-end gap-1.5">
         <label className="field min-w-0 flex-1">
           <span>De</span>

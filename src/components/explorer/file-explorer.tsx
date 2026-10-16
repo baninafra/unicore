@@ -5,7 +5,7 @@ import { renameFolder, useFolderNames } from "@/lib/folder-names";
 import { addIdea } from "@/views/ideas-view";
 import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
@@ -54,7 +54,7 @@ type Dialog =
   | { type: "move"; kind: "note" | "canvas" | "file"; id: string }
   | { type: "delete"; kind: "note" | "canvas" | "file"; id: string; title: string };
 
-const FILE_ICONS = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation } as const;
+const FILE_ICONS = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, geo: DraftingCompass } as const;
 
 const SORT_LABEL: Record<SortMode, string> = { nombre: "Nombre", modificacion: "Modificación", creacion: "Creación" };
 
@@ -349,7 +349,7 @@ export function FileExplorer() {
 
   const headerNewNote = () => safe(async () => openView({ type: "nota", id: await newNoteForView(activeView) }));
   const headerNewCanvas = () => safe(async () => openView({ type: "canvas", id: await newCanvasForView(activeView) }));
-  const headerNewFile: MenuItem[] = (["doc", "sheet", "deck"] as const).map((kind) => ({
+  const headerNewFile: MenuItem[] = (["doc", "sheet", "deck", "geo"] as const).map((kind) => ({
     label: EDITOR_KINDS[kind].newLabel,
     icon: FILE_ICONS[kind],
     onSelect: () => safe(async () => openView({ type: "editor", id: await newOfficeForView(kind, activeView) })),
@@ -461,6 +461,10 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
   const isLevel = !node.view; // carpetas, carreras, años y unidades
   const Icon = node.icon;
   const dropping = !!node.drop && ctx.dropKey === node.key;
+  // Al arrastrar algo y quedarse encima de una carpeta cerrada, se abre sola.
+  const expandTimer = useRef<number | undefined>(undefined);
+  const stopExpand = () => window.clearTimeout(expandTimer.current);
+  useEffect(() => stopExpand, []);
 
   return (
     <>
@@ -485,16 +489,23 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
           e.dataTransfer.setData("text/plain", node.label);
           e.dataTransfer.effectAllowed = "move";
         }}
+        onDragEnter={(e: DragEvent<HTMLDivElement>) => {
+          if (!expandable || expanded || !Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
+          stopExpand();
+          expandTimer.current = window.setTimeout(() => ctx.toggle(node.key), 600);
+        }}
         onDragOver={(e: DragEvent<HTMLDivElement>) => {
           if (!node.drop || !Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
           if (ctx.dropKey !== node.key) ctx.setDropKey(node.key);
         }}
-        onDragLeave={() => {
+        onDragLeave={(e: DragEvent<HTMLDivElement>) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) stopExpand();
           if (ctx.dropKey === node.key) ctx.setDropKey(null);
         }}
         onDrop={(e: DragEvent<HTMLDivElement>) => {
+          stopExpand();
           if (!node.drop) return;
           e.preventDefault();
           ctx.setDropKey(null);

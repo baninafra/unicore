@@ -47,3 +47,6 @@ next-env.d.ts
 # Editores incrustados (se arman con scripts/build-editors.sh)
 /.editors-src/
 /public/editors/
+
+# Piezas descargadas (scripts/fetch-vendor.sh)
+/public/vendor/

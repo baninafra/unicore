@@ -1,113 +1,78 @@
 "use client";
 
+// Vista de mes y de varias semanas: una celda por día con sus eventos, tareas y fechas del cronograma.
+// Clic en un hueco crea un evento ese día; se arrastran eventos y tareas de un día a otro (conservan la hora)
+// y se sueltan tareas desde la lista. Clic en el número abre el día.
+
 import { useState } from "react";
 import clsx from "clsx";
-import { format, isSameMonth, isToday } from "date-fns";
-import { useAppState } from "@/lib/app-state";
-import type { CalendarColor, CalendarEvent, Task, TaskType } from "@/lib/types";
-import { CALENDAR_BORDER } from "@/lib/calendars/sync";
-import { TASK_TYPE_LABEL } from "@/lib/types";
-import { endOfDayIso } from "@/components/tasks/task-meta";
-import { useTaskMenu } from "@/components/tasks/task-menu";
+import { addDays, format, isSameMonth, isToday, startOfDay } from "date-fns";
+import type { CalItem } from "@/lib/calendars/events";
+import { ITEM_MIME, ItemChip, TASK_MIME } from "./calendar-parts";
+import type { GridHandlers } from "./time-grid";
 
 const WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
 const WEEKDAYS_SUNDAY_FIRST = ["dom", ...WEEKDAYS.slice(0, 6)];
-const VISIBLE_EVENTS = 3;
+const DAY_MS = 86_400_000;
 
 export function dayKey(date: Date) {
   return format(date, "yyyy-MM-dd");
 }
 
-// Color del borde izquierdo según el tipo: parciales y finales en rosa, entregas en ámbar, el resto en gris.
-function borderFor(type: TaskType) {
-  if (type === "PARCIAL" || type === "FINAL") return "border-rose";
-  if (type === "TP" || type === "FORO") return "border-amber";
-  return "border-border-strong";
-}
-
-export type ExternalEvent = CalendarEvent & { color: CalendarColor; calendarName: string };
-
-// Evento de un calendario externo: sólo se mira (se edita en su calendario de origen).
-function ExternalLine({ event }: { event: ExternalEvent }) {
-  const time = event.allDay ? "" : `${format(new Date(event.start), "HH:mm")} `;
-  const detail = [event.calendarName, event.location].filter(Boolean).join(" · ");
-  return (
-    <div
-      title={`${event.title}
-${detail}`}
-      onClick={(e) => e.stopPropagation()}
-      className={clsx(
-        "flex w-full min-w-0 cursor-default items-center border-l-2 pl-1.5 text-left text-xs leading-5 text-muted",
-        CALENDAR_BORDER[event.color],
-      )}
-    >
-      <span className="truncate">
-        {time && <span className="num text-faint">{time}</span>}
-        {event.title}
-      </span>
-    </div>
-  );
-}
-
-function EventLine({ task }: { task: Task }) {
-  const { openTaskDialog } = useAppState();
-  const { show, menu } = useTaskMenu();
-  const done = task.status === "DONE";
-  return (
-    <>
-      <button
-        type="button"
-        title={`${TASK_TYPE_LABEL[task.type]}: ${task.title}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          openTaskDialog(task);
-        }}
-        onContextMenu={(e) => {
-          e.stopPropagation();
-          show(e, task);
-        }}
-        className={clsx(
-          "flex w-full min-w-0 cursor-default items-center border-l-2 pl-1.5 text-left text-xs leading-5 text-text hover:bg-surface-raised",
-          borderFor(task.type),
-          done && "text-faint line-through opacity-70",
-        )}
-      >
-        <span className="truncate">{task.title}</span>
-      </button>
-      {menu}
-    </>
-  );
-}
-
-// Grilla de mes lunes a domingo con líneas finas. Clic en un día vacío crea una tarea con esa fecha.
 export function MonthGrid({
   days,
   month,
-  tasksByDay,
-  eventsByDay,
+  items,
   weekStart = "lun",
+  h,
+  compact,
 }: {
   days: Date[];
-  month: Date;
-  tasksByDay: Map<string, Task[]>;
-  eventsByDay?: Map<string, ExternalEvent[]>;
+  month?: Date; // en la vista de mes, los días de otros meses van más tenues
+  items: CalItem[];
   weekStart?: "lun" | "dom";
+  h: GridHandlers;
+  compact?: boolean;
 }) {
-  const { openTaskDialog } = useAppState();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [over, setOver] = useState<string | null>(null);
+  const weeks = Math.ceil(days.length / 7);
+  const visible = compact ? 3 : weeks <= 4 ? 5 : 4;
 
-  function toggleExpanded(key: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const byDay = new Map<string, CalItem[]>();
+  for (const it of items) {
+    // Un evento largo aparece en cada día que ocupa.
+    let d = startOfDay(it.start);
+    const last = new Date(Math.max(it.start.getTime(), it.end.getTime() - 1));
+    for (let n = 0; n < 62 && d <= last; n++, d = addDays(d, 1)) {
+      const k = dayKey(d);
+      byDay.set(k, [...(byDay.get(k) ?? []), it]);
+    }
   }
 
+  const drop = (e: React.DragEvent, day: Date) => {
+    setOver(null);
+    const task = e.dataTransfer.getData(TASK_MIME);
+    const key = e.dataTransfer.getData(ITEM_MIME);
+    if (!task && !key) return;
+    e.preventDefault();
+    if (task) return h.onDropTask(task, startOfDay(day), true);
+    const it = items.find((x) => x.key === key);
+    if (!it) return;
+    const shift = Math.round((startOfDay(day).getTime() - startOfDay(it.start).getTime()) / DAY_MS) * DAY_MS;
+    if (!shift) return;
+    // Correr días respetando la hora local aunque cambie el horario de verano.
+    const move = (d: Date) => {
+      const x = new Date(d);
+      x.setDate(x.getDate() + Math.round(shift / DAY_MS));
+      return x;
+    };
+    h.onMove(it, move(it.start), move(it.end), it.allDay);
+  };
+
   return (
-    <div className="min-w-[640px] overflow-x-auto">
-      <div className="grid grid-cols-7">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="grid flex-none grid-cols-7">
         {(weekStart === "dom" ? WEEKDAYS_SUNDAY_FIRST : WEEKDAYS).map((d) => (
           <div key={d} className="t-label px-2 pb-1.5">
             {d}
@@ -115,50 +80,66 @@ export function MonthGrid({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden border-y border-border bg-border">
+      <div className="grid min-h-0 flex-1 grid-cols-7 gap-px overflow-y-auto border-y border-border bg-border" style={{ gridTemplateRows: `repeat(${weeks}, minmax(${compact ? 96 : 110}px, 1fr))` }}>
         {days.map((day) => {
           const key = dayKey(day);
-          const dayTasks = tasksByDay.get(key) ?? [];
-          const dayEvents = eventsByDay?.get(key) ?? [];
-          const total = dayEvents.length + dayTasks.length;
+          const list = byDay.get(key) ?? [];
           const isExpanded = expanded.has(key);
-          const limit = isExpanded ? total : VISIBLE_EVENTS;
-          const shownEvents = dayEvents.slice(0, limit);
-          const shown = dayTasks.slice(0, Math.max(0, limit - shownEvents.length));
-          const hidden = total - shownEvents.length - shown.length;
+          const shown = isExpanded ? list : list.slice(0, visible);
+          const hidden = list.length - shown.length;
           const today = isToday(day);
-          const inMonth = isSameMonth(day, month);
+          const inMonth = !month || isSameMonth(day, month);
 
           return (
             <div
               key={key}
-              onClick={() => openTaskDialog({ dueDate: endOfDayIso(day) })}
-              className="flex min-h-[104px] min-w-0 cursor-default flex-col gap-0.5 bg-surface p-1.5 hover:bg-surface-raised"
+              onClick={() => {
+                const s = new Date(day);
+                s.setHours(9, 0, 0, 0);
+                h.onCreate(s, new Date(s.getTime() + 3_600_000), false);
+              }}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(TASK_MIME) && !e.dataTransfer.types.includes(ITEM_MIME)) return;
+                e.preventDefault();
+                setOver(key);
+              }}
+              onDragLeave={() => setOver((o) => (o === key ? null : o))}
+              onDrop={(e) => drop(e, day)}
+              className={clsx("flex min-w-0 cursor-default flex-col gap-0.5 p-1", inMonth ? "bg-surface" : "bg-bg", over === key && "bg-primary-tint", "hover:bg-surface-raised")}
             >
-              <span
-                className={clsx(
-                  "num t-small flex h-5 w-5 flex-none items-center justify-center rounded-full",
-                  today ? "bg-primary-fill text-on-primary" : inMonth ? "text-muted" : "text-faint",
-                )}
-              >
-                {format(day, "d")}
-              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  title="Ver este día"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    h.onPickDay(day);
+                  }}
+                  className={clsx(
+                    "num t-small flex h-5 min-w-5 flex-none items-center justify-center rounded-full px-1 hover:bg-surface-raised",
+                    today ? "bg-primary-fill font-semibold text-on-primary hover:bg-primary-fill" : inMonth ? "text-muted" : "text-faint",
+                  )}
+                >
+                  {day.getDate() === 1 ? format(day, "d MMM") : format(day, "d")}
+                </button>
+              </div>
 
-              {shownEvents.map((event) => (
-                <ExternalLine key={event.id} event={event} />
+              {shown.map((it) => (
+                <ItemChip key={it.key} it={it} onOpen={h.onOpen} onContext={h.onContext} onToggleTask={h.onToggleTask} draggable />
               ))}
 
-              {shown.map((task) => (
-                <EventLine key={task.id} task={task} />
-              ))}
-
-              {total > VISIBLE_EVENTS && (
+              {list.length > visible && (
                 <button
                   type="button"
                   className="px-1.5 text-left text-xs text-faint hover:text-text"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleExpanded(key);
+                    setExpanded((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(key)) next.delete(key);
+                      else next.add(key);
+                      return next;
+                    });
                   }}
                 >
                   {isExpanded ? "Ver menos" : `+${hidden} más`}

@@ -88,7 +88,7 @@ export async function syncCalendar(cal: CalendarSource): Promise<void> {
 }
 
 export async function syncAllCalendars(): Promise<void> {
-  const list = await db.calendars.toArray();
+  const list = (await db.calendars.toArray()).filter((c) => !c.local);
   await Promise.all(list.map(syncCalendar));
 }
 
@@ -114,8 +114,9 @@ export async function removeCalendar(id: string): Promise<void> {
   });
 }
 
+// Calendarios suscritos (los propios están en events.ts).
 export function useCalendars(): CalendarSource[] {
-  return useLiveQuery(() => db.calendars.orderBy("createdAt").toArray(), []) ?? [];
+  return useLiveQuery(async () => (await db.calendars.orderBy("createdAt").toArray()).filter((c) => !c.local), []) ?? [];
 }
 
 // Eventos de los calendarios que están visibles.

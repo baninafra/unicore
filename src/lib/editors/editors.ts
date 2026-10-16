@@ -1,6 +1,6 @@
 "use client";
 
-// Editores incrustados: documento (Word), planilla (Excel), presentación (PowerPoint) y PDF.
+// Editores incrustados: documento (Word), planilla (Excel), presentación (PowerPoint), PDF y geometría (GeoGebra).
 // Cada uno es una app WebAssembly en public/editors/<tipo>/ que corre en un iframe y habla con
 // UniCore por postMessage (ver editor-view.tsx). Acá viven los archivos y el registro de editores
 // abiertos, que usan la vista y las herramientas de la IA.
@@ -23,6 +23,7 @@ export const EDITOR_KINDS: Record<OfficeKind, EditorKindInfo> = {
   sheet: { label: "Planilla", newLabel: "Nueva planilla", ext: "xlsx", accepts: ["xlsx", "xlsm", "xls", "ods", "csv", "tsv"], path: "/editors/sheet/", saveCommand: "file.save" },
   deck: { label: "Presentación", newLabel: "Nueva presentación", ext: "pptx", accepts: ["pptx", "odp"], path: "/editors/deck/", saveCommand: "file.save" },
   pdf: { label: "PDF", newLabel: "Nuevo PDF", ext: "pdf", accepts: ["pdf"], path: "/editors/pdf/", saveCommand: "file.save" },
+  geo: { label: "Geometría", newLabel: "Nueva construcción", ext: "ggb", accepts: ["ggb"], path: "/editors/geo/", saveCommand: "file.save" },
 };
 
 export const OFFICE_KINDS = Object.keys(EDITOR_KINDS) as OfficeKind[];

@@ -16,6 +16,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Ruler,
+  ScanLine,
   Search,
   Sparkles,
   SquareArrowOutUpRight,
@@ -33,9 +34,11 @@ import { OutgoingPane } from "@/components/panes/outgoing-pane";
 import { OutlinePane } from "@/components/panes/outline-pane";
 import { TagsPane } from "@/components/panes/tags-pane";
 import { PropertiesPane } from "@/components/panes/properties-pane";
+import { useOrder, useReorderDrag } from "./reorder";
+import { openScanner } from "@/components/scanner/scanner-app";
 
 // Las herramientas se cargan recién cuando se abren (mathjs y el traductor pesan).
-const ToolLoading = () => <div className="p-4 t-small text-faint">Cargando…</div>;
+const ToolLoading = () => <div className="tool-pane t-small text-faint">Cargando…</div>;
 const CalculatorTool = dynamic(() => import("@/components/tools/calculator").then((m) => m.CalculatorTool), { ssr: false, loading: ToolLoading });
 const PlotTool = dynamic(() => import("@/components/tools/plotter").then((m) => m.PlotTool), { ssr: false, loading: ToolLoading });
 const TranslatorTool = dynamic(() => import("@/components/tools/translator").then((m) => m.TranslatorTool), { ssr: false, loading: ToolLoading });
@@ -179,6 +182,36 @@ function RailButton({ icon: Icon, label, active, onClick }: { icon: LucideIcon; 
   );
 }
 
+const SCANNER = { key: "scanner" as RightView, label: "Escáner de documentos", icon: ScanLine };
+
+// Íconos del riel que se reordenan manteniendo apretado y arrastrando (el orden queda guardado).
+function RailGroup({
+  group,
+  items,
+  isActive,
+  onPick,
+}: {
+  group: string;
+  items: { key: RightView; label: string; icon: LucideIcon }[];
+  isActive: (k: RightView) => boolean;
+  onPick: (k: RightView) => void;
+}) {
+  const [order, move] = useOrder(`uc-order-${group}`, items.map((i) => i.key));
+  const { dragging, bind } = useReorderDrag(group, move);
+  return (
+    <>
+      {(order as RightView[]).map((k) => {
+        const v = items.find((i) => i.key === k)!;
+        return (
+          <div key={k} {...bind(k)} className={clsx("rounded-md", dragging === k && "bg-surface-raised opacity-70 ring-1 ring-primary")}>
+            <RailButton icon={v.icon} label={v.label} active={isActive(k)} onClick={() => onPick(k)} />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // Panel derecho: el contenido a la izquierda y una columna de íconos pegada al borde, siempre visible.
 // Clic en un ícono abre ese panel; clic en el que ya está abierto lo cierra.
 // La columna de íconos de la derecha se puede esconder del todo (se recuerda en este equipo).
@@ -244,19 +277,6 @@ export function RightSidebar() {
           </div>
         </aside>
       )}
-      {railHidden && (
-        // Mismo lugar que el botón de esconder: arriba de todo, a la derecha.
-        <div className="relative w-0 flex-none">
-          <button
-            aria-label="Mostrar la barra derecha"
-            title="Mostrar la barra derecha"
-            onClick={() => setRailHidden(false)}
-            className="absolute right-1.5 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md bg-bg text-faint hover:bg-surface-raised hover:text-text"
-          >
-            <PanelRightOpen className="h-[18px] w-[18px]" strokeWidth={1.75} />
-          </button>
-        </div>
-      )}
       {!railHidden && <nav aria-label="Paneles y herramientas" className="flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2">
         <RailButton
           icon={PanelRightClose}
@@ -268,20 +288,28 @@ export function RightSidebar() {
           }}
         />
         <div className="my-1 h-px w-5 bg-border" />
-        {RIGHT.map((v) => (
-          <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
-        ))}
+        <RailGroup group="rail-panes" items={RIGHT} isActive={(k: RightView) => rightOpen && rightView === k} onPick={pick} />
         <div className="my-1 h-px w-5 bg-border" />
-        {TOOLS.map((v) => (
-          <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
-        ))}
+        {/* El escáner necesita lugar: se abre a pantalla completa. */}
+        <RailGroup group="rail-tools" items={[...TOOLS, SCANNER]} isActive={(k: RightView) => rightOpen && rightView === k} onPick={(k) => (k === SCANNER.key ? openScanner() : pick(k))} />
       </nav>}
     </>
   );
 }
 
-// El riel de la derecha siempre está visible, así que ya no hace falta un botón aparte para abrir el panel.
-// El botón para volver a mostrarla vive en la misma esquina que el de esconder (ver RightSidebar).
+// Con el riel escondido, el botón para volver a mostrarlo va al final de la barra de pestañas
+// del último panel (en el flujo normal, así no tapa el botón de dividir ni el de cerrar panel).
 export function RightToggle() {
-  return null;
+  const [railHidden, setRailHidden] = useRailHidden();
+  if (!railHidden) return null;
+  return (
+    <button
+      aria-label="Mostrar la barra derecha"
+      title="Mostrar la barra derecha"
+      onClick={() => setRailHidden(false)}
+      className="mb-1 ml-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-md text-faint hover:bg-surface-raised hover:text-text"
+    >
+      <PanelRightOpen className="h-4 w-4" strokeWidth={1.75} />
+    </button>
+  );
 }

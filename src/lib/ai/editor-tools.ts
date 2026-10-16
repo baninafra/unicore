@@ -23,14 +23,14 @@ const fold = (s: string) =>
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
-const KIND_BY_WORD: Record<string, OfficeKind> = { documento: "doc", word: "doc", planilla: "sheet", excel: "sheet", presentacion: "deck", powerpoint: "deck", pdf: "pdf" };
+const KIND_BY_WORD: Record<string, OfficeKind> = { documento: "doc", word: "doc", planilla: "sheet", excel: "sheet", presentacion: "deck", powerpoint: "deck", pdf: "pdf", geometria: "geo", geogebra: "geo", grafico: "geo", construccion: "geo" };
 
 export const EDITOR_TOOL_DEFS: ApiTool[] = [
   {
     type: "function",
     function: {
       name: "listar_archivos",
-      description: "Lista los archivos de Word, Excel, PowerPoint y PDF guardados en UniCore (los que se abren en los editores).",
+      description: "Lista los archivos de Word, Excel, PowerPoint, PDF y geometría guardados en UniCore (los que se abren en los editores).",
       parameters: obj({ texto: S("Parte del nombre (opcional)") }),
     },
   },
@@ -38,10 +38,10 @@ export const EDITOR_TOOL_DEFS: ApiTool[] = [
     type: "function",
     function: {
       name: "crear_archivo",
-      description: "Crea un documento de Word, una planilla de Excel o una presentación de PowerPoint vacíos y los abre en su editor.",
+      description: "Crea un documento de Word, una planilla de Excel, una presentación de PowerPoint o una construcción de geometría (gráficos de funciones, geometría, 3D, CAS) vacíos y los abre en su editor.",
       parameters: obj(
         {
-          tipo: { type: "string", enum: ["documento", "planilla", "presentacion"] },
+          tipo: { type: "string", enum: ["documento", "planilla", "presentacion", "geometria"] },
           nombre: S("Nombre del archivo, sin extensión"),
           materia: S("Materia donde guardarlo (opcional)"),
         },
@@ -62,7 +62,7 @@ export const EDITOR_TOOL_DEFS: ApiTool[] = [
     function: {
       name: "comandos_editor",
       description:
-        "Busca los comandos que acepta el editor abierto (formato, insertar, celdas, diapositivas, páginas…) con sus parámetros. Usala antes de ejecutar_en_editor para saber el id y los parámetros exactos.",
+        "Busca los comandos que acepta el editor abierto (formato, insertar, celdas, diapositivas, páginas, geometría…) con sus parámetros. Usala antes de ejecutar_en_editor para saber el id y los parámetros exactos. En geometría, ggb.eval dibuja con comandos de GeoGebra (f(x)=x^2, Circle(A,3)…).",
       parameters: obj({ buscar: S("Palabras en inglés del comando, ej: 'bold', 'insert table', 'cell value', 'new slide'"), archivo: S("Nombre del archivo (opcional)") }),
     },
   },
@@ -132,7 +132,7 @@ export async function runEditorTool(name: string, a: Args, ctx: ToolContext): Pr
 
     case "crear_archivo": {
       const kind = KIND_BY_WORD[fold(String(a.tipo ?? ""))];
-      if (!kind || kind === "pdf") return fail("El tipo tiene que ser documento, planilla o presentacion.");
+      if (!kind || kind === "pdf") return fail("El tipo tiene que ser documento, planilla, presentacion o geometria.");
       let subjectId = await folderForView({ type: "inicio" });
       if (str(a.materia)) {
         const m = fold(String(a.materia));

@@ -6,6 +6,7 @@ import { useWorkspace, useRegisterCommands, type Command, type ViewState } from 
 import { useAppState } from "@/lib/app-state";
 import { db } from "@/lib/db";
 import { EDITOR_KINDS } from "@/lib/editors/editors";
+import { openScanner } from "@/components/scanner/scanner-app";
 import { plainTextOf } from "@/components/notes/note-utils";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { LOOSE_FOLDER, type Note } from "@/lib/types";
@@ -152,11 +153,13 @@ export function CoreCommands() {
     { id: "ia:abrir", name: "Asistente IA", hotkey: "Mod+J", run: () => ws.setRight(true, "ia") },
     { id: "tarea:nueva", name: "Nueva tarea", run: () => openTaskDialog() },
     { id: "canvas:nuevo", name: "Nuevo lienzo", run: () => runSafe(async () => go({ type: "canvas", id: await newCanvasForView(ws.activeView) })) },
-    ...(["doc", "sheet", "deck"] as const).map((kind) => ({
+    ...(["doc", "sheet", "deck", "geo"] as const).map((kind) => ({
       id: `editor:nuevo-${kind}`,
       name: EDITOR_KINDS[kind].newLabel,
       run: () => runSafe(async () => go({ type: "editor", id: await newOfficeForView(kind, ws.activeView) })),
     })),
+    { id: "escaner:camara", name: "Escanear documento con la cámara", run: () => openScanner("camera") },
+    { id: "escaner:fotos", name: "Escanear documento desde fotos", run: () => openScanner("files") },
     {
       id: "marcador:alternar",
       name: "Agregar o quitar marcador",

@@ -165,7 +165,7 @@ export function CalculatorTool() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="tool-pane">
       <div className="flex flex-col-reverse gap-1 overflow-y-auto rounded-md border border-border bg-surface p-2" style={{ maxHeight: 180, minHeight: 72 }}>
         {history.length === 0 && <div className="t-small text-faint">Escribí una cuenta y apretá Enter. Probá «sin(30)», «5 cm to inch» o «det([1,2;3,4])».</div>}
         {history.map((h, i) => (

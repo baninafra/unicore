@@ -3,7 +3,7 @@
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
 import { folderName } from "@/lib/folder-names";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CalendarDays, FileSpreadsheet, FileText, FileType, Folder, GraduationCap, Lightbulb, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, DraftingCompass, FileSpreadsheet, FileText, FileType, Folder, GraduationCap, Lightbulb, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type OfficeDoc, type OfficeKind, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
@@ -89,7 +89,7 @@ function canvasNode(c: CanvasDoc, subjectId: string): TreeNode {
   };
 }
 
-const FILE_ICON: Record<OfficeKind, LucideIcon> = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, pdf: FileType };
+const FILE_ICON: Record<OfficeKind, LucideIcon> = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, pdf: FileType, geo: DraftingCompass };
 
 function fileNode(f: OfficeDoc, subjectId: string): TreeNode {
   return {

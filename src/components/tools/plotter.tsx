@@ -150,7 +150,7 @@ export function PlotTool() {
   const drag = useRef<{ x: number; y: number; view: View } | null>(null);
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="tool-pane">
       <label className="field">
         <span>Funciones de x (una por renglón)</span>
         <textarea

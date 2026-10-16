@@ -57,8 +57,8 @@ export function UnitsTool() {
   ));
 
   return (
-    <div className="flex flex-col gap-3 p-3">
-      <div className="flex flex-wrap gap-1">
+    <div className="tool-pane">
+      <div className="flex flex-wrap justify-center gap-1">
         {GROUPS.map((x, i) => (
           <button key={x.name} type="button" className={i === g ? "badge badge-primary" : "badge cursor-pointer hover:text-text"} onClick={() => pickGroup(i)}>
             {x.name}

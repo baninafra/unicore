@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Geometría</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; font-family: system-ui, sans-serif; }
+  #app { position: absolute; inset: 0; }
+  #msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #777; font-size: 13px; }
+</style>
+<script src="deployggb.js"></script>
+</head>
+<body>
+<div id="msg">Cargando…</div>
+<div id="app"></div>
+<script>
+// Geometría y gráficos (construcciones .ggb) dentro de UniCore.
+// Corre en un iframe y habla con la app por postMessage, igual que los otros editores:
+//   → uc:ready, uc:dirty {dirty}, uc:save {name, bytes}, uc:failed {error}, uc:result {id, ok, result|error}
+//   ← uc:open {name, bytes}, uc:command {id, command, params}
+(function () {
+  var params = new URLSearchParams(location.search);
+  var hosted = params.get("host") === "parent" && window.parent !== window;
+  var origin = location.origin;
+  var api = null;
+  var name = "Construcción.ggb";
+  var dirty = false;
+  var loading = false; // mientras se abre un archivo, los cambios no cuentan
+
+  function post(msg, transfer) {
+    if (hosted) window.parent.postMessage(msg, origin, transfer || []);
+  }
+
+  function b64ToBytes(b64) {
+    var bin = atob(b64);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out.buffer;
+  }
+  function bytesToB64(buf) {
+    var bytes = new Uint8Array(buf);
+    var s = "";
+    for (var i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+
+  function markDirty() {
+    if (loading || dirty) return;
+    dirty = true;
+    post({ type: "uc:dirty", dirty: true });
+  }
+
+  function save() {
+    return new Promise(function (resolve) {
+      api.getBase64(function (b64) {
+        var bytes = b64ToBytes(b64);
+        dirty = false;
+        post({ type: "uc:dirty", dirty: false });
+        post({ type: "uc:save", name: name, bytes: bytes }, [bytes]);
+        resolve({ saved: true });
+      });
+    });
+  }
+
+  // Lista de objetos con su definición y valor: es lo que lee la IA y lo que se busca.
+  function read() {
+    var names = api.getAllObjectNames();
+    var lines = names.map(function (n) {
+      var type = api.getObjectType(n);
+      var def = api.getDefinitionString(n) || "";
+      var val = api.getValueString(n) || "";
+      var visible = api.getVisible(n) ? "" : " (oculto)";
+      return n + " [" + type + "]" + visible + ": " + (def && def !== val ? def + " → " : "") + val;
+    });
+    return { name: name, text: lines.join("\n") };
+  }
+
+  var COMMANDS = [
+    { id: "ggb.eval", label: "Ejecutar comando", description: "Crea o redefine objetos con la sintaxis de la barra de entrada (en inglés): 'f(x)=x^2-1', 'A=(1,2)', 'Circle(A,3)', 'Segment(A,B)', 'Polygon(A,B,C)', 'Tangent(A,f)', 'Integral(f,0,2)', 'Slider(0,10,1)', 'Solve(x^2=4)'. Varios separados por salto de línea.", params: { command: "string" } },
+    { id: "ggb.delete", label: "Borrar objeto", description: "Borra un objeto por su nombre.", params: { name: "string" } },
+    { id: "ggb.clear", label: "Nueva construcción", description: "Borra todo y empieza de cero." },
+    { id: "ggb.set", label: "Cambiar estilo", description: "Cambia color (hex '#RRGGBB'), visibilidad, rótulo o grosor de un objeto.", params: { name: "string", color: "string?", visible: "boolean?", label: "string?", thickness: "number?" } },
+    { id: "ggb.value", label: "Valor de un objeto", description: "Devuelve el valor y la definición de un objeto.", params: { name: "string" } },
+    { id: "ggb.view", label: "Cambiar vista", description: "Vista: 'graficos' (2D), '3d', 'cas', 'hoja' (planilla), 'probabilidad' o 'geometria'.", params: { view: "string" } },
+    { id: "ggb.zoom", label: "Encuadrar", description: "Ajusta la vista para que se vea todo, o a los límites dados.", params: { xmin: "number?", xmax: "number?", ymin: "number?", ymax: "number?" } },
+    { id: "ggb.png", label: "Imagen", description: "Devuelve la vista gráfica como imagen PNG en base64." },
+    { id: "file.save", label: "Guardar", description: "Guarda la construcción." },
+    { id: "edit.undo", label: "Deshacer" },
+    { id: "edit.redo", label: "Rehacer" },
+  ];
+
+  var PERSPECTIVE = { graficos: "AG", "2d": "AG", "3d": "AT", cas: "CG", hoja: "SG", planilla: "SG", probabilidad: "B", geometria: "G" };
+
+  function hexToRgb(hex) {
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
+  }
+
+  function run(command, p) {
+    p = p || {};
+    switch (command) {
+      case "uc.commands": return COMMANDS;
+      case "uc.read": return read();
+      case "file.save": return save();
+      case "edit.undo": api.undo(); return {};
+      case "edit.redo": api.redo(); return {};
+      case "ggb.eval": {
+        var lines = String(p.command || p.comando || "").split(/\n+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (!lines.length) throw new Error("Falta el comando.");
+        var created = [];
+        var failed = [];
+        lines.forEach(function (line) {
+          var labels = api.evalCommandGetLabels(line);
+          if (labels === null || labels === undefined) failed.push(line);
+          else if (labels) created = created.concat(String(labels).split(","));
+          else if (!api.evalCommand(line)) failed.push(line);
+        });
+        if (failed.length && !created.length) throw new Error("GeoGebra no entendió: " + failed.join(" | "));
+        return { creados: created, fallaron: failed };
+      }
+      case "ggb.delete": api.deleteObject(String(p.name)); return {};
+      case "ggb.clear": api.newConstruction(); return {};
+      case "ggb.set": {
+        var n = String(p.name);
+        if (!api.exists(n)) throw new Error("No existe el objeto " + n + ".");
+        var rgb = hexToRgb(p.color);
+        if (rgb) api.setColor(n, rgb[0], rgb[1], rgb[2]);
+        if (typeof p.visible === "boolean") api.setVisible(n, p.visible);
+        if (typeof p.label === "string") { api.setCaption(n, p.label); api.setLabelStyle(n, 3); api.setLabelVisible(n, true); }
+        if (typeof p.thickness === "number") api.setLineThickness(n, p.thickness);
+        return {};
+      }
+      case "ggb.value": {
+        var v = String(p.name);
+        if (!api.exists(v)) throw new Error("No existe el objeto " + v + ".");
+        return { tipo: api.getObjectType(v), definicion: api.getDefinitionString(v), valor: api.getValueString(v), x: api.getXcoord(v), y: api.getYcoord(v) };
+      }
+      case "ggb.view": {
+        var key = String(p.view || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+        api.setPerspective(PERSPECTIVE[key] || key.toUpperCase());
+        return {};
+      }
+      case "ggb.zoom":
+        if ([p.xmin, p.xmax, p.ymin, p.ymax].every(function (x) { return typeof x === "number"; })) api.setCoordSystem(p.xmin, p.xmax, p.ymin, p.ymax);
+        else api.evalCommand("ZoomIn()");
+        return {};
+      case "ggb.png": return { png: api.getPNGBase64(1, false, 72) };
+    }
+    throw new Error("Comando desconocido: " + command);
+  }
+
+  window.addEventListener("message", function (e) {
+    if (e.origin !== origin || e.source !== window.parent) return;
+    var d = e.data || {};
+    if (d.type === "uc:open" && api) {
+      name = d.name || name;
+      loading = true;
+      api.setBase64(bytesToB64(d.bytes), function () {
+        loading = false;
+        dirty = false;
+      });
+      setTimeout(function () { loading = false; }, 3000);
+    } else if (d.type === "uc:command") {
+      Promise.resolve()
+        .then(function () {
+          if (!api) throw new Error("Todavía está cargando.");
+          return run(d.command, d.params);
+        })
+        .then(function (result) { post({ type: "uc:result", id: d.id, ok: true, result: result }); })
+        .catch(function (err) { post({ type: "uc:result", id: d.id, ok: false, error: String((err && err.message) || err) }); });
+    }
+  });
+
+  // Ctrl+S guarda en UniCore.
+  window.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && api) {
+      e.preventDefault();
+      save();
+    }
+  }, true);
+
+  var applet = new GGBApplet({
+    appName: "classic",
+    perspective: params.get("vista") || "AG",
+    width: window.innerWidth,
+    height: window.innerHeight,
+    language: "es",
+    country: "AR",
+    showToolBar: true,
+    showAlgebraInput: true,
+    showMenuBar: true,
+    showResetIcon: false,
+    enableLabelDrags: true,
+    enableShiftDragZoom: true,
+    enableRightClick: true,
+    showZoomButtons: true,
+    showFullscreenButton: false,
+    allowStyleBar: true,
+    showLogging: false,
+    useBrowserForJS: false,
+    errorDialogsActive: false,
+    enableFileFeatures: false,
+    preventFocus: true,
+    appletOnLoad: function (a) {
+      api = a;
+      document.getElementById("msg").remove();
+      var change = function () { markDirty(); };
+      api.registerAddListener(change);
+      api.registerRemoveListener(change);
+      api.registerUpdateListener(change);
+      api.registerRenameListener(change);
+      api.registerClearListener(change);
+      post({ type: "uc:ready" });
+    },
+  }, true);
+  applet.setHTML5Codebase("HTML5/5.0/web3d/", true);
+
+  var resizeTimer;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { if (api) api.setSize(window.innerWidth, window.innerHeight); }, 120);
+  });
+
+  window.addEventListener("load", function () {
+    try {
+      applet.inject("app");
+    } catch (err) {
+      post({ type: "uc:failed", error: String(err) });
+    }
+  });
+})();
+</script>
+</body>
+</html>

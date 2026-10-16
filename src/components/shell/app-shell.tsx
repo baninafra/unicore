@@ -10,6 +10,7 @@ import { useWorkspace, WorkspaceProvider, type Pane } from "@/lib/workspace";
 import { LogoMark } from "@/components/ui/logo";
 import { Ribbon } from "@/components/workspace/ribbon";
 import { EditorApp } from "./editor-app";
+import { ScannerApp } from "@/components/scanner/scanner-app";
 import { FolderPicker } from "./folder-picker";
 import { LeftSidebar, RightSidebar, RightToggle } from "@/components/workspace/sidebars";
 import { TabBar } from "@/components/workspace/tab-bar";
@@ -20,6 +21,8 @@ import { CommandPalette } from "@/components/palette/command-palette";
 import { ExportCommands } from "@/components/export/export-commands";
 import { ApplySettings } from "@/components/settings/apply-settings";
 import { CalendarSync } from "@/components/calendar/calendar-sync";
+import { EventDialogHost } from "@/components/calendar/event-dialog";
+import { EventReminders } from "@/components/calendar/event-reminders";
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalMouse } from "./global-mouse";
 import { GlobalFiles } from "./global-files";
@@ -77,6 +80,7 @@ function Workspace({ notice }: { notice?: string }) {
       </div>
       <StatusBar />
       <EditorApp />
+      <ScannerApp />
       <FolderPicker />
     </div>
   );
@@ -117,6 +121,8 @@ export function AppShell() {
           <ExportCommands />
           <ApplySettings />
           <CalendarSync />
+          <EventReminders />
+          <EventDialogHost />
           <Toaster />
           <GlobalMouse />
           <GlobalFiles />

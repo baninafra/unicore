@@ -40,6 +40,7 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
           ["doc", "Documento de Word"],
           ["sheet", "Planilla de Excel"],
           ["deck", "Presentación"],
+          ["geo", "Construcción de geometría"],
         ] as const
       ).map(([kind, label]) => ({
         label,
@@ -47,7 +48,8 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
         // Sin una carpeta clara (clic derecho en un espacio vacío), se pregunta dónde guardarlo.
         onSelect: () =>
           runSafe(async () => {
-            const subjectId = o.subjectId ?? (await pickFolder(`¿Dónde guardo ${label === "Presentación" ? "la presentación" : `el ${label.split(" ")[0].toLowerCase()}`}?`));
+            const what = kind === "deck" ? "la presentación" : kind === "geo" ? "la construcción" : `el ${label.split(" ")[0].toLowerCase()}`;
+            const subjectId = o.subjectId ?? (await pickFolder(`¿Dónde guardo ${what}?`));
             if (subjectId) o.open({ type: "editor", id: await createOfficeDoc({ kind, subjectId }) });
           }),
       })),

@@ -4,6 +4,7 @@ import Dexie, { type EntityTable } from "dexie";
 import { nanoid } from "nanoid";
 import type {
   Bookmark,
+  CalEvent,
   CalendarEvent,
   CalendarSource,
   CanvasDoc,
@@ -35,6 +36,7 @@ export const db = new Dexie("unicore") as Dexie & {
   calendars: EntityTable<CalendarSource, "id">;
   calendarEvents: EntityTable<CalendarEvent, "id">;
   officeDocs: EntityTable<OfficeDoc, "id">;
+  events: EntityTable<CalEvent, "id">;
 };
 
 db.version(1).stores({
@@ -65,6 +67,11 @@ db.version(3).stores({
 // v4: archivos de Word, Excel, PowerPoint y PDF que se abren en los editores incrustados
 db.version(4).stores({
   officeDocs: "id, subjectId, updatedAt, kind",
+});
+
+// v5: eventos propios (calendarios locales, estilo Thunderbird)
+db.version(5).stores({
+  events: "id, calendarId, start, taskId, subjectId",
 });
 
 export const newId = () => nanoid(12);

@@ -6,7 +6,10 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, FolderInput, X } from "lucide-react";
+import { pickFolder } from "./folder-picker";
+import { useAllSubjects } from "@/lib/hooks";
+import { FOLDER_NAME } from "@/lib/nav/actions";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { createOfficeDoc, deleteOfficeDoc, EDITOR_KINDS } from "@/lib/editors/editors";
@@ -26,6 +29,8 @@ export function EditorApp() {
   const { openView } = useWorkspace();
   const [id, setId] = useState<string | null>(null);
   const doc = useLiveQuery(async () => (id ? ((await db.officeDocs.get(id)) ?? null) : null), [id]);
+  const subjects = useAllSubjects();
+  const place = doc ? (subjects?.find((x) => x.id === doc.subjectId)?.name ?? FOLDER_NAME[doc.subjectId] ?? "Notas") : "";
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -51,14 +56,26 @@ export function EditorApp() {
 
   if (!id) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-bg">
+    <div className="fixed inset-0 z-40 flex flex-col bg-bg">
       <div className="flex h-9 flex-none items-center gap-2 border-b border-border px-3">
         <span className="t-label text-muted">{doc ? EDITOR_KINDS[doc.kind].label : ""}</span>
         <span className="truncate text-[13px] text-text">{doc?.name}</span>
-        <span className="t-small text-faint">· se guarda solo en Notas</span>
+        <span className="t-small text-faint">· se guarda solo en {place}</span>
         <button
           type="button"
           className="btn btn-ghost btn-sm ml-auto"
+          title="Elegir la materia o carpeta donde queda el archivo"
+          onClick={async () => {
+            const to = await pickFolder("¿Dónde lo guardo?");
+            if (to && id) await db.officeDocs.update(id, { subjectId: to });
+          }}
+        >
+          <FolderInput className="h-4 w-4" strokeWidth={1.75} />
+          Guardar en…
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
           title="Seguir editando en una pestaña de UniCore"
           onClick={() => {
             openView({ type: "editor", id }, "tab");

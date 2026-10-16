@@ -7,6 +7,7 @@ import { CalendarDays, FilePlus, FileText, Lightbulb, ListPlus, Plus, Shapes } f
 import type { MenuItem } from "./menu";
 import { addCanvas, addNote, folderForView, openDailyNote, runSafe } from "@/lib/nav/actions";
 import { createOfficeDoc } from "@/lib/editors/editors";
+import { pickFolder } from "@/components/shell/folder-picker";
 import { addIdea } from "@/views/ideas-view";
 import type { ViewState } from "@/lib/workspace";
 import { LOOSE_FOLDER, type Task } from "@/lib/types";
@@ -43,7 +44,12 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
       ).map(([kind, label]) => ({
         label,
         icon: FileText,
-        onSelect: go(async () => ({ type: "editor", id: await createOfficeDoc({ kind, subjectId: await folder() }) })),
+        // Sin una carpeta clara (clic derecho en un espacio vacío), se pregunta dónde guardarlo.
+        onSelect: () =>
+          runSafe(async () => {
+            const subjectId = o.subjectId ?? (await pickFolder(`¿Dónde guardo ${label === "Presentación" ? "la presentación" : `el ${label.split(" ")[0].toLowerCase()}`}?`));
+            if (subjectId) o.open({ type: "editor", id: await createOfficeDoc({ kind, subjectId }) });
+          }),
       })),
       ...(o.extra?.length ? [{ type: "separator" } as MenuItem, ...o.extra] : []),
     ],

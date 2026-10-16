@@ -14,6 +14,7 @@ import {
   Link2,
   ListTree,
   PanelRightClose,
+  PanelRightOpen,
   Ruler,
   Search,
   Sparkles,
@@ -180,8 +181,34 @@ function RailButton({ icon: Icon, label, active, onClick }: { icon: LucideIcon; 
 
 // Panel derecho: el contenido a la izquierda y una columna de íconos pegada al borde, siempre visible.
 // Clic en un ícono abre ese panel; clic en el que ya está abierto lo cierra.
+// La columna de íconos de la derecha se puede esconder del todo (se recuerda en este equipo).
+const LS_RAIL = "uc-right-rail-hidden";
+const RAIL_EVENT = "uc:right-rail";
+
+function useRailHidden() {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    const read = () => {
+      try {
+        setHidden(localStorage.getItem(LS_RAIL) === "1");
+      } catch {}
+    };
+    read();
+    window.addEventListener(RAIL_EVENT, read);
+    return () => window.removeEventListener(RAIL_EVENT, read);
+  }, []);
+  const set = (v: boolean) => {
+    try {
+      localStorage.setItem(LS_RAIL, v ? "1" : "0");
+    } catch {}
+    window.dispatchEvent(new Event(RAIL_EVENT));
+  };
+  return [hidden, set] as const;
+}
+
 export function RightSidebar() {
   const { rightOpen, rightView, setRight } = useWorkspace();
+  const [railHidden, setRailHidden] = useRailHidden();
   const [width, setWidth] = useWidth("uc-right-width", 320, 240, 760);
   const pick = (key: RightView) => (rightOpen && rightView === key ? setRight(false) : setRight(true, key));
   const current = [...RIGHT, ...TOOLS].find((v) => v.key === rightView);
@@ -217,7 +244,7 @@ export function RightSidebar() {
           </div>
         </aside>
       )}
-      <nav aria-label="Paneles y herramientas" className="flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2">
+      {!railHidden && <nav aria-label="Paneles y herramientas" className="flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2">
         {RIGHT.map((v) => (
           <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
         ))}
@@ -225,12 +252,35 @@ export function RightSidebar() {
         {TOOLS.map((v) => (
           <RailButton key={v.key} icon={v.icon} label={v.label} active={rightOpen && rightView === v.key} onClick={() => pick(v.key)} />
         ))}
-      </nav>
+        <div className="mt-auto">
+          <RailButton
+            icon={PanelRightClose}
+            label="Esconder la barra derecha"
+            active={false}
+            onClick={() => {
+              setRight(false);
+              setRailHidden(true);
+            }}
+          />
+        </div>
+      </nav>}
     </>
   );
 }
 
 // El riel de la derecha siempre está visible, así que ya no hace falta un botón aparte para abrir el panel.
+// Con la barra derecha escondida, un botón chico arriba a la derecha la vuelve a mostrar.
 export function RightToggle() {
-  return null;
+  const [hidden, setHidden] = useRailHidden();
+  if (!hidden) return null;
+  return (
+    <button
+      aria-label="Mostrar la barra derecha"
+      title="Mostrar la barra derecha"
+      onClick={() => setHidden(false)}
+      className="mb-1 flex h-7 w-7 flex-none items-center justify-center self-end rounded-sm text-faint hover:bg-surface-raised hover:text-text"
+    >
+      <PanelRightOpen className="h-4 w-4" strokeWidth={1.75} />
+    </button>
+  );
 }

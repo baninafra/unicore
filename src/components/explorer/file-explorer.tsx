@@ -250,6 +250,7 @@ export function FileExplorer() {
         return [
           openTab(node.view!),
           openSplit(node.view!),
+          nuevo({ subjectId: item.subjectId }),
           sep,
           rename("note", item.id, node.label),
           {
@@ -286,6 +287,7 @@ export function FileExplorer() {
         return [
           openTab(node.view!),
           openSplit(node.view!),
+          nuevo({ subjectId: item.subjectId }),
           sep,
           rename("canvas", item.id, node.label),
           { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "canvas", id: item.id }) },
@@ -297,6 +299,7 @@ export function FileExplorer() {
         return [
           openTab(node.view!),
           openSplit(node.view!),
+          nuevo({ subjectId: item.subjectId }),
           sep,
           rename("file", item.id, node.label),
           { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "file", id: item.id }) },

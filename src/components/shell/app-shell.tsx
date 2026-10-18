@@ -6,7 +6,7 @@ import { t } from "@/lib/i18n";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { AppStateProvider, useAppState } from "@/lib/app-state";
 import { AIProvider } from "@/lib/ai/ai-provider";
-import { initDesktopStorage, startExternalSync } from "@/lib/desktop";
+import { initDesktopStorage, isDesktop, startExternalSync } from "@/lib/desktop";
 import { ProfileProvider } from "@/lib/profiles";
 import { OnboardingHost } from "@/components/onboarding/onboarding";
 import { useWorkspace, WorkspaceProvider, type Pane } from "@/lib/workspace";
@@ -163,6 +163,21 @@ export function AppShell() {
       })
       .finally(() => setReady(true));
   }, []);
+
+  // La ventana arranca oculta (tauri.conf.json) y se muestra recién con la interfaz dibujada:
+  // así no se ve el reacomodo de tamaño ni la pantalla de carga parpadeando.
+  useEffect(() => {
+    if (!ready || !isDesktop()) return;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        void import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
+          const w = getCurrentWindow();
+          await w.show();
+          await w.setFocus();
+        });
+      }),
+    );
+  }, [ready]);
 
   if (!ready) {
     return (

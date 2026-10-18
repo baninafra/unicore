@@ -251,7 +251,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         // Recuerda si la ventana quedó maximizada, su tamaño y posición al cerrar.
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                // La visibilidad no: la ventana se muestra cuando la interfaz está lista.
+                .with_state_flags(tauri_plugin_window_state::StateFlags::all() & !tauri_plugin_window_state::StateFlags::VISIBLE)
+                .build(),
+        )
         // Actualizaciones con un clic: busca la versión nueva en GitHub y la instala (firmada).
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -266,6 +271,17 @@ pub fn run() {
                 }
             });
             app.manage(store);
+            // Por si la interfaz no llega a mostrar la ventana (un error al cargar), se muestra igual.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                if let Some(w) = handle.get_webview_window("main") {
+                    if !w.is_visible().unwrap_or(true) {
+                        let _ = w.show();
+                        let _ = w.set_focus();
+                    }
+                }
+            });
             app.manage(ia::Ia::default());
             app.manage(ia::Downloads::default());
             Ok(())

@@ -1,6 +1,6 @@
 [package]
 name = "unicore"
-version = "0.2.0"
+version = "0.3.0"
 description = "UniCore: tus carreras, en un solo núcleo"
 edition = "2021"
 

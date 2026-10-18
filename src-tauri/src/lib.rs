@@ -15,6 +15,8 @@
 
 mod ia;
 mod mcp;
+mod ocr;
+mod search;
 
 use std::collections::HashMap;
 use std::fs;
@@ -78,6 +80,17 @@ pub(crate) fn open_store() -> Result<Store, String> {
     if !has_source {
         conn.execute_batch("ALTER TABLE records ADD COLUMN source TEXT NOT NULL DEFAULT 'app';").map_err(err)?;
     }
+    // v3: número de revisión que sube con cada cambio (venga de la app o del MCP).
+    // Si al abrir coincide con el que recuerda la interfaz, no hace falta recargar todo.
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
+         INSERT OR IGNORE INTO meta (k, v) VALUES ('rev', 0);
+         CREATE TRIGGER IF NOT EXISTS rev_ins AFTER INSERT ON records BEGIN UPDATE meta SET v = v + 1 WHERE k = 'rev'; END;
+         CREATE TRIGGER IF NOT EXISTS rev_upd AFTER UPDATE ON records BEGIN UPDATE meta SET v = v + 1 WHERE k = 'rev'; END;
+         CREATE TRIGGER IF NOT EXISTS rev_del AFTER DELETE ON records BEGIN UPDATE meta SET v = v + 1 WHERE k = 'rev'; END;",
+    )
+    .map_err(err)?;
+    search::init(&conn).map_err(err)?;
     conn.busy_timeout(std::time::Duration::from_secs(5)).map_err(err)?;
     Ok(Store { conn: Mutex::new(conn), root })
 }
@@ -96,9 +109,19 @@ fn data_dir(store: State<Store>) -> String {
     store.root.to_string_lossy().into_owned()
 }
 
+fn rev(conn: &Connection) -> CmdResult<i64> {
+    conn.query_row("SELECT v FROM meta WHERE k = 'rev'", [], |r| r.get(0)).map_err(err)
+}
+
+#[tauri::command]
+async fn db_rev(store: State<'_, Store>) -> CmdResult<i64> {
+    let conn = store.conn.lock().map_err(err)?;
+    rev(&conn)
+}
+
 /// Devuelve todos los registros agrupados por tabla.
 #[tauri::command]
-fn db_dump(store: State<Store>) -> CmdResult<HashMap<String, Vec<Value>>> {
+async fn db_dump(store: State<'_, Store>) -> CmdResult<HashMap<String, Vec<Value>>> {
     let conn = store.conn.lock().map_err(err)?;
     let mut stmt = conn.prepare("SELECT tbl, data FROM records").map_err(err)?;
     let rows = stmt
@@ -115,7 +138,7 @@ fn db_dump(store: State<Store>) -> CmdResult<HashMap<String, Vec<Value>>> {
 }
 
 #[tauri::command]
-fn db_put(store: State<Store>, table: String, id: String, data: Value) -> CmdResult<()> {
+fn db_put(store: State<Store>, table: String, id: String, data: Value) -> CmdResult<i64> {
     let conn = store.conn.lock().map_err(err)?;
     conn.execute(
         "INSERT INTO records (tbl, id, data, updated_at, source) VALUES (?1, ?2, ?3, datetime('now'), 'app')
@@ -123,12 +146,12 @@ fn db_put(store: State<Store>, table: String, id: String, data: Value) -> CmdRes
         params![table, id, data.to_string()],
     )
     .map_err(err)?;
-    Ok(())
+    rev(&conn)
 }
 
 /// Carga masiva (primera migración desde el navegador).
 #[tauri::command]
-fn db_put_many(store: State<Store>, table: String, records: Vec<Value>) -> CmdResult<()> {
+async fn db_put_many(store: State<'_, Store>, table: String, records: Vec<Value>) -> CmdResult<()> {
     let mut conn = store.conn.lock().map_err(err)?;
     let tx = conn.transaction().map_err(err)?;
     for rec in records {
@@ -165,16 +188,16 @@ fn db_changes_since(store: State<Store>, since: String) -> CmdResult<(String, Ha
 }
 
 #[tauri::command]
-fn db_delete(store: State<Store>, table: String, id: String) -> CmdResult<()> {
+fn db_delete(store: State<Store>, table: String, id: String) -> CmdResult<i64> {
     let conn = store.conn.lock().map_err(err)?;
     conn.execute("DELETE FROM records WHERE tbl = ?1 AND id = ?2", params![table, id])
         .map_err(err)?;
-    Ok(())
+    rev(&conn)
 }
 
 /// Guarda los bytes de una foto o PDF. Cabeceras: x-file (nombre en disco, `<id>.<ext>`).
 #[tauri::command]
-fn file_write(store: State<Store>, request: Request<'_>) -> CmdResult<()> {
+async fn file_write(store: State<'_, Store>, request: Request<'_>) -> CmdResult<()> {
     let name = request
         .headers()
         .get("x-file")
@@ -190,7 +213,7 @@ fn file_write(store: State<Store>, request: Request<'_>) -> CmdResult<()> {
 }
 
 #[tauri::command]
-fn file_read(store: State<Store>, file: String) -> CmdResult<Response> {
+async fn file_read(store: State<'_, Store>, file: String) -> CmdResult<Response> {
     let (stem, ext) = file.split_once('.').unwrap_or((file.as_str(), "bin"));
     let path = store.files_dir().join(format!("{}.{}", safe(stem)?, safe(ext)?));
     fs::read(path).map(Response::new).map_err(err)
@@ -229,6 +252,14 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let store = open_store()?;
+            // El índice de búsqueda se arma de fondo, con su propia conexión, para no frenar el arranque.
+            let db_path = store.root.join("unicore.db");
+            std::thread::spawn(move || {
+                if let Ok(conn) = Connection::open(db_path) {
+                    let _ = conn.busy_timeout(std::time::Duration::from_secs(5));
+                    let _ = search::sync(&conn);
+                }
+            });
             app.manage(store);
             app.manage(ia::Ia::default());
             app.manage(ia::Downloads::default());
@@ -236,6 +267,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             data_dir,
+            db_rev,
             db_dump,
             db_put,
             db_put_many,
@@ -245,6 +277,9 @@ pub fn run() {
             file_read,
             file_delete,
             open_data_folder,
+            search::search_chunks,
+            ocr::ocr_image,
+            ocr::ocr_words,
             ia::ia_info,
             ia::ia_start,
             ia::ia_stop,

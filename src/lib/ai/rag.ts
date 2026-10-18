@@ -2,8 +2,11 @@
 
 // Recuperación simple (sin embeddings): junta apuntes y bibliografía de una materia,
 // los parte en fragmentos y devuelve los que más coinciden con la pregunta.
+// En la app de escritorio lo resuelve el índice de texto de SQLite (src-tauri/src/search.rs);
+// la versión de acá queda de respaldo.
 
 import { db } from "@/lib/db";
+import { isDesktop } from "@/lib/desktop";
 
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 120;
@@ -75,6 +78,23 @@ export async function buildSubjectContext(
   maxChunks = 4,
   excludeNoteId?: string, // la nota abierta ya va entera, no hace falta repetirla en fragmentos
 ): Promise<{ context: string; sources: { label: string }[] }> {
+  if (isDesktop()) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const hits = await invoke<{ label: string; text: string }[]>("search_chunks", {
+        subjectId,
+        question,
+        maxChunks,
+        excludeNoteId: excludeNoteId ?? null,
+      });
+      return {
+        context: hits.map((h) => `[Fuente: ${h.label}]\n${h.text}`).join("\n\n"),
+        sources: [...new Set(hits.map((h) => h.label))].map((label) => ({ label })),
+      };
+    } catch (e) {
+      console.warn("[IA] falló la búsqueda en SQLite, uso la de respaldo", e);
+    }
+  }
   const [notes, documents] = await Promise.all([
     db.notes.where("subjectId").equals(subjectId).toArray(),
     db.documents.where("subjectId").equals(subjectId).toArray(),

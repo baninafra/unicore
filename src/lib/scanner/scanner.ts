@@ -1,10 +1,11 @@
 "use client";
 
 // Escáner de documentos: fotos (de la cámara o del equipo) → hojas derechas y limpias → PDF con texto buscable.
-// El trabajo de imagen corre en scanner.worker.ts (OpenCV); el texto, con el OCR de la app (Tesseract).
+// El trabajo de imagen corre en scanner.worker.ts (OpenCV); el texto, con el OCR de Windows (o Tesseract si no hay).
 
 import type { Worker as OcrWorker } from "tesseract.js";
 import { t } from "@/lib/i18n";
+import { isDesktop } from "../desktop";
 
 export type Pt = { x: number; y: number };
 export type ScanFilter = "color" | "mejorado" | "gris" | "byn";
@@ -152,7 +153,22 @@ function ocrWorker(): Promise<OcrWorker> {
   return ocr;
 }
 
+// Primero el OCR de Windows (src-tauri/src/ocr.rs); si no hay idioma instalado, Tesseract.
+async function nativeRecognize(image: Blob): Promise<OcrResult | null> {
+  if (!isDesktop()) return null;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const r = await invoke<OcrResult | null>("ocr_words", new Uint8Array(await image.arrayBuffer()));
+    return r && { text: r.text.trim(), words: r.words.filter((w) => w.text.trim()) };
+  } catch (e) {
+    console.warn("[OCR] falló el de Windows, uso Tesseract", e);
+    return null;
+  }
+}
+
 export async function recognize(image: Blob): Promise<OcrResult> {
+  const native = await nativeRecognize(image);
+  if (native) return native;
   const w = await ocrWorker();
   const { data } = await w.recognize(image, {}, { text: true, blocks: true });
   const words: OcrWord[] = [];

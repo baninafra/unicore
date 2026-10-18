@@ -3,8 +3,10 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 import type { Worker as OcrWorker } from "tesseract.js";
 import { t } from "@/lib/i18n";
+import { isDesktop } from "@/lib/desktop";
 
-// CONTRATO: importar PDFs como texto. Todo corre en el navegador.
+// CONTRATO: importar PDFs como texto. La capa de texto la lee pdf.js; las páginas escaneadas
+// y las fotos pasan por el OCR de Windows (src-tauri/src/ocr.rs) y, si no hay, por Tesseract.
 
 export interface PdfParagraph {
   text: string;
@@ -81,8 +83,14 @@ export async function extractPdf(file: File, onProgress?: (p: PdfProgress) => vo
         raw.push({ number: n, lines, ocrText: "", usedOcr: false });
       } else {
         onProgress?.({ page: n, total, stage: "ocr" });
-        worker ??= await createOcrWorker();
-        const ocrText = await recognizePage(page, worker);
+        const canvas = await renderPage(page);
+        let ocrText = await nativeOcr(canvas);
+        if (ocrText === null) {
+          worker ??= await createOcrWorker();
+          ocrText = (await worker.recognize(canvas)).data.text;
+        }
+        canvas.width = 0;
+        canvas.height = 0;
         raw.push({ number: n, lines: [], ocrText, usedOcr: true });
       }
       page.cleanup();
@@ -257,8 +265,25 @@ async function createOcrWorker(): Promise<OcrWorker> {
   return createWorker("spa");
 }
 
+// OCR de Windows. Devuelve null si no está disponible (y entonces se usa Tesseract).
+async function nativeOcr(image: Blob | HTMLCanvasElement): Promise<string | null> {
+  if (!isDesktop()) return null;
+  try {
+    const blob =
+      image instanceof Blob ? image : await new Promise<Blob | null>((ok) => image.toBlob(ok, "image/png"));
+    if (!blob) return null;
+    const { invoke } = await import("@tauri-apps/api/core");
+    return await invoke<string | null>("ocr_image", new Uint8Array(await blob.arrayBuffer()));
+  } catch (e) {
+    console.warn("[OCR] falló el de Windows, uso Tesseract", e);
+    return null;
+  }
+}
+
 // Texto de una foto o captura (por ejemplo, un cronograma sacado con el celular).
 export async function ocrImage(file: Blob): Promise<string> {
+  const native = await nativeOcr(file);
+  if (native !== null) return native;
   const worker = await createOcrWorker();
   try {
     const { data } = await worker.recognize(file);
@@ -268,7 +293,7 @@ export async function ocrImage(file: Blob): Promise<string> {
   }
 }
 
-async function recognizePage(page: PDFPageProxy, worker: OcrWorker): Promise<string> {
+async function renderPage(page: PDFPageProxy): Promise<HTMLCanvasElement> {
   const viewport = page.getViewport({ scale: OCR_SCALE });
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(viewport.width);
@@ -279,11 +304,7 @@ async function recognizePage(page: PDFPageProxy, worker: OcrWorker): Promise<str
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: ctx, canvas, viewport }).promise;
-
-  const { data } = await worker.recognize(canvas);
-  canvas.width = 0;
-  canvas.height = 0;
-  return data.text;
+  return canvas;
 }
 
 // El OCR no trae tamaños de fuente: los párrafos son los bloques separados por líneas en blanco.

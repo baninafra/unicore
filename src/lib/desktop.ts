@@ -3,7 +3,8 @@
 // Versión de escritorio (Tauri): todo se guarda en Documentos\UniCore.
 // La interfaz sigue usando IndexedDB (Dexie); acá espejamos cada cambio a la base SQLite
 // y a la carpeta "archivos", y al abrir la app restauramos desde el disco, que es la copia que manda.
-// En el navegador (npm run dev) estas funciones no hacen nada.
+// La base lleva un número de revisión: si coincide con el último que vio la interfaz, IndexedDB
+// ya está igual al disco y el arranque se saltea la restauración.
 
 import { db } from "./db";
 import type { StoredFile } from "./types";
@@ -21,7 +22,12 @@ const TABLES = [
   "snapshots",
   "bookmarks",
   "calendars", // calendarEvents no se espeja: es una copia que se regenera al sincronizar
+  "officeDocs",
+  "events",
 ] as const;
+// Tablas que se sumaron al espejo después: si el disco todavía no tiene nada de ellas,
+// lo que hay en IndexedDB se sube en lugar de borrarse.
+const LATE_TABLES: readonly TableName[] = ["officeDocs", "events"];
 type TableName = (typeof TABLES)[number];
 type Row = { id: string } & Record<string, unknown>;
 type DiskFile = Omit<StoredFile, "blob"> & { diskName: string };
@@ -51,10 +57,45 @@ function diskName(f: Pick<StoredFile, "id" | "name" | "type">) {
   return `${f.id}.${ext}`;
 }
 
+// Última revisión del disco que IndexedDB tiene entera. Sin valor: hay que restaurar al abrir.
+const REV_KEY = "uc-disk-rev";
+let knownRev: number | null = null;
+function setKnownRev(rev: number | null) {
+  knownRev = rev;
+  try {
+    if (rev === null) localStorage.removeItem(REV_KEY);
+    else localStorage.setItem(REV_KEY, String(rev));
+  } catch {}
+}
+function readKnownRev(): number | null {
+  try {
+    const v = localStorage.getItem(REV_KEY);
+    return v === null ? null : Number(v);
+  } catch {
+    return null;
+  }
+}
+// Cada escritura propia sube la revisión en uno. Si saltó más, alguien más escribió (el MCP)
+// y al próximo arranque conviene restaurar.
+function afterWrite(prev: number | null, rev: number) {
+  setKnownRev(prev !== null && rev === prev + 1 ? rev : null);
+}
+
 // Las escrituras a disco van en fila, en el mismo orden en que pasaron.
 let chain: Promise<void> = Promise.resolve();
 function enqueue(task: () => Promise<void>) {
-  chain = chain.then(task).catch((e) => console.error("[UniCore] no se pudo guardar en la carpeta de datos", e));
+  chain = chain
+    .then(async () => {
+      const prev = knownRev;
+      // Si se corta a mitad de camino, el próximo arranque restaura desde el disco.
+      if (prev !== null) setKnownRev(null);
+      knownRev = prev;
+      await task();
+    })
+    .catch((e) => {
+      setKnownRev(null);
+      console.error("[UniCore] no se pudo guardar en la carpeta de datos", e);
+    });
 }
 
 async function pushPut(table: TableName, row: Row) {
@@ -64,15 +105,15 @@ async function pushPut(table: TableName, row: Row) {
     if (blob) {
       await call("file_write", new Uint8Array(await blob.arrayBuffer()), { "x-file": diskName(file) });
     }
-    await call("db_put", { table, id: file.id, data: { ...meta, diskName: diskName(file) } });
+    afterWrite(knownRev, await call<number>("db_put", { table, id: file.id, data: { ...meta, diskName: diskName(file) } }));
     return;
   }
-  await call("db_put", { table, id: row.id, data: row });
+  afterWrite(knownRev, await call<number>("db_put", { table, id: row.id, data: row }));
 }
 
 async function pushDelete(table: TableName, id: string, old?: Row) {
   if (table === "files" && old) await call("file_delete", { file: diskName(old as unknown as StoredFile) });
-  await call("db_delete", { table, id });
+  afterWrite(knownRev, await call<number>("db_delete", { table, id }));
 }
 
 let paused = false;
@@ -103,6 +144,13 @@ export async function initDesktopStorage(): Promise<void> {
   if (!isDesktop()) return;
   installHooks();
 
+  // IndexedDB ya tiene todo lo del disco: no hay nada que recargar.
+  const [rev, saved, localRows] = await Promise.all([call<number>("db_rev"), readKnownRev(), db.notes.count()]);
+  if (saved !== null && saved === rev && (rev === 0 || localRows > 0 || (await db.subjects.count()) > 0)) {
+    knownRev = rev;
+    return;
+  }
+
   const dump = await call<Record<string, Row[]>>("db_dump");
   const hasDiskData = Object.values(dump).some((rows) => rows.length > 0);
 
@@ -114,11 +162,20 @@ export async function initDesktopStorage(): Promise<void> {
       if (t === "files") for (const r of rows) await pushPut("files", r);
       else await call("db_put_many", { table: t, records: rows });
     }
+    setKnownRev(await call<number>("db_rev"));
     return;
   }
 
+  // Los archivos que IndexedDB ya tiene (mismo id y tamaño) no se vuelven a leer del disco.
+  const cached = new Map((await db.files.toArray()).map((f) => [f.id, f]));
   const files = await Promise.all(
     ((dump.files ?? []) as unknown as DiskFile[]).map(async (f) => {
+      const hit = cached.get(f.id);
+      if (hit?.blob && hit.size === f.size) {
+        const { diskName: _ignored, ...meta } = f;
+        void _ignored;
+        return { ...meta, blob: hit.blob } as StoredFile;
+      }
       try {
         const bytes = await call<ArrayBuffer>("file_read", { file: f.diskName });
         const { diskName: _ignored, ...meta } = f;
@@ -130,10 +187,21 @@ export async function initDesktopStorage(): Promise<void> {
     }),
   );
 
+  const late: TableName[] = [];
+  for (const t of LATE_TABLES) {
+    if ((dump[t] ?? []).length > 0) continue;
+    const rows = (await db.table(t).toArray()) as Row[];
+    if (rows.length) {
+      await call("db_put_many", { table: t, records: rows });
+      late.push(t);
+    }
+  }
+
   paused = true;
   try {
     await db.transaction("rw", db.tables, async () => {
       for (const t of TABLES) {
+        if (late.includes(t)) continue;
         const table = db.table(t);
         await table.clear();
         const rows = t === "files" ? files.filter((f): f is StoredFile => f !== null) : (dump[t] ?? []);
@@ -143,6 +211,7 @@ export async function initDesktopStorage(): Promise<void> {
   } finally {
     paused = false;
   }
+  setKnownRev(rev);
 }
 
 // Lo que escriben otras IAs por MCP (unicore.exe --mcp) entra a la app cada pocos segundos.

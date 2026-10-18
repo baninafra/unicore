@@ -1,6 +1,6 @@
 [package]
 name = "unicore"
-version = "0.1.0"
+version = "0.2.0"
 description = "UniCore: tus carreras, en un solo núcleo"
 edition = "2021"
 
@@ -19,6 +19,8 @@ serde_json = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "5"
 tauri-plugin-window-state = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [profile.release]
 codegen-units = 1

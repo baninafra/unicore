@@ -1798,5 +1798,16 @@
   "Razona antes de responder (más lento)": "Réfléchit avant de répondre (plus lent)",
   "Reintentar": "Réessayer",
   "Responde directo (más rápido)": "Répond directement (plus rapide)",
-  "Soltá para adjuntar": "Dépose pour joindre"
+  "Soltá para adjuntar": "Dépose pour joindre",
+  "Actualizaciones": "Mises à jour",
+  "Buscar actualizaciones": "Rechercher des mises à jour",
+  "Descargando… {n}%": "Téléchargement… {n} %",
+  "Después": "Plus tard",
+  "Hay una versión nueva de UniCore ({version})": "Une nouvelle version d'UniCore est disponible ({version})",
+  "Hay una versión nueva: mirá el aviso abajo": "Une nouvelle version est disponible : regarde l'avis en bas",
+  "Instalar y reiniciar": "Installer et redémarrer",
+  "No se pudo buscar (¿sin internet?)": "Impossible de vérifier (pas d'internet ?)",
+  "No se pudo instalar la actualización. Probá de nuevo más tarde.": "Impossible d'installer la mise à jour. Réessaie plus tard.",
+  "Se instala en segundos y no se pierde nada.": "L'installation prend quelques secondes et tu ne perds rien.",
+  "Tenés la última versión": "Tu as la dernière version"
 }

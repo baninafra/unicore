@@ -1798,5 +1798,16 @@
   "Razona antes de responder (más lento)": "先思考再回答（较慢）",
   "Reintentar": "重试",
   "Responde directo (más rápido)": "直接回答（较快）",
-  "Soltá para adjuntar": "松开以添加附件"
+  "Soltá para adjuntar": "松开以添加附件",
+  "Actualizaciones": "更新",
+  "Buscar actualizaciones": "检查更新",
+  "Descargando… {n}%": "正在下载… {n}%",
+  "Después": "稍后",
+  "Hay una versión nueva de UniCore ({version})": "UniCore 有新版本（{version}）",
+  "Hay una versión nueva: mirá el aviso abajo": "有新版本：请查看下方提示",
+  "Instalar y reiniciar": "安装并重启",
+  "No se pudo buscar (¿sin internet?)": "无法检查（没有网络？）",
+  "No se pudo instalar la actualización. Probá de nuevo más tarde.": "无法安装更新，请稍后再试。",
+  "Se instala en segundos y no se pierde nada.": "几秒即可安装，不会丢失任何内容。",
+  "Tenés la última versión": "已是最新版本"
 }

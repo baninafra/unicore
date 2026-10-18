@@ -1,6 +1,6 @@
 {
   "name": "unicore",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,6 +19,8 @@
     "@mlc-ai/web-llm": "^0.2.86",
     "@tauri-apps/api": "^2.12.3",
     "@tauri-apps/plugin-opener": "^2.7.1",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.0",
     "@tiptap/pm": "^3.32.0",
     "@xyflow/react": "^12.12.0",
     "chrono-node": "^2.10.3",

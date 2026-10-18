@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { checkForUpdates } from "@/components/shell/update-checker";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { getLang, LANGS, setLang, t, intlLocale, type Lang } from "@/lib/i18n";
 import { useAppState } from "@/lib/app-state";
@@ -187,11 +188,33 @@ function Notificaciones() {
 
 function Acerca() {
   const counts = useCounts();
+  const [version, setVersion] = useState("");
+  const [status, setStatus] = useState<string>();
+  useEffect(() => {
+    if (isDesktop()) void import("@tauri-apps/api/app").then((m) => m.getVersion()).then(setVersion);
+  }, []);
   return (
     <>
       <Row label="UniCore">
-        <span className="t-small num text-muted">0.1.0</span>
+        <span className="t-small num text-muted">{version || "0.2.0"}</span>
       </Row>
+      {isDesktop() && (
+        <Row label={t("Actualizaciones")}>
+          {status && <span className="t-small text-muted">{status}</span>}
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              setStatus(t("Buscando…"));
+              void checkForUpdates().then((r) =>
+                setStatus(r === "nueva" ? t("Hay una versión nueva: mirá el aviso abajo") : r === "al-dia" ? t("Tenés la última versión") : t("No se pudo buscar (¿sin internet?)")),
+              );
+            }}
+          >
+            {t("Buscar actualizaciones")}
+          </button>
+        </Row>
+      )}
       <Row label={t("Plataforma")}>
         <span className="t-small text-muted">{isDesktop() ? t("Aplicación de escritorio") : t("Navegador")}</span>
       </Row>

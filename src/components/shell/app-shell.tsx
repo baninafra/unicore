@@ -1,5 +1,6 @@
 "use client";
 
+import { UpdateChecker } from "./update-checker";
 import { FolderDialogHost } from "@/components/explorer/folder-dialog";
 import { t } from "@/lib/i18n";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -190,6 +191,7 @@ export function AppShell() {
           <GlobalFiles />
           <OnboardingHost />
           <FolderDialogHost />
+          <UpdateChecker />
         </AIProvider>
       </WorkspaceProvider>
       </ProfileProvider>

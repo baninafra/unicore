@@ -224,6 +224,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         // Recuerda si la ventana quedó maximizada, su tamaño y posición al cerrar.
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Actualizaciones con un clic: busca la versión nueva en GitHub y la instala (firmada).
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let store = open_store()?;
             app.manage(store);

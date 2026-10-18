@@ -1798,5 +1798,16 @@
   "Razona antes de responder (más lento)": "Thinks before answering (slower)",
   "Reintentar": "Retry",
   "Responde directo (más rápido)": "Answers right away (faster)",
-  "Soltá para adjuntar": "Drop to attach"
+  "Soltá para adjuntar": "Drop to attach",
+  "Actualizaciones": "Updates",
+  "Buscar actualizaciones": "Check for updates",
+  "Descargando… {n}%": "Downloading… {n}%",
+  "Después": "Later",
+  "Hay una versión nueva de UniCore ({version})": "A new version of UniCore is available ({version})",
+  "Hay una versión nueva: mirá el aviso abajo": "A new version is available: see the notice below",
+  "Instalar y reiniciar": "Install and restart",
+  "No se pudo buscar (¿sin internet?)": "Couldn't check (no internet?)",
+  "No se pudo instalar la actualización. Probá de nuevo más tarde.": "The update couldn't be installed. Try again later.",
+  "Se instala en segundos y no se pierde nada.": "It installs in seconds and you won't lose anything.",
+  "Tenés la última versión": "You're on the latest version"
 }

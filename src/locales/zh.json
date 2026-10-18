@@ -1783,5 +1783,20 @@
   "X": "三",
   "Ya llegaste aunque saques lo mínimo en lo que falta.": "即使剩下的只拿最低分，你也已经通过了。",
   "yardas": "码",
-  "Tema de colores": "主题颜色"
+  "Tema de colores": "主题颜色",
+  "Abrí una nota para insertar": "打开一条笔记以插入",
+  "Activar": "启用",
+  "Insertar en la nota": "插入笔记",
+  "No llegué a armar el resumen. Probá de nuevo.": "没能完成摘要，请重试。",
+  "No llegué a responder. Probá de nuevo.": "没能回答，请重试。",
+  "No pudimos preparar la IA. Probá de nuevo.": "无法准备 AI，请重试。",
+  "Pedí o preguntá algo": "提问或提出请求",
+  "Pensando…": "思考中…",
+  "Preguntá algo": "问点什么",
+  "Preguntá lo que necesites": "有什么需要尽管问",
+  "Preguntá sobre {name}": "询问关于 {name} 的问题",
+  "Razona antes de responder (más lento)": "先思考再回答（较慢）",
+  "Reintentar": "重试",
+  "Responde directo (más rápido)": "直接回答（较快）",
+  "Soltá para adjuntar": "松开以添加附件"
 }

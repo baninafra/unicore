@@ -18,8 +18,8 @@ function walk(dir, out = []) {
   return out;
 }
 
-// t("…") o t('…'), con escapes. Sólo literales (no variables).
-const RE = /\bt\(\s*(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')/g;
+// t("…") o t('…') (también el alias tr), con escapes. Sólo literales (no variables).
+const RE = /\b(?:t|tr)\(\s*(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')/g;
 const keys = new Set();
 for (const file of walk(SRC)) {
   const text = readFileSync(file, "utf8");

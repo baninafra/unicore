@@ -60,5 +60,5 @@ export function setLang(lang: Lang) {
 export function t(text: string, vars?: Record<string, string | number>): string {
   const out = current === "es" ? text : (DICTS[current][text] ?? text);
   if (!vars) return out;
-  return out.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+  return out.replace(/\{([\p{L}\w]+)\}/gu, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }

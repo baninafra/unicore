@@ -1783,5 +1783,20 @@
   "X": "M",
   "Ya llegaste aunque saques lo mínimo en lo que falta.": "Du hast es schon geschafft, auch wenn du bei dem, was noch fehlt, nur das Minimum erreichst.",
   "yardas": "Yards",
-  "Tema de colores": "Farbschema"
+  "Tema de colores": "Farbschema",
+  "Abrí una nota para insertar": "Öffne eine Notiz zum Einfügen",
+  "Activar": "Aktivieren",
+  "Insertar en la nota": "In Notiz einfügen",
+  "No llegué a armar el resumen. Probá de nuevo.": "Ich konnte die Zusammenfassung nicht fertigstellen. Versuch es noch einmal.",
+  "No llegué a responder. Probá de nuevo.": "Ich konnte nicht antworten. Versuch es noch einmal.",
+  "No pudimos preparar la IA. Probá de nuevo.": "Die KI konnte nicht vorbereitet werden. Versuch es noch einmal.",
+  "Pedí o preguntá algo": "Frag oder bitte um etwas",
+  "Pensando…": "Denke nach…",
+  "Preguntá algo": "Frag etwas",
+  "Preguntá lo que necesites": "Frag, was du brauchst",
+  "Preguntá sobre {name}": "Frag zu {name}",
+  "Razona antes de responder (más lento)": "Denkt vor dem Antworten nach (langsamer)",
+  "Reintentar": "Erneut versuchen",
+  "Responde directo (más rápido)": "Antwortet direkt (schneller)",
+  "Soltá para adjuntar": "Zum Anhängen loslassen"
 }

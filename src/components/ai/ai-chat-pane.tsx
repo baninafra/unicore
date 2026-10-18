@@ -348,7 +348,7 @@ export function AIChatPane() {
             apiRef.current.push({ role: "user", content: text }, { role: "assistant", content: answer.slice(0, 1500) });
             patchTurn(aiId, { content: answer, working: undefined, sources: sources.map((x) => x.label) });
           } else {
-            patchTurn(aiId, { content: ctrl.signal.aborted ? "" : "No llegué a armar el resumen. Probá de nuevo.", working: undefined });
+            patchTurn(aiId, { content: ctrl.signal.aborted ? "" : tr("No llegué a armar el resumen. Probá de nuevo."), working: undefined });
           }
         } finally {
           ai.setBusy(false);
@@ -385,7 +385,7 @@ export function AIChatPane() {
     // Links de video en el mensaje: se lee la transcripción antes de preguntar.
     const videoTexts: string[] = [];
     for (const v of videoLinksIn(text).slice(0, 2)) {
-      patchTurn(aiId, { working: "Leyendo el video…" });
+      patchTurn(aiId, { working: tr("Leyendo el video…") });
       try {
         const info = await videoInfo(v, powerful ? 20000 : 3500);
         videoTexts.push(videoInfoText(info));
@@ -456,7 +456,7 @@ export function AIChatPane() {
       // Lo nuevo (respuestas y resultados) queda en la conversación.
       apiRef.current.push(...messages.slice(sent));
       patchTurn(aiId, (t) => ({
-        content: final.trim() || (t.steps?.length ? "" : "No llegué a responder. Probá de nuevo."),
+        content: final.trim() || (t.steps?.length ? "" : tr("No llegué a responder. Probá de nuevo.")),
         working: undefined,
         sources: sources.length ? [...new Set(sources)] : undefined,
       }));
@@ -507,7 +507,7 @@ export function AIChatPane() {
       onToken: (full) => patchTurn(aiId, { content: full }),
     });
     patchTurn(aiId, {
-      content: answer.trim() ? answer : "No llegué a responder. Probá de nuevo.",
+      content: answer.trim() ? answer : tr("No llegué a responder. Probá de nuevo."),
       sources: sources.length > 0 ? [...new Set(sources)] : undefined,
     });
   }
@@ -605,7 +605,7 @@ export function AIChatPane() {
                 <i style={{ width: `${pct}%` }} />
               </div>
             )}
-            <p className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{ai.progressText || "Preparando la IA…"}</p>
+            <p className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{ai.progressText || tr("Preparando la IA…")}</p>
           </div>
         );
       }
@@ -613,17 +613,17 @@ export function AIChatPane() {
         return (
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <p className="min-w-0 flex-1 truncate text-[length:calc(13px*var(--ui-scale,1))] text-rose" title={ai.error}>
-              {ai.error ?? "No pudimos preparar la IA. Probá de nuevo."}
+              {ai.error ?? tr("No pudimos preparar la IA. Probá de nuevo.")}
             </p>
             <button type="button" onClick={activate} className="flex-none text-[length:calc(13px*var(--ui-scale,1))] text-primary-soft underline underline-offset-2">
-              Reintentar
+              {tr("Reintentar")}
             </button>
           </div>
         );
       case "idle":
         return (
           <button type="button" onClick={activate} className="btn btn-ai btn-sm flex-none whitespace-nowrap">
-            Activar
+            {tr("Activar")}
           </button>
         );
       case "generating":
@@ -651,7 +651,7 @@ export function AIChatPane() {
     >
       {dragging && (
         <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary-tint/80 text-[length:calc(13px*var(--ui-scale,1))] text-text">
-          Soltá para adjuntar
+          {tr("Soltá para adjuntar")}
         </div>
       )}
 
@@ -666,7 +666,7 @@ export function AIChatPane() {
               className={clsx("icon-btn flex-none", settings.think && "text-primary-soft")}
               onClick={() => writeAISettings({ think: !settings.think })}
               aria-pressed={settings.think}
-              title={settings.think ? "Razona antes de responder (más lento)" : "Responde directo (más rápido)"}
+              title={settings.think ? tr("Razona antes de responder (más lento)") : tr("Responde directo (más rápido)")}
             >
               <Brain strokeWidth={1.75} />
             </button>}
@@ -706,7 +706,7 @@ export function AIChatPane() {
         {turns.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
             <Sparkles className="h-6 w-6 text-faint" strokeWidth={1.5} />
-            <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{contextName ? `Preguntá sobre ${contextName}` : "Preguntá lo que necesites"}</p>
+            <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{contextName ? tr("Preguntá sobre {name}", { name: contextName }) : tr("Preguntá lo que necesites")}</p>
           </div>
         )}
         {turns.map((t) =>
@@ -772,10 +772,10 @@ export function AIChatPane() {
                   {confirm.detail && <p className="text-[length:calc(12px*var(--ui-scale,1))] text-muted">{confirm.detail}</p>}
                   <div className="flex gap-2">
                     <button type="button" className="btn btn-danger btn-sm" onClick={() => answerConfirm(true)}>
-                      Eliminar
+                      {tr("Eliminar")}
                     </button>
                     <button type="button" className="btn btn-sm" onClick={() => answerConfirm(false)}>
-                      Cancelar
+                      {tr("Cancelar")}
                     </button>
                   </div>
                 </div>
@@ -790,11 +790,11 @@ export function AIChatPane() {
                     type="button"
                     onClick={() => insertAnswer(t.content)}
                     disabled={!note}
-                    title={note ? undefined : "Abrí una nota para insertar"}
+                    title={note ? undefined : tr("Abrí una nota para insertar")}
                     className="flex items-center gap-1 text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-text disabled:opacity-40 disabled:hover:text-faint"
                   >
                     <ArrowDownToLine className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    Insertar en la nota
+                    {tr("Insertar en la nota")}
                   </button>
                 </div>
               )}
@@ -849,7 +849,7 @@ export function AIChatPane() {
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             disabled={unavailable}
-            placeholder={agentMode ? "Pedí o preguntá algo" : "Preguntá algo"}
+            placeholder={agentMode ? tr("Pedí o preguntá algo") : tr("Preguntá algo")}
             aria-label={t("Pregunta para el asistente")}
             className="min-h-[32px] min-w-0 flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
           />

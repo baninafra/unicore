@@ -1,4 +1,5 @@
 import { average } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import type { Degree, Subject } from "@/lib/types";
 
 // Posición lineal de un cuatrimestre: 1.º año 1C = 0, 1.º año 2C = 1, 2.º año 1C = 2, ...
@@ -8,7 +9,7 @@ export function periodIndex(year: number, semester: 1 | 2) {
 
 // "1.º año · 1C"
 export function periodLabel(year: number, semester: 1 | 2) {
-  return `${year}.º año · ${semester}C`;
+  return t("{year}.º año · {semester}C", { year, semester });
 }
 
 // Orden de cuatrimestre y, dentro del mismo, orden de carga.

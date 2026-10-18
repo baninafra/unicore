@@ -3,6 +3,7 @@
 // Árbol de etiquetas: "materia/unidad1" es hijo de "materia".
 
 import type { Note } from "@/lib/types";
+import { intlLocale } from "@/lib/i18n";
 
 export interface TagNode {
   name: string; // último segmento
@@ -49,6 +50,6 @@ export function buildTagTree(notes: Note[]): TagNode[] {
 
 export function sortNodes(nodes: TagNode[], mode: "nombre" | "frecuencia"): TagNode[] {
   return [...nodes].sort((a, b) =>
-    mode === "frecuencia" ? b.total - a.total || a.name.localeCompare(b.name, "es") : a.name.localeCompare(b.name, "es"),
+    mode === "frecuencia" ? b.total - a.total || a.name.localeCompare(b.name, intlLocale()) : a.name.localeCompare(b.name, intlLocale()),
   );
 }

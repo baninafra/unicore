@@ -4,6 +4,7 @@
 // Van fijos arriba a la derecha; las barras que quedan debajo dejan ese lugar libre (WINDOW_CONTROLS_W).
 
 import { useEffect, useState } from "react";
+import { t } from "@/lib/i18n";
 import { isDesktop } from "@/lib/desktop";
 import { useWorkspace } from "@/lib/workspace";
 import { useRailHidden } from "@/components/workspace/sidebars";
@@ -63,14 +64,14 @@ export function WindowControls() {
     // Misma altura que la barra de pestañas (h-10) y los botones apoyados igual que los de las pestañas (mb-1).
     <div className="fixed right-0 top-0 z-50 flex h-10 items-end gap-0.5 bg-bg pb-1 pr-1.5">
       {panes.length === 1 && (
-        <button aria-label="Dividir a la derecha" title="Dividir a la derecha" className={TOP_BTN} onClick={() => openView(activeView, "split")}>
+        <button aria-label={t("Dividir a la derecha")} title={t("Dividir a la derecha")} className={TOP_BTN} onClick={() => openView(activeView, "split")}>
           <TopGlyph d={GLYPH.split} />
         </button>
       )}
       {/* Mostrar y esconder la barra derecha: siempre en el mismo lugar. Al mostrarla vuelve al panel que estaba. */}
       <button
-        aria-label={railHidden ? "Mostrar la barra derecha" : "Esconder la barra derecha"}
-        title={railHidden ? "Mostrar la barra derecha" : "Esconder la barra derecha"}
+        aria-label={railHidden ? t("Mostrar la barra derecha") : t("Esconder la barra derecha")}
+        title={railHidden ? t("Mostrar la barra derecha") : t("Esconder la barra derecha")}
         className={TOP_BTN}
         onClick={() => {
           if (railHidden) {
@@ -84,18 +85,18 @@ export function WindowControls() {
       >
         <TopGlyph d={railHidden ? GLYPH.panelClosed : GLYPH.panelOpen} />
       </button>
-      <button aria-label="Minimizar" title="Minimizar" className={TOP_BTN} onClick={() => void appWindow().then((w) => w.minimize())}>
+      <button aria-label={t("Minimizar")} title={t("Minimizar")} className={TOP_BTN} onClick={() => void appWindow().then((w) => w.minimize())}>
         <TopGlyph d={GLYPH.minimize} />
       </button>
       <button
-        aria-label={maximized ? "Restaurar" : "Maximizar"}
-        title={maximized ? "Restaurar" : "Maximizar"}
+        aria-label={maximized ? t("Restaurar") : t("Maximizar")}
+        title={maximized ? t("Restaurar") : t("Maximizar")}
         className={TOP_BTN}
         onClick={() => void appWindow().then((w) => w.toggleMaximize())}
       >
         <TopGlyph d={maximized ? GLYPH.restore : GLYPH.maximize} />
       </button>
-      <button aria-label="Cerrar" title="Cerrar" className={`${TOP_BTN} hover:!bg-[#c42b1c] hover:!text-white`} onClick={() => void appWindow().then((w) => w.close())}>
+      <button aria-label={t("Cerrar")} title={t("Cerrar")} className={`${TOP_BTN} hover:!bg-[#c42b1c] hover:!text-white`} onClick={() => void appWindow().then((w) => w.close())}>
         <TopGlyph d={GLYPH.close} />
       </button>
     </div>

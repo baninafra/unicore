@@ -36,6 +36,7 @@ import { db, resolveFileUrl } from "@/lib/db";
 import type { Task } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
 import { isDesktop } from "@/lib/desktop";
+import { t } from "@/lib/i18n";
 
 const CLICKABLE = 'a[href], button, [role="button"], [role="treeitem"], [role="option"], [role="link"], [role="row"], [data-open], .row, .card-hover';
 // Acciones que no conviene disparar con la ruedita.
@@ -132,10 +133,10 @@ export function GlobalMouse() {
       text.trim()
         ? [
             { type: "separator" },
-            { label: "Preguntar a la IA", icon: Sparkles, onSelect: () => askAI(text) },
-            { label: "Buscar en UniCore", icon: Search, onSelect: () => ctx.current.openView({ type: "busqueda", query: text.trim().slice(0, 200) }, "tab") },
+            { label: t("Preguntar a la IA"), icon: Sparkles, onSelect: () => askAI(text) },
+            { label: t("Buscar en UniCore"), icon: Search, onSelect: () => ctx.current.openView({ type: "busqueda", query: text.trim().slice(0, 200) }, "tab") },
             {
-              label: "Buscar en internet",
+              label: t("Buscar en internet"),
               icon: Globe,
               onSelect: () => ctx.current.openView({ type: "web", url: `https://duckduckgo.com/?q=${encodeURIComponent(text.trim().slice(0, 200))}` }, "tab"),
             },
@@ -146,11 +147,11 @@ export function GlobalMouse() {
     const createItems = (text: string): MenuItem[] => [
       { type: "separator" },
       {
-        label: text.trim() ? "Crear tarea con la selección" : "Nueva tarea",
+        label: text.trim() ? t("Crear tarea con la selección") : t("Nueva tarea"),
         icon: ListPlus,
         onSelect: async () => ctx.current.openTaskDialog(await taskDefaults(ctx.current.activeView, text)),
       },
-      { label: "Nueva nota", icon: FilePlus, onSelect: async () => ctx.current.openView({ type: "nota", id: await newNoteForView(ctx.current.activeView) }, "tab") },
+      { label: t("Nueva nota"), icon: FilePlus, onSelect: async () => ctx.current.openView({ type: "nota", id: await newNoteForView(ctx.current.activeView) }, "tab") },
     ];
 
     const onContext = (e: MouseEvent) => {
@@ -169,16 +170,16 @@ export function GlobalMouse() {
       const url = externalUrl(link?.getAttribute("href") ?? null);
       if (url) {
         items.push(
-          { label: "Abrir en pestaña nueva", icon: SquareArrowOutUpRight, onSelect: () => ctx.current.openView({ type: "web", url }, "tab") },
-          { label: "Abrir en el navegador", icon: ExternalLink, onSelect: () => void openExternal(url) },
-          { label: "Copiar link", icon: Copy, onSelect: () => void navigator.clipboard.writeText(url) },
+          { label: t("Abrir en pestaña nueva"), icon: SquareArrowOutUpRight, onSelect: () => ctx.current.openView({ type: "web", url }, "tab") },
+          { label: t("Abrir en el navegador"), icon: ExternalLink, onSelect: () => void openExternal(url) },
+          { label: t("Copiar link"), icon: Copy, onSelect: () => void navigator.clipboard.writeText(url) },
           { type: "separator" },
         );
       }
       if (img) {
         items.push(
           {
-            label: "Copiar imagen",
+            label: t("Copiar imagen"),
             icon: ImageIcon,
             onSelect: async () => {
               const png = await toPng(await imageBlob(img));
@@ -186,12 +187,12 @@ export function GlobalMouse() {
             },
           },
           {
-            label: "Guardar imagen",
+            label: t("Guardar imagen"),
             icon: Download,
             onSelect: async () => {
               const b = await imageBlob(img);
               const ext = b.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
-              await saveBlob(`${safeFileName(img.alt || "imagen")}.${ext}`, b);
+              await saveBlob(`${safeFileName(img.alt || t("imagen"))}.${ext}`, b);
             },
           },
           { type: "separator" },
@@ -202,15 +203,15 @@ export function GlobalMouse() {
         const el = target.closest("input, textarea, [contenteditable]") as HTMLElement | null;
         el?.focus({ preventScroll: true });
         items.push(
-          { label: "Deshacer", icon: Undo2, hint: "Ctrl+Z", onSelect: () => void document.execCommand("undo") },
-          { label: "Rehacer", icon: Redo2, hint: "Ctrl+Y", onSelect: () => void document.execCommand("redo") },
+          { label: t("Deshacer"), icon: Undo2, hint: t("Ctrl+Z"), onSelect: () => void document.execCommand("undo") },
+          { label: t("Rehacer"), icon: Redo2, hint: t("Ctrl+Y"), onSelect: () => void document.execCommand("redo") },
           { type: "separator" },
-          { label: "Cortar", icon: Scissors, hint: "Ctrl+X", disabled: !text, onSelect: () => void document.execCommand("cut") },
-          { label: "Copiar", icon: Copy, hint: "Ctrl+C", disabled: !text, onSelect: () => void document.execCommand("copy") },
+          { label: t("Cortar"), icon: Scissors, hint: t("Ctrl+X"), disabled: !text, onSelect: () => void document.execCommand("cut") },
+          { label: t("Copiar"), icon: Copy, hint: t("Ctrl+C"), disabled: !text, onSelect: () => void document.execCommand("copy") },
           {
-            label: "Pegar",
+            label: t("Pegar"),
             icon: ClipboardPaste,
-            hint: "Ctrl+V",
+            hint: t("Ctrl+V"),
             onSelect: async () => {
               el?.focus({ preventScroll: true });
               try {
@@ -233,12 +234,12 @@ export function GlobalMouse() {
               if (t) document.execCommand("insertText", false, t);
             },
           },
-          { label: "Seleccionar todo", icon: TextSelect, hint: "Ctrl+A", onSelect: () => void document.execCommand("selectAll") },
+          { label: t("Seleccionar todo"), icon: TextSelect, hint: t("Ctrl+A"), onSelect: () => void document.execCommand("selectAll") },
           ...textItems(text),
           ...createItems(text),
         );
       } else if (text.trim()) {
-        items.push({ label: "Copiar", icon: Copy, hint: "Ctrl+C", onSelect: () => void navigator.clipboard.writeText(text) }, ...textItems(text).slice(1), ...createItems(text));
+        items.push({ label: t("Copiar"), icon: Copy, hint: t("Ctrl+C"), onSelect: () => void navigator.clipboard.writeText(text) }, ...textItems(text).slice(1), ...createItems(text));
       }
 
       if (!items.length || items.every((i) => i.type === "separator")) {
@@ -248,12 +249,12 @@ export function GlobalMouse() {
             open: (v) => ctx.current.openView(v, "tab"),
             openTask: () => void taskDefaults(ctx.current.activeView, "").then((d) => ctx.current.openTaskDialog(d)),
             activeView: ctx.current.activeView,
-            extra: [{ label: "Materia o carrera", icon: GraduationCap, onSelect: () => ctx.current.openView({ type: "carreras" }, "tab") }],
+            extra: [{ label: t("Materia o carrera"), icon: GraduationCap, onSelect: () => ctx.current.openView({ type: "carreras" }, "tab") }],
           }),
-          { label: "Preguntar a la IA", icon: Sparkles, onSelect: () => ctx.current.setRight(true, "ia") },
+          { label: t("Preguntar a la IA"), icon: Sparkles, onSelect: () => ctx.current.setRight(true, "ia") },
           { type: "separator" },
-          { label: "Buscar", icon: Search, hint: "Ctrl+Shift+F", onSelect: () => ctx.current.openView({ type: "busqueda" }, "tab") },
-          { label: "Paleta de comandos", icon: CommandIcon, hint: "Ctrl+P", onSelect: () => openPalette({ mode: "commands" }) },
+          { label: t("Buscar"), icon: Search, hint: t("Ctrl+Shift+F"), onSelect: () => ctx.current.openView({ type: "busqueda" }, "tab") },
+          { label: t("Paleta de comandos"), icon: CommandIcon, hint: t("Ctrl+P"), onSelect: () => openPalette({ mode: "commands" }) },
         );
       }
       while (items[items.length - 1]?.type === "separator") items.pop();

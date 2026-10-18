@@ -7,6 +7,7 @@
 import { folderName } from "@/lib/folder-names";
 import { normalizeText } from "@/lib/ai/rag";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 type Obj = Record<string, unknown>;
 
@@ -54,7 +55,7 @@ function walkInline(items: unknown, visit: (node: Obj) => void) {
 }
 
 export function noteTitle(note: Pick<Note, "title">): string {
-  return note.title.trim() || "Sin título";
+  return note.title.trim() || t("Sin título");
 }
 
 export function headingsOf(blocks: unknown[]): HeadingItem[] {
@@ -118,11 +119,11 @@ export function mentionsPhrase(text: string, phrase: string): boolean {
 // Nombre de las carpetas especiales; undefined si el id es el de una materia.
 export function specialFolderName(subjectId: string): string | undefined {
   if (subjectId === DAILY_FOLDER || subjectId === IDEAS_FOLDER) return folderName(subjectId);
-  if (subjectId === LOOSE_FOLDER) return "Notas sueltas";
-  if (subjectId === TEMPLATES_FOLDER) return "Plantillas";
+  if (subjectId === LOOSE_FOLDER) return t("Notas sueltas");
+  if (subjectId === TEMPLATES_FOLDER) return t("Plantillas");
   return undefined;
 }
 
 export function folderLabel(subjectId: string, subjects: Record<string, { name: string } | undefined>): string {
-  return specialFolderName(subjectId) ?? subjects[subjectId]?.name ?? "Sin materia";
+  return specialFolderName(subjectId) ?? subjects[subjectId]?.name ?? t("Sin materia");
 }

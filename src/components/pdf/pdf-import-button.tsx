@@ -5,6 +5,7 @@ import { FileUp } from "lucide-react";
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { extractPdf, type PdfExtraction, type PdfProgress } from "@/lib/pdf/import-pdf";
 import { savePdfDocument } from "@/lib/pdf/save-document";
+import { t } from "@/lib/i18n";
 
 interface Props {
   subjectId: string;
@@ -13,8 +14,8 @@ interface Props {
   label?: string;
 }
 
-const READ_ERROR = "No pudimos leer el PDF. Probá con otro archivo.";
-const SAVE_ERROR = "No pudimos guardar el PDF. Probá de nuevo.";
+const READ_ERROR = t("No pudimos leer el PDF. Probá con otro archivo.");
+const SAVE_ERROR = t("No pudimos guardar el PDF. Probá de nuevo.");
 
 function isPdf(file: File) {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -22,12 +23,12 @@ function isPdf(file: File) {
 
 function progressText(p: PdfProgress) {
   return p.stage === "ocr"
-    ? `Reconociendo texto de la página ${p.page} de ${p.total}…`
-    : `Leyendo página ${p.page} de ${p.total}…`;
+    ? t("Reconociendo texto de la página {page} de {total}…", { page: p.page, total: p.total })
+    : t("Leyendo página {page} de {total}…", { page: p.page, total: p.total });
 }
 
 // Botón para subir un PDF (o soltarlo encima) y pasarlo a texto.
-export function PdfImportButton({ subjectId, onImported, className, label = "Importar PDF" }: Props) {
+export function PdfImportButton({ subjectId, onImported, className, label = t("Importar PDF") }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -37,18 +38,18 @@ export function PdfImportButton({ subjectId, onImported, className, label = "Imp
   async function importFile(file: File) {
     if (busy) return;
     if (!isPdf(file)) {
-      setError("Ese archivo no es un PDF. Probá con otro.");
+      setError(t("Ese archivo no es un PDF. Probá con otro."));
       return;
     }
 
     setBusy(true);
     setError(null);
-    setStatus("Leyendo PDF…");
+    setStatus(t("Leyendo PDF…"));
     let saving = false;
     try {
       const extraction = await extractPdf(file, (p) => setStatus(progressText(p)));
       saving = true;
-      setStatus("Guardando…");
+      setStatus(t("Guardando…"));
       const documentId = await savePdfDocument(file, extraction, subjectId);
       onImported(extraction, documentId);
     } catch {

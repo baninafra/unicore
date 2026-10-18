@@ -22,6 +22,7 @@ import {
   type PomodoroState,
 } from "./pomodoro-store";
 import { Select } from "@/components/ui/select";
+import { t } from "@/lib/i18n";
 
 // Panel del reloj: se abre hacia arriba desde la barra de estado, alineado a la derecha.
 export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
@@ -35,16 +36,16 @@ export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
   const pct = total > 0 ? ((total - remaining) / total) * 100 : 0;
   const cursando = subjects.filter((x) => x.status === "CURSANDO").sort((a, b) => a.name.localeCompare(b.name));
   const phaseLabel =
-    s.phase === "focus" ? `Foco ${(s.completedFocus % POMODORO_CYCLE) + 1}/${POMODORO_CYCLE}` : s.longBreak ? "Descanso largo" : "Descanso";
+    s.phase === "focus" ? t("Foco {a}/{b}", { a: (s.completedFocus % POMODORO_CYCLE) + 1, b: POMODORO_CYCLE }) : s.longBreak ? t("Descanso largo") : t("Descanso");
 
   return (
     <div
       role="dialog"
-      aria-label="Reloj Pomodoro"
+      aria-label={t("Reloj Pomodoro")}
       className="card shadow-pop absolute bottom-full right-0 mb-1.5 flex w-[248px] flex-col gap-3 p-3"
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-1" role="group" aria-label="Modo">
+        <div className="flex gap-1" role="group" aria-label={t("Modo")}>
           {(Object.keys(POMODORO_MODES) as PomodoroMode[]).map((m) => (
             <button
               key={m}
@@ -61,8 +62,8 @@ export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
         <span className="t-small text-faint">{phaseLabel}</span>
       </div>
 
-      <Select className="input h-7 px-2" value={s.subjectId ?? ""} onChange={(e) => setSubject(e.target.value || null)} aria-label="Materia">
-        <option value="">Sin materia</option>
+      <Select className="input h-7 px-2" value={s.subjectId ?? ""} onChange={(e) => setSubject(e.target.value || null)} aria-label={t("Materia")}>
+        <option value="">{t("Sin materia")}</option>
         {cursando.map((x) => (
           <option key={x.id} value={x.id}>
             {x.name}
@@ -82,15 +83,15 @@ export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
         {s.status === "running" ? (
           <button type="button" className="btn btn-primary btn-sm flex-1" onClick={pause}>
             <Pause strokeWidth={1.75} />
-            Pausar
+            {t("Pausar")}
           </button>
         ) : (
           <button type="button" className="btn btn-primary btn-sm flex-1" onClick={start}>
             <Play strokeWidth={1.75} />
-            {s.status === "paused" ? "Reanudar" : "Empezar"}
+            {s.status === "paused" ? t("Reanudar") : t("Empezar")}
           </button>
         )}
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={skip} aria-label="Saltar fase" title="Saltar fase">
+        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={skip} aria-label={t("Saltar fase")} title={t("Saltar fase")}>
           <SkipForward strokeWidth={1.75} />
         </button>
         <button
@@ -98,14 +99,14 @@ export function PomodoroPopover({ s, now }: { s: PomodoroState; now: number }) {
           className="btn btn-ghost btn-sm btn-icon"
           onClick={finish}
           disabled={s.status === "idle" && s.phase === "focus"}
-          aria-label="Terminar sesión"
-          title="Terminar sesión"
+          aria-label={t("Terminar sesión")}
+          title={t("Terminar sesión")}
         >
           <Square strokeWidth={1.75} />
         </button>
       </div>
 
-      <div className="t-small num text-faint">Hoy {formatDuration(minutesToday)}</div>
+      <div className="t-small num text-faint">{t("Hoy {duracion}", { duracion: formatDuration(minutesToday) })}</div>
     </div>
   );
 }

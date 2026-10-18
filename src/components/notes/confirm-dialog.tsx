@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { deleteWithUndo } from "@/lib/undo";
+import { t } from "@/lib/i18n";
 
 // Antes preguntaba "¿Eliminar…?". Ahora borra al toque y muestra "Deshacer" (no pregunta dos veces).
 export function ConfirmDialog({
@@ -27,7 +28,7 @@ export function ConfirmDialog({
     if (fired.current) return;
     fired.current = true;
     const name = text.match(/["«]([^"»]+)["»]/)?.[1];
-    void deleteWithUndo(name ? `Se eliminó «${name}»` : confirmLabel.replace(/^Eliminar\s*/i, "Se eliminó "), onConfirm).catch(() => undefined);
+    void deleteWithUndo(name ? t("Se eliminó «{name}»", { name }) : confirmLabel.replace(/^Eliminar\s*/i, t("Se eliminó ")), onConfirm).catch(() => undefined);
     onClose();
   }, [open, text, confirmLabel, onConfirm, onClose]);
   return null;

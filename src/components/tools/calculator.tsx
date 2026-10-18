@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { all, create, type MathJsInstance } from "mathjs";
 import { Copy, Trash2 } from "lucide-react";
 import { toast } from "@/lib/undo";
+import { t } from "@/lib/i18n";
 
 const LS_HISTORY = "uc-calc-history";
 const LS_ANGLE = "uc-calc-angle";
@@ -126,12 +127,12 @@ export function CalculatorTool() {
     if (!e) return;
     try {
       const r = math.evaluate(e, scope.current);
-      const text = r === undefined ? "" : typeof r === "function" ? "función definida" : math.format(r, { precision: 14 });
+      const text = r === undefined ? "" : typeof r === "function" ? t("función definida") : math.format(r, { precision: 14 });
       if (r !== undefined && typeof r !== "function") scope.current.ans = r;
       save([{ expr: e, result: text }, ...history]);
       setExpr("");
     } catch (err) {
-      save([{ expr: e, result: err instanceof Error ? err.message : "No se pudo calcular", error: true }, ...history]);
+      save([{ expr: e, result: err instanceof Error ? err.message : t("No se pudo calcular"), error: true }, ...history]);
     }
   };
 
@@ -167,12 +168,12 @@ export function CalculatorTool() {
   return (
     <div className="tool-pane">
       <div className="flex flex-col-reverse gap-1 overflow-y-auto rounded-md border border-border bg-surface p-2" style={{ maxHeight: 180, minHeight: 72 }}>
-        {history.length === 0 && <div className="t-small text-faint">Escribí una cuenta y apretá Enter. Probá «sin(30)», «5 cm to inch» o «det([1,2;3,4])».</div>}
+        {history.length === 0 && <div className="t-small text-faint">{t("Escribí una cuenta y apretá Enter. Probá «sin(30)», «5 cm to inch» o «det([1,2;3,4])».")}</div>}
         {history.map((h, i) => (
           <button
             key={i}
             type="button"
-            title="Usar este resultado"
+            title={t("Usar este resultado")}
             className="group flex flex-col items-end rounded-sm px-1 py-0.5 text-right hover:bg-surface-raised"
             onClick={() => !h.error && setExpr((x) => x + h.result)}
           >
@@ -189,7 +190,7 @@ export function CalculatorTool() {
           value={expr}
           placeholder="0"
           spellCheck={false}
-          aria-label="Expresión"
+          aria-label={t("Expresión")}
           onChange={(e) => setExpr(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") evaluate();
@@ -197,7 +198,7 @@ export function CalculatorTool() {
           }}
         />
         <div className="flex h-5 items-center justify-between">
-          <button type="button" className="badge badge-primary cursor-pointer" onClick={toggleAngle} title="Cambiar entre grados y radianes">
+          <button type="button" className="badge badge-primary cursor-pointer" onClick={toggleAngle} title={t("Cambiar entre grados y radianes")}>
             {deg ? "DEG" : "RAD"}
           </button>
           <span className="t-small num text-faint">{preview && `= ${preview}`}</span>
@@ -226,15 +227,15 @@ export function CalculatorTool() {
           className="btn btn-ghost btn-sm"
           onClick={() => {
             const last = history.find((h) => !h.error);
-            if (last) void navigator.clipboard.writeText(last.result).then(() => toast("Copiamos el resultado"));
+            if (last) void navigator.clipboard.writeText(last.result).then(() => toast(t("Copiamos el resultado")));
           }}
         >
           <Copy className="h-4 w-4" strokeWidth={1.75} />
-          Copiar resultado
+          {t("Copiar resultado")}
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => save([])} disabled={!history.length}>
           <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-          Borrar historial
+          {t("Borrar historial")}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { FolderDialogHost } from "@/components/explorer/folder-dialog";
+import { t } from "@/lib/i18n";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { AppStateProvider, useAppState } from "@/lib/app-state";
 import { AIProvider } from "@/lib/ai/ai-provider";
@@ -76,7 +77,7 @@ function PaneDivider({ index, sizes, setSizes }: { index: number; sizes: number[
       ref={ref}
       role="separator"
       aria-orientation="vertical"
-      title="Arrastrá para cambiar el tamaño · doble clic para igualar"
+      title={t("Arrastrá para cambiar el tamaño · doble clic para igualar")}
       onDoubleClick={() => setSizes(sizes.map(() => 1))}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
@@ -157,7 +158,7 @@ export function AppShell() {
       .then(() => startExternalSync())
       .catch((e) => {
         console.error(e);
-        setLoadError("No pudimos abrir tu carpeta de datos. Cerrá la app y volvé a abrirla.");
+        setLoadError(t("No pudimos abrir tu carpeta de datos. Cerrá la app y volvé a abrirla."));
       })
       .finally(() => setReady(true));
   }, []);

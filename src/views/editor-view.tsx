@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { pickFolder } from "@/components/shell/folder-picker";
 import { useAllSubjects } from "@/lib/hooks";
 import { FOLDER_NAME } from "@/lib/nav/actions";
+import { t } from "@/lib/i18n";
 
 const AUTOSAVE_MS = 1500;
 const COMMAND_TIMEOUT_MS = 60000;
@@ -44,7 +45,7 @@ export function EditorView({ id }: { id: string }) {
   const place = doc
     ? (subjects?.find((x) => x.id === doc.subjectId)?.name ??
       FOLDER_NAME[doc.subjectId] ??
-      "Notas")
+      t("Notas"))
     : "";
 
   useEffect(() => {
@@ -188,14 +189,14 @@ export function EditorView({ id }: { id: string }) {
   }, [id, kind]);
 
   if (doc === undefined)
-    return <div className="p-6 t-small text-faint">Cargando…</div>;
+    return <div className="p-6 t-small text-faint">{t("Cargando…")}</div>;
   if (!doc)
     return (
       <div className="p-6">
         <EmptyState
           icon={FileX}
-          title="No encontramos el archivo"
-          text="Puede que lo hayas borrado."
+          title={t("No encontramos el archivo")}
+          text={t("Puede que lo hayas borrado.")}
         />
       </div>
     );
@@ -204,19 +205,19 @@ export function EditorView({ id }: { id: string }) {
     <div className="flex h-full w-full flex-col">
       <div className="flex h-8 flex-none items-center gap-2 border-b border-border bg-bg px-3">
         <span className="t-small truncate text-faint">
-          Se guarda solo en {place}
+          {t("Se guarda solo en {place}", { place })}
         </span>
         <button
           type="button"
           className="btn btn-ghost btn-sm ml-auto"
-          title="Elegir la materia o carpeta donde queda el archivo"
+          title={t("Elegir la materia o carpeta donde queda el archivo")}
           onClick={async () => {
-            const to = await pickFolder("¿Dónde lo guardo?");
+            const to = await pickFolder(t("¿Dónde lo guardo?"));
             if (to) await db.officeDocs.update(id, { subjectId: to });
           }}
         >
           <FolderInput className="h-4 w-4" strokeWidth={1.75} />
-          Guardar en…
+          {t("Guardar en…")}
         </button>
       </div>
       <div
@@ -234,13 +235,12 @@ export function EditorView({ id }: { id: string }) {
         {state !== "ready" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg text-center">
             {state === "loading" ? (
-              <div className="t-small text-faint">Abriendo el editor…</div>
+              <div className="t-small text-faint">{t("Abriendo el editor…")}</div>
             ) : (
               <>
-                <div className="t-h3">No pudimos abrir el editor</div>
+                <div className="t-h3">{t("No pudimos abrir el editor")}</div>
                 <div className="t-small max-w-md text-muted">
-                  Hace falta WebGPU o WebGL2. Actualizá la app o probá abrir el
-                  archivo como nota.
+                  {t("Hace falta WebGPU o WebGL2. Actualizá la app o probá abrir el archivo como nota.")}
                   {error && (
                     <span className="mt-2 block text-faint">{error}</span>
                   )}

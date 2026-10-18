@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note, type Subject, type SubjectDocument } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { CARD_COLORS, type CardColor } from "./canvas-types";
+import { intlLocale, t } from "@/lib/i18n";
 
 const NO_NOTES: Note[] = [];
 const NO_SUBJECTS: Subject[] = [];
@@ -32,7 +33,7 @@ export function ItemPicker({
   const subjects = useLiveQuery(() => db.subjects.toArray(), [], NO_SUBJECTS) ?? NO_SUBJECTS;
 
   const subjectName = useMemo(() => {
-    const map: Record<string, string> = { [DAILY_FOLDER]: "Diario", [LOOSE_FOLDER]: "Notas sueltas" };
+    const map: Record<string, string> = { [DAILY_FOLDER]: t("Diario"), [LOOSE_FOLDER]: t("Notas sueltas") };
     for (const s of subjects) map[s.id] = s.name;
     return map;
   }, [subjects]);
@@ -41,21 +42,21 @@ export function ItemPicker({
     if (open) setQuery("");
   }, [open]);
 
-  const q = query.trim().toLocaleLowerCase("es");
+  const q = query.trim().toLocaleLowerCase(intlLocale());
   const filteredNotes = useMemo(
     () =>
       notes
         .filter((n) => n.subjectId !== TEMPLATES_FOLDER)
-        .filter((n) => !q || (n.title || "").toLocaleLowerCase("es").includes(q))
-        .sort((a, b) => (a.title || "").localeCompare(b.title || "", "es"))
+        .filter((n) => !q || (n.title || "").toLocaleLowerCase(intlLocale()).includes(q))
+        .sort((a, b) => (a.title || "").localeCompare(b.title || "", intlLocale()))
         .slice(0, MAX_ROWS),
     [notes, q],
   );
   const filteredDocs = useMemo(
     () =>
       docs
-        .filter((d) => !q || d.fileName.toLocaleLowerCase("es").includes(q))
-        .sort((a, b) => a.fileName.localeCompare(b.fileName, "es"))
+        .filter((d) => !q || d.fileName.toLocaleLowerCase(intlLocale()).includes(q))
+        .sort((a, b) => a.fileName.localeCompare(b.fileName, intlLocale()))
         .slice(0, MAX_ROWS),
     [docs, q],
   );
@@ -66,20 +67,20 @@ export function ItemPicker({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Agregar al lienzo" width={480}>
+    <Modal open={open} onClose={onClose} title={t("Agregar al lienzo")} width={480}>
       <div className="flex flex-col gap-2">
         <input
           autoFocus
           className="input h-8"
-          placeholder="Buscar nota o PDF"
+          placeholder={t("Buscar nota o PDF")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <div className="flex max-h-[360px] flex-col overflow-y-auto">
-          {filteredNotes.length > 0 && <div className="section-label pt-1">Notas</div>}
+          {filteredNotes.length > 0 && <div className="section-label pt-1">{t("Notas")}</div>}
           {filteredNotes.map((n) => (
-            <button key={n.id} type="button" className="row w-full text-left" onClick={() => pick({ kind: "nota", id: n.id, name: n.title || "Sin título" })}>
-              <span className="flex-1 truncate">{n.title?.trim() || "Sin título"}</span>
+            <button key={n.id} type="button" className="row w-full text-left" onClick={() => pick({ kind: "nota", id: n.id, name: n.title || t("Sin título") })}>
+              <span className="flex-1 truncate">{n.title?.trim() || t("Sin título")}</span>
               <span className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{subjectName[n.subjectId] ?? ""}</span>
             </button>
           ))}
@@ -91,7 +92,7 @@ export function ItemPicker({
             </button>
           ))}
           {filteredNotes.length === 0 && filteredDocs.length === 0 && (
-            <div className="px-2 py-3 t-small text-faint">Sin resultados</div>
+            <div className="px-2 py-3 t-small text-faint">{t("Sin resultados")}</div>
           )}
         </div>
       </div>

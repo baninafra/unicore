@@ -8,6 +8,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Task } from "@/lib/types";
 import { foldText } from "./fold";
+import { t, intlLocale } from "@/lib/i18n";
 
 export type SearchKind = "note" | "document" | "canvas" | "task";
 export type SortMode = "relevancia" | "nombre" | "modificacion";
@@ -204,9 +205,9 @@ export function runSearch(docs: SearchDoc[], q: ParsedQuery, cs: boolean, sort: 
     });
   }
   return hits.sort((a, b) => {
-    if (sort === "nombre") return a.doc.title.localeCompare(b.doc.title, "es", { sensitivity: "base", numeric: true });
+    if (sort === "nombre") return a.doc.title.localeCompare(b.doc.title, intlLocale(), { sensitivity: "base", numeric: true });
     if (sort === "modificacion") return b.doc.updatedAt.localeCompare(a.doc.updatedAt);
-    return b.count - a.count || a.doc.title.localeCompare(b.doc.title, "es");
+    return b.count - a.count || a.doc.title.localeCompare(b.doc.title, intlLocale());
   });
 }
 
@@ -222,9 +223,9 @@ export function useSearchDocs(): SearchDoc[] | undefined {
     ]);
     const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
     const folderName: Record<string, string> = {
-      [DAILY_FOLDER]: "Diario",
-      [LOOSE_FOLDER]: "Notas",
-      [TEMPLATES_FOLDER]: "Plantillas",
+      [DAILY_FOLDER]: t("Diario"),
+      [LOOSE_FOLDER]: t("Notas"),
+      [TEMPLATES_FOLDER]: t("Plantillas"),
     };
     const docs: SearchDoc[] = [];
     for (const n of notes) {
@@ -232,11 +233,11 @@ export function useSearchDocs(): SearchDoc[] | undefined {
         key: `n-${n.id}`,
         kind: "note",
         id: n.id,
-        title: n.title || "Sin título",
+        title: n.title || t("Sin título"),
         aliases: n.aliases ?? [],
         body: n.plainTextCache ?? "",
         subjectId: n.subjectId,
-        subjectName: subjectName.get(n.subjectId) ?? folderName[n.subjectId] ?? "Notas",
+        subjectName: subjectName.get(n.subjectId) ?? folderName[n.subjectId] ?? t("Notas"),
         unit: n.unitNumber,
         tags: n.tags ?? [],
         updatedAt: n.updatedAt,
@@ -251,7 +252,7 @@ export function useSearchDocs(): SearchDoc[] | undefined {
         aliases: [],
         body: d.extractedText ?? "",
         subjectId: d.subjectId,
-        subjectName: subjectName.get(d.subjectId) ?? "Sin materia",
+        subjectName: subjectName.get(d.subjectId) ?? t("Sin materia"),
         unit: d.unitNumber,
         tags: [],
         updatedAt: d.createdAt,
@@ -262,28 +263,28 @@ export function useSearchDocs(): SearchDoc[] | undefined {
         key: `c-${c.id}`,
         kind: "canvas",
         id: c.id,
-        title: c.name || "Sin título",
+        title: c.name || t("Sin título"),
         aliases: [],
         body: "",
         subjectId: c.subjectId,
-        subjectName: (c.subjectId && subjectName.get(c.subjectId)) || "Notas",
+        subjectName: (c.subjectId && subjectName.get(c.subjectId)) || t("Notas"),
         tags: [],
         updatedAt: c.updatedAt,
       });
     }
-    for (const t of tasks) {
+    for (const task of tasks) {
       docs.push({
-        key: `t-${t.id}`,
+        key: `t-${task.id}`,
         kind: "task",
-        id: t.id,
-        title: t.title,
+        id: task.id,
+        title: task.title,
         aliases: [],
-        body: t.description ?? "",
-        subjectId: t.subjectId,
-        subjectName: (t.subjectId && subjectName.get(t.subjectId)) || "Sin materia",
+        body: task.description ?? "",
+        subjectId: task.subjectId,
+        subjectName: (task.subjectId && subjectName.get(task.subjectId)) || t("Sin materia"),
         tags: [],
-        updatedAt: t.createdAt,
-        task: t,
+        updatedAt: task.createdAt,
+        task,
       });
     }
     return docs;

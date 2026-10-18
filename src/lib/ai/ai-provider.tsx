@@ -7,6 +7,7 @@ import { useAISettings } from "./ai-settings";
 import { chatStream, ensureServer, serverInfo, type ServerInfo } from "./server";
 import { fetchCatalog, pickTier, suggestedSet, tierModels, type Catalog, type TaskHint } from "./models";
 import { isDesktop } from "../desktop";
+import { t } from "../i18n";
 
 // Fuera de la app de escritorio no hay llama-server: queda WebLLM, que se elige según la placa de video.
 const MODEL_7B = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
@@ -19,9 +20,9 @@ const MODEL_STORAGE_KEY = "uc-ai-model";
 const AUTO_DL_KEY = "uc-ai-autodl";
 const GIB = 1024 ** 3;
 
-const MSG_UNSUPPORTED = "Tu navegador no puede correr la IA. Probá con Chrome o Edge actualizados.";
-const MSG_LOAD_FAILED = "No pudimos preparar la IA. Revisá tu conexión y probá de nuevo.";
-const MSG_GENERATE_FAILED = "No pudimos generar la respuesta. Probá de nuevo.";
+const MSG_UNSUPPORTED = t("Tu navegador no puede correr la IA. Probá con Chrome o Edge actualizados.");
+const MSG_LOAD_FAILED = t("No pudimos preparar la IA. Revisá tu conexión y probá de nuevo.");
+const MSG_GENERATE_FAILED = t("No pudimos generar la respuesta. Probá de nuevo.");
 
 // WebGPU no está en los tipos de TypeScript 5.9, así que declaramos sólo lo que usamos.
 interface GPUAdapterLike {
@@ -93,7 +94,7 @@ function describeProgress(report: InitProgressReport): { progress: number; text:
   const pct = Math.round(report.progress * 100);
   return {
     progress: report.progress,
-    text: downloading ? `Descargando la IA · ${pct} %. Se descarga una sola vez.` : "Preparando la IA…",
+    text: downloading ? t("Descargando la IA · {pct} %. Se descarga una sola vez.", { pct }) : t("Preparando la IA…"),
   };
 }
 
@@ -213,7 +214,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       if (settingsRef.current.localModel === "groq") {
         // Nube: no hay nada que cargar; sólo hace falta la clave.
         if (!settingsRef.current.groqKey.trim()) {
-          const msg = "Falta la clave de Groq. Pegala en Ajustes > IA.";
+          const msg = t("Falta la clave de Groq. Pegala en Ajustes > IA.");
           setServerStatus("error");
           setServerError(msg);
           throw new Error(msg);
@@ -230,7 +231,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       }
       const model = resolveModel(task);
       if (isDesktop() && !model) {
-        const msg = "No hay ningún modelo Qwen 3.5 descargado. Bajá uno en Ajustes > IA.";
+        const msg = t("No hay ningún modelo Qwen 3.5 descargado. Bajá uno en Ajustes > IA.");
         setServerStatus("error");
         setServerError(msg);
         throw new Error(msg);
@@ -239,7 +240,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       setServerStatus((s) => (!switching && (s === "ready" || s === "generating") ? s : "loading"));
       setServerError(undefined);
       try {
-        await ensureServer(model, (t) => setServerProgress(t));
+        await ensureServer(model, (text) => setServerProgress(text));
         lastUsedRef.current = Date.now();
         setServerStatus((s) => (s === "generating" ? s : "ready"));
         setServerProgress("");
@@ -268,7 +269,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
     setLocalStatus("loading");
     setError(undefined);
     setProgress(0);
-    setProgressText("Preparando la IA…");
+    setProgressText(t("Preparando la IA…"));
 
     const webllm = await import("@mlc-ai/web-llm");
     const chosen = chooseModel(adapter);

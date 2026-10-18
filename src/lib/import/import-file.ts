@@ -6,6 +6,7 @@
 import { createNote } from "@/components/notes/note-utils";
 import { saveFile } from "../db";
 import { markdownToBlocks, tableBlock, type MdBlock } from "../notes/md-blocks";
+import { t } from "@/lib/i18n";
 import { docxToMarkdown, pptxToMarkdown, xlsxToMarkdown } from "./office";
 
 export const IMPORT_ACCEPT =
@@ -24,7 +25,7 @@ export function fileKind(file: File): "pdf" | "xlsx" | "pptx" | "docx" | "csv" |
   return null;
 }
 
-const baseName = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Importado";
+const baseName = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || t("Importado");
 
 function parseCsv(text: string): string[][] {
   const sep = (text.split("\n")[0].match(/;/g)?.length ?? 0) > (text.split("\n")[0].match(/,/g)?.length ?? 0) ? ";" : ",";
@@ -68,10 +69,10 @@ export async function convertFile(file: File, onProgress?: (text: string) => voi
   const title = baseName(file.name);
   switch (kind) {
     case "pdf": {
-      onProgress?.("Leyendo el PDF…");
+      onProgress?.(t("Leyendo el PDF…"));
       const { extractPdf, pdfToBlocks } = await import("../pdf/import-pdf");
       const ex = await extractPdf(file, (p) =>
-        onProgress?.(`${p.stage === "ocr" ? "Reconociendo texto" : "Leyendo"} página ${p.page} de ${p.total}…`),
+        onProgress?.(t("{action} página {page} de {total}…", { action: p.stage === "ocr" ? t("Reconociendo texto") : t("Leyendo"), page: p.page, total: p.total })),
       );
       return { title, blocks: pdfToBlocks(ex) as MdBlock[], text: ex.plainText };
     }
@@ -99,17 +100,17 @@ export async function convertFile(file: File, onProgress?: (text: string) => voi
       return { title, blocks: [tableBlock(rows.slice(0, 500))], text: md };
     }
     case "text": {
-      const t = await file.text();
-      return { title, blocks: markdownToBlocks(t), text: t };
+      const txt = await file.text();
+      return { title, blocks: markdownToBlocks(txt), text: txt };
     }
     case "image": {
       const url = await saveFile(file);
       return { title, blocks: [{ type: "image", props: { url, name: file.name } }], text: "" };
     }
     case "old-office":
-      throw new Error("Ese formato es viejo (.xls, .ppt, .doc). Abrilo y guardalo como .xlsx, .pptx o .docx.");
+      throw new Error(t("Ese formato es viejo (.xls, .ppt, .doc). Abrilo y guardalo como .xlsx, .pptx o .docx."));
     default:
-      throw new Error("No sabemos leer ese tipo de archivo. Probá con PDF, Excel, PowerPoint, Word o texto.");
+      throw new Error(t("No sabemos leer ese tipo de archivo. Probá con PDF, Excel, PowerPoint, Word o texto."));
   }
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { t } from "@/lib/i18n";
 import { openFolderDialog } from "@/components/explorer/folder-dialog";
 import { iconFor } from "@/lib/folder-icons";
 import { BookOpen as BookIcon, Folder as FolderIcon, FolderKanban as KanbanIcon } from "lucide-react";
@@ -76,11 +77,11 @@ function ListRow({
   const { open, menu } = useContextMenu();
 
   const items: MenuItem[] = [
-    { label: "Abrir", onSelect: () => openView(view) },
-    { label: "Abrir en pestaña nueva", onSelect: () => openView(view, "tab") },
+    { label: t("Abrir"), onSelect: () => openView(view) },
+    { label: t("Abrir en pestaña nueva"), onSelect: () => openView(view, "tab") },
     ...extra,
   ];
-  if (onDelete) items.push({ type: "separator" }, { label: "Eliminar", icon: Trash2, danger: true, onSelect: onDelete });
+  if (onDelete) items.push({ type: "separator" }, { label: t("Eliminar"), icon: Trash2, danger: true, onSelect: onDelete });
 
   return (
     <>
@@ -122,7 +123,7 @@ function LinkField({ value, onSave, placeholder }: { value?: string; onSave: (v?
         aria-label={placeholder}
       />
       {value && (
-        <a href={value} target="_blank" rel="noopener noreferrer" className="icon-btn" aria-label="Abrir enlace" title="Abrir enlace">
+        <a href={value} target="_blank" rel="noopener noreferrer" className="icon-btn" aria-label={t("Abrir enlace")} title={t("Abrir enlace")}>
           <ExternalLink strokeWidth={1.75} />
         </a>
       )}
@@ -191,7 +192,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
   if (subject === null) {
     return (
       <div className="view-readable">
-        <p className="t-small text-faint">No {pt.item.f ? "encontramos esta" : "encontramos este"} {pt.item.one}</p>
+        <p className="t-small text-faint">{pt.item.f ? t("No encontramos esta {x}", { x: pt.item.one }) : t("No encontramos este {x}", { x: pt.item.one })}</p>
         <button type="button" className="btn btn-sm mt-3" onClick={() => openView({ type: "carreras" })}>
           {pt.spacesView}
         </button>
@@ -222,7 +223,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
   async function createCanvas() {
     const id = newId();
     const stamp = nowIso();
-    await db.canvases.add({ id, name: "Lienzo sin título", subjectId, data: { nodes: [], edges: [] }, createdAt: stamp, updatedAt: stamp });
+    await db.canvases.add({ id, name: t("Lienzo sin título"), subjectId, data: { nodes: [], edges: [] }, createdAt: stamp, updatedAt: stamp });
     openView({ type: "canvas", id });
   }
 
@@ -280,8 +281,8 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         <button
           type="button"
           className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-md bg-primary-tint text-primary-soft hover:brightness-110"
-          aria-label="Cambiar ícono"
-          title="Cambiar nombre e ícono"
+          aria-label={t("Cambiar ícono")}
+          title={t("Cambiar nombre e ícono")}
           onClick={() => openFolderDialog({ subject })}
         >
           <SubjectIcon className="h-5 w-5" strokeWidth={1.75} />
@@ -289,7 +290,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         <input
           key={subject.name}
           defaultValue={subject.name}
-          aria-label={`Nombre ${pt.item.f ? "de la" : "del"} ${pt.item.one}`}
+          aria-label={pt.item.f ? t("Nombre de la {x}", { x: pt.item.one }) : t("Nombre del {x}", { x: pt.item.one })}
           className="min-w-0 flex-1 bg-transparent text-[26px] font-semibold leading-tight text-text outline-none"
           onBlur={(e) => {
             const v = e.target.value.trim();
@@ -307,12 +308,12 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             const r = e.currentTarget.getBoundingClientRect();
             pageMenu.open({ clientX: r.left, clientY: r.bottom + 4 }, [exportMenuItem({ kind: "subject", id: subjectId })]);
           }}
-          aria-label="Exportar"
-          title="Exportar"
+          aria-label={t("Exportar")}
+          title={t("Exportar")}
         >
           <Download strokeWidth={1.75} />
         </button>
-        <button type="button" className="icon-btn mt-1" onClick={() => setAiOpen(true)} aria-label="Preguntarle a la IA" title="Preguntarle a la IA">
+        <button type="button" className="icon-btn mt-1" onClick={() => setAiOpen(true)} aria-label={t("Preguntarle a la IA")} title={t("Preguntarle a la IA")}>
           <Sparkles strokeWidth={1.75} />
         </button>
       </div>
@@ -334,21 +335,21 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           </Select>
         </Prop>}
 
-        {pt.study && <Prop label="Año">
+        {pt.study && <Prop label={t("Año")}>
           <Select className={CONTROL} value={subject.year} onChange={(e) => void save({ year: Number(e.target.value) })}>
             {yearOptions.map((y) => (
               <option key={y} value={y}>
-                {y}.º año
+                {t("{n}.º año", { n: y })}
               </option>
             ))}
           </Select>
-          <Select className={CONTROL} value={subject.semester} onChange={(e) => void save({ semester: Number(e.target.value) as 1 | 2 })} aria-label="Cuatrimestre">
-            <option value={1}>1.º cuatrimestre</option>
-            <option value={2}>2.º cuatrimestre</option>
+          <Select className={CONTROL} value={subject.semester} onChange={(e) => void save({ semester: Number(e.target.value) as 1 | 2 })} aria-label={t("Cuatrimestre")}>
+            <option value={1}>{t("1.º cuatrimestre")}</option>
+            <option value={2}>{t("2.º cuatrimestre")}</option>
           </Select>
         </Prop>}
 
-        <Prop label="Estado">
+        <Prop label={t("Estado")}>
           <Select className={CONTROL} value={subject.status} onChange={(e) => void save({ status: e.target.value as SubjectStatus })}>
             {(Object.keys(SUBJECT_STATUS_LABEL) as SubjectStatus[]).map((st) => (
               <option key={st} value={st}>
@@ -358,13 +359,13 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           </Select>
         </Prop>
 
-        {pt.study && <Prop label="Nota">
+        {pt.study && <Prop label={t("Nota")}>
           <input
             key={subject.finalGrade ?? "sin-nota"}
             defaultValue={subject.finalGrade === undefined ? "" : String(subject.finalGrade).replace(".", ",")}
             placeholder="–"
             inputMode="decimal"
-            aria-label="Nota final"
+            aria-label={t("Nota final")}
             className={`${CONTROL} w-20`}
             onBlur={(e) => saveGrade(e.target.value)}
             onKeyDown={(e) => {
@@ -373,13 +374,13 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           />
         </Prop>}
 
-        {pt.study && <Prop label="Correlativas">
+        {pt.study && <Prop label={t("Correlativas")}>
           {correlatives.map((c) => (
             <span key={c.id} className="tag gap-1 pr-1">
               {c.name}
               <button
                 type="button"
-                aria-label={`Quitar ${c.name}`}
+                aria-label={t("Quitar {nombre}", { nombre: c.name })}
                 className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-surface-raised"
                 onClick={() => void save({ correlatives: subject.correlatives.filter((x) => x !== c.id) })}
               >
@@ -391,12 +392,12 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             <Select
               className={`${CONTROL} w-auto text-faint`}
               value=""
-              aria-label="Agregar correlativa"
+              aria-label={t("Agregar correlativa")}
               onChange={(e) => {
                 if (e.target.value) void save({ correlatives: [...subject.correlatives, e.target.value] });
               }}
             >
-              <option value="">Agregar</option>
+              <option value="">{t("Agregar")}</option>
               {candidates.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -406,13 +407,13 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           )}
         </Prop>}
 
-        <Prop label={pt.study ? "Profesor" : "Contacto"}>
+        <Prop label={pt.study ? t("Profesor") : t("Contacto")}>
           <input
             key={subject.professorEmail ?? ""}
             type="email"
             defaultValue={subject.professorEmail ?? ""}
             placeholder="–"
-            aria-label={pt.study ? "Profesor" : "Contacto"}
+            aria-label={pt.study ? t("Profesor") : t("Contacto")}
             className={`${CONTROL} flex-1`}
             onBlur={(e) => {
               const v = e.target.value.trim();
@@ -424,27 +425,27 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           />
         </Prop>
 
-        <Prop label={pt.study ? "Campus" : "Link"}>
-          <LinkField value={subject.campusUrl} placeholder={pt.study ? "Campus" : "Link"} onSave={(v) => void save({ campusUrl: v })} />
+        <Prop label={pt.study ? t("Campus") : t("Link")}>
+          <LinkField value={subject.campusUrl} placeholder={pt.study ? t("Campus") : t("Link")} onSave={(v) => void save({ campusUrl: v })} />
         </Prop>
 
-        <Prop label="Drive">
-          <LinkField value={subject.driveUrl} placeholder="Drive" onSave={(v) => void save({ driveUrl: v })} />
+        <Prop label={t("Drive")}>
+          <LinkField value={subject.driveUrl} placeholder={t("Drive")} onSave={(v) => void save({ driveUrl: v })} />
         </Prop>
       </div>}
 
       {!subject.folder && <CronogramaSection subject={subject} />}
 
       <Section
-        title="Notas"
+        title={t("Notas")}
         action={
-          <button type="button" className="icon-btn" onClick={() => void createNewNote()} aria-label="Nueva nota" title="Nueva nota">
+          <button type="button" className="icon-btn" onClick={() => void createNewNote()} aria-label={t("Nueva nota")} title={t("Nueva nota")}>
             <Plus strokeWidth={1.75} />
           </button>
         }
       >
         {notes === undefined ? null : sortedNotes.length === 0 ? (
-          <Empty>Sin notas</Empty>
+          <Empty>{t("Sin notas")}</Empty>
         ) : (
           notesByUnit.map(([unit, list]) => (
             <div key={unit} className="flex flex-col">
@@ -452,7 +453,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
               {list.map((note) => (
                 <ListRow
                   key={note.id}
-                  title={note.title || "Sin título"}
+                  title={note.title || t("Sin título")}
                   view={{ type: "nota", id: note.id }}
                   onDelete={() => setNoteToDelete(note)}
                 />
@@ -463,9 +464,9 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
       </Section>
 
       <Section
-        title="Lienzos"
+        title={t("Lienzos")}
         action={
-          <button type="button" className="icon-btn" onClick={() => void createCanvas()} aria-label="Nuevo lienzo" title="Nuevo lienzo">
+          <button type="button" className="icon-btn" onClick={() => void createCanvas()} aria-label={t("Nuevo lienzo")} title={t("Nuevo lienzo")}>
             <Plus strokeWidth={1.75} />
           </button>
         }
@@ -475,11 +476,11 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
             .map((c) => <ListRow key={c.id} title={c.name} view={{ type: "canvas", id: c.id }} />)
         ) : (
-          <Empty>Sin lienzos</Empty>
+          <Empty>{t("Sin lienzos")}</Empty>
         )}
       </Section>
 
-      <Section title={pt.study ? "Bibliografía" : "Documentos"} action={<PdfImportButton subjectId={subjectId} label="Subir PDF" onImported={() => undefined} />}>
+      <Section title={pt.study ? t("Bibliografía") : t("Documentos")} action={<PdfImportButton subjectId={subjectId} label={t("Subir PDF")} onImported={() => undefined} />}>
         {docs && docs.length > 0 ? (
           [...docs]
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -490,18 +491,18 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
                 meta={`${doc.pageCount} p`}
                 view={{ type: "pdf", id: doc.id }}
                 onDelete={() => setDocToDelete(doc)}
-                extra={[{ label: "Abrir como apunte", icon: FilePlus, onSelect: () => void docAsNote(doc) }]}
+                extra={[{ label: t("Abrir como apunte"), icon: FilePlus, onSelect: () => void docAsNote(doc) }]}
               />
             ))
         ) : (
-          <Empty>Sin PDFs</Empty>
+          <Empty>{t("Sin PDFs")}</Empty>
         )}
       </Section>
 
       {((pt.study && !subject.folder) || quizzes.length > 0) && <Section
-        title="Cuestionarios"
+        title={t("Cuestionarios")}
         action={
-          <button type="button" className="icon-btn" onClick={() => setQuizForm(true)} aria-label="Nuevo cuestionario" title="Nuevo cuestionario con IA">
+          <button type="button" className="icon-btn" onClick={() => setQuizForm(true)} aria-label={t("Nuevo cuestionario")} title={t("Nuevo cuestionario con IA")}>
             <Plus strokeWidth={1.75} />
           </button>
         }
@@ -510,27 +511,27 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           quizzes.map((q) => {
             const m = readQuiz(q);
             const last = m.intentos[m.intentos.length - 1];
-            return <ListRow key={q.id} title={q.title} meta={last ? last.split(" · ")[1] : m.parcial ? m.parcial : `${m.questions.length} preg.`} view={{ type: "nota", id: q.id }} />;
+            return <ListRow key={q.id} title={q.title} meta={last ? last.split(" · ")[1] : m.parcial ? m.parcial : t("{n} preg.", { n: m.questions.length })} view={{ type: "nota", id: q.id }} />;
           })
         ) : (
           <button type="button" className="row text-left text-faint hover:text-text" onClick={() => setQuizForm(true)}>
-            Armar un cuestionario para estudiar
+            {t("Armar un cuestionario para estudiar")}
           </button>
         )}
       </Section>}
       {quizForm && <NewQuizDialog subjectId={subjectId} onClose={() => setQuizForm(false)} />}
 
       {((pt.study && !subject.folder) || totalCards > 0) && <Section
-        title="Flashcards"
+        title={t("Flashcards")}
         action={
-          <button type="button" className="icon-btn" onClick={() => setCardForm(true)} aria-label="Nueva flashcard" title="Nueva flashcard">
+          <button type="button" className="icon-btn" onClick={() => setCardForm(true)} aria-label={t("Nueva flashcard")} title={t("Nueva flashcard")}>
             <Plus strokeWidth={1.75} />
           </button>
         }
       >
         <div className="row justify-between">
           <span className="t-small num text-muted">
-            {totalCards} {totalCards === 1 ? "tarjeta" : "tarjetas"} · {dueCards} para hoy
+            {t("{n} {unidad} · {due} para hoy", { n: totalCards, unidad: totalCards === 1 ? t("tarjeta") : t("tarjetas"), due: dueCards })}
           </span>
           <button
             type="button"
@@ -538,27 +539,27 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             disabled={totalCards === 0}
             onClick={() => openView({ type: "repaso", subjectId })}
           >
-            Repasar
+            {t("Repasar")}
           </button>
         </div>
       </Section>}
 
       <Section
-        title="Tareas"
+        title={t("Tareas")}
         action={
           <button
             type="button"
             className="icon-btn"
             onClick={() => openTaskDialog({ subjectId, degreeId: subject.degreeId })}
-            aria-label="Nueva tarea"
-            title="Nueva tarea"
+            aria-label={t("Nueva tarea")}
+            title={t("Nueva tarea")}
           >
             <Plus strokeWidth={1.75} />
           </button>
         }
       >
         {sortedTasks.length === 0 ? (
-          <Empty>Sin tareas pendientes</Empty>
+          <Empty>{t("Sin tareas pendientes")}</Empty>
         ) : (
           sortedTasks.map((t) => <TaskRow key={t.id} task={t} />)
         )}
@@ -568,9 +569,9 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
 
       {docToDelete && (
         <ConfirmDialog
-          title="Eliminar PDF"
-          message={`Se borra "${docToDelete.fileName}" de la bibliografía, con sus resaltados. No se puede deshacer.`}
-          confirmLabel="Eliminar PDF"
+          title={t("Eliminar PDF")}
+          message={t("Se borra \"{name}\" de la bibliografía, con sus resaltados. No se puede deshacer.", { name: docToDelete.fileName })}
+          confirmLabel={t("Eliminar PDF")}
           onConfirm={confirmDeleteDoc}
           onClose={() => setDocToDelete(null)}
         />

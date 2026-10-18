@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import clsx from "clsx";
 import type { PdfHighlight } from "@/lib/types";
 import { HL_COLORS, HL_ORDER } from "./pdf-engine";
+import { t } from "@/lib/i18n";
 
 interface Props {
   x: number;
@@ -20,7 +21,7 @@ export function PdfSelectionMenu({ x, y, below, onColor, onCopy, onNote }: Props
   return createPortal(
     <div
       role="toolbar"
-      aria-label="Resaltar selección"
+      aria-label={t("Resaltar selección")}
       className={clsx(
         "fixed z-[60] flex -translate-x-1/2 items-center gap-1 rounded-md border border-border bg-surface p-1 shadow-pop",
         !below && "-translate-y-full",
@@ -33,7 +34,7 @@ export function PdfSelectionMenu({ x, y, below, onColor, onCopy, onNote }: Props
           key={c}
           type="button"
           title={HL_COLORS[c].label}
-          aria-label={`Resaltar en ${HL_COLORS[c].label.toLowerCase()}`}
+          aria-label={t("Resaltar en {color}", { color: HL_COLORS[c].label.toLowerCase() })}
           onClick={() => onColor(c)}
           className="h-5 w-5 rounded-sm border border-black/10"
           style={{ background: HL_COLORS[c].solid }}
@@ -41,10 +42,10 @@ export function PdfSelectionMenu({ x, y, below, onColor, onCopy, onNote }: Props
       ))}
       <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
       <button type="button" className="btn btn-sm btn-ghost" onClick={onCopy}>
-        Copiar como cita
+        {t("Copiar como cita")}
       </button>
       <button type="button" className="btn btn-sm btn-ghost" onClick={onNote}>
-        Agregar nota
+        {t("Agregar nota")}
       </button>
     </div>,
     document.body,

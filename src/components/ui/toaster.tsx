@@ -6,15 +6,16 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { X } from "lucide-react";
 import { undoLastDelete, type ToastDetail } from "@/lib/undo";
+import { t } from "@/lib/i18n";
 
 export function Toaster() {
   const [items, setItems] = useState<ToastDetail[]>([]);
 
   useEffect(() => {
     const on = (e: Event) => {
-      const t = (e as CustomEvent<ToastDetail>).detail;
-      setItems((prev) => [...prev.slice(-2), t]);
-      window.setTimeout(() => setItems((prev) => prev.filter((x) => x.id !== t.id)), t.ms ?? 4000);
+      const item = (e as CustomEvent<ToastDetail>).detail;
+      setItems((prev) => [...prev.slice(-2), item]);
+      window.setTimeout(() => setItems((prev) => prev.filter((x) => x.id !== item.id)), item.ms ?? 4000);
     };
     window.addEventListener("uc:toast", on);
     return () => window.removeEventListener("uc:toast", on);
@@ -38,29 +39,29 @@ export function Toaster() {
   if (!items.length) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-9 z-[70] flex flex-col items-center gap-2">
-      {items.map((t) => (
+      {items.map((toast) => (
         <div
-          key={t.id}
+          key={toast.id}
           role="status"
           className={clsx(
             "pointer-events-auto flex max-w-[520px] items-center gap-3 rounded-md border bg-surface-raised px-3 py-2 text-[length:calc(13px*var(--ui-scale,1))] shadow-pop",
-            t.tone === "error" ? "border-rose text-rose" : "border-border-strong text-text",
+            toast.tone === "error" ? "border-rose text-rose" : "border-border-strong text-text",
           )}
         >
-          <span className="min-w-0 flex-1 truncate">{t.text}</span>
-          {t.action && (
+          <span className="min-w-0 flex-1 truncate">{toast.text}</span>
+          {toast.action && (
             <button
               type="button"
               className="flex-none font-medium text-primary-soft hover:underline"
               onClick={() => {
-                close(t.id);
-                void t.action!.run();
+                close(toast.id);
+                void toast.action!.run();
               }}
             >
-              {t.action.label}
+              {toast.action.label}
             </button>
           )}
-          <button type="button" className="flex-none text-faint hover:text-text" onClick={() => close(t.id)} aria-label="Cerrar aviso">
+          <button type="button" className="flex-none text-faint hover:text-text" onClick={() => close(toast.id)} aria-label={t("Cerrar aviso")}>
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
         </div>

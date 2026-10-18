@@ -5,13 +5,14 @@
 // medio), Ultra (el más grande) o Automático (según el pedido). Groq es la opción en la nube.
 
 import { useEffect, useState } from "react";
+import { t } from "@/lib/i18n";
 
 export const LOCAL_MODELS = [
-  { id: "auto", label: "Automático" },
+  { id: "auto", label: t("Automático") },
   { id: "low", label: "Low" },
   { id: "default", label: "Default" },
   { id: "ultra", label: "Ultra" },
-  { id: "groq", label: "Qwen 3.8 (Groq, nube)" },
+  { id: "groq", label: t("Qwen 3.8 (Groq, nube)") },
 ] as const;
 export type LocalModel = (typeof LOCAL_MODELS)[number]["id"];
 

@@ -3,6 +3,7 @@
 // Ajustes > Datos: carpeta de datos, resumen de lo guardado y copia de seguridad.
 
 import { useEffect, useRef, useState } from "react";
+import { t, intlLocale } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Download, FolderOpen, Upload } from "lucide-react";
 import { format } from "date-fns";
@@ -45,7 +46,7 @@ async function exportBackup() {
   const tables: Record<string, unknown[]> = {};
   for (const name of BACKUP_TABLES) tables[name] = await db.table(name).toArray();
   const json = JSON.stringify({ app: "unicore", version: 1, exportedAt: new Date().toISOString(), tables });
-  await saveBlob(`unicore-copia-${format(new Date(), "yyyy-MM-dd")}.json`, new Blob([json], { type: "application/json" }));
+  await saveBlob(t("unicore-copia-{fecha}.json", { fecha: format(new Date(), "yyyy-MM-dd") }), new Blob([json], { type: "application/json" }));
 }
 
 async function importBackup(file: File): Promise<number> {
@@ -77,52 +78,52 @@ export function DataSection() {
 
   return (
     <>
-      <Heading>Almacenamiento</Heading>
-      <Row label="Carpeta de datos">
+      <Heading>{t("Almacenamiento")}</Heading>
+      <Row label={t("Carpeta de datos")}>
         {desktop ? (
           <>
             <span className="t-small max-w-[320px] truncate text-muted" title={folder}>
               {folder ?? "–"}
             </span>
-            <button type="button" className="btn btn-sm" onClick={() => void openDataFolder()} aria-label="Abrir carpeta de datos">
+            <button type="button" className="btn btn-sm" onClick={() => void openDataFolder()} aria-label={t("Abrir carpeta de datos")}>
               <FolderOpen strokeWidth={1.75} />
-              Abrir
+              {t("Abrir")}
             </button>
           </>
         ) : (
-          <span className="t-small text-faint">Solo en la app de escritorio</span>
+          <span className="t-small text-faint">{t("Solo en la app de escritorio")}</span>
         )}
       </Row>
       {counts &&
         (
           [
-            ["Carreras", counts.carreras],
-            ["Materias", counts.materias],
-            ["Notas", counts.notas],
-            ["Tareas", counts.tareas],
-            ["Flashcards", counts.flashcards],
-            ["PDF de bibliografía", counts.pdfs],
+            [t("Carreras"), counts.carreras],
+            [t("Materias"), counts.materias],
+            [t("Notas"), counts.notas],
+            [t("Tareas"), counts.tareas],
+            [t("Flashcards"), counts.flashcards],
+            [t("PDF de bibliografía"), counts.pdfs],
           ] as const
         ).map(([label, n]) => (
           <Row key={label} label={label}>
-            <span className="t-small num text-muted">{n.toLocaleString("es-AR")}</span>
+            <span className="t-small num text-muted">{n.toLocaleString(intlLocale())}</span>
           </Row>
         ))}
 
-      <Heading>Copia de seguridad</Heading>
+      <Heading>{t("Copia de seguridad")}</Heading>
       <Hint>
-        La copia incluye carreras, materias, notas, tareas, flashcards, lienzos y calendarios conectados. Los PDF y las fotos no entran: quedan en la carpeta de datos.
+        {t("La copia incluye carreras, materias, notas, tareas, flashcards, lienzos y calendarios conectados. Los PDF y las fotos no entran: quedan en la carpeta de datos.")}
       </Hint>
-      <Row label="Guardar una copia">
-        <button type="button" className="btn btn-sm" onClick={() => void exportBackup().catch(() => toast("No pudimos guardar la copia. Probá de nuevo.", { tone: "error" }))}>
+      <Row label={t("Guardar una copia")}>
+        <button type="button" className="btn btn-sm" onClick={() => void exportBackup().catch(() => toast(t("No pudimos guardar la copia. Probá de nuevo."), { tone: "error" }))}>
           <Download strokeWidth={1.75} />
-          Exportar
+          {t("Exportar")}
         </button>
       </Row>
-      <Row label="Restaurar desde una copia">
+      <Row label={t("Restaurar desde una copia")}>
         <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()}>
           <Upload strokeWidth={1.75} />
-          Importar
+          {t("Importar")}
         </button>
         <input
           ref={fileRef}
@@ -134,8 +135,8 @@ export function DataSection() {
             e.target.value = "";
             if (!f) return;
             importBackup(f)
-              .then((n) => toast(`Restauramos ${n.toLocaleString("es-AR")} registros. Lo que ya existía con el mismo id se reemplazó.`, { ms: 6000 }))
-              .catch(() => toast("No pudimos leer esa copia. Elegí un archivo exportado desde UniCore.", { tone: "error" }));
+              .then((n) => toast(t("Restauramos {n} registros. Lo que ya existía con el mismo id se reemplazó.", { n: n.toLocaleString(intlLocale()) }), { ms: 6000 }))
+              .catch(() => toast(t("No pudimos leer esa copia. Elegí un archivo exportado desde UniCore."), { tone: "error" }));
           }}
         />
       </Row>

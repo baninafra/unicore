@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UniCore
 
-## Getting Started
+Una app de escritorio para organizar el estudio, el trabajo, tus proyectos y tu vida personal en un solo lugar. Todo se guarda en tu equipo, sin cuentas.
 
-First, run the development server:
+## Qué tiene
+
+- **Perfiles**: Universidad, Colegio, Trabajo, Proyectos y Personal. Podés tener varios, incluso del mismo tipo. Cada perfil cambia los nombres (carreras y materias, proyectos, áreas), los tipos de tarea, las secciones y lo que muestra Inicio.
+- **Bienvenida guiada**: la primera vez te hace unas preguntas y deja todo armado: carrera y materias, trabajo y horario, proyectos y preferencias.
+- **Notas tipo Obsidian**: enlaces `[[…]]`, etiquetas, notas del día, lienzos, grafo, historial y plantillas.
+- **Tareas y calendario**: tablero, agenda, calendarios propios con repeticiones y recordatorios, y suscripción a calendarios externos (iCal).
+- **Repaso**: flashcards con repetición espaciada y cuestionarios.
+- **Archivos**: documentos, planillas, presentaciones, PDF y geometría que se editan dentro de la app. También tiene un escáner de documentos.
+- **Asistente de IA** que crea tareas, notas y flashcards, resume la bibliografía y conoce tus perfiles.
+- **Carpetas libres** con el nombre y el ícono que quieras.
+- **Idiomas**: español, inglés, francés, alemán, portugués y chino.
+
+## Cómo correrla
+
+Requisitos: Node.js 20+ y, para la app de escritorio, Rust con [Tauri 2](https://tauri.app/start/prerequisites/).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev            # en el navegador, en http://localhost:3000
+npx tauri dev          # como app de escritorio
+npx tauri build        # instalador para Windows (src-tauri/target/release/bundle)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Los editores de documentos se arman aparte con `bash scripts/build-editors.sh` (necesita Rust con el target `wasm32-unknown-unknown` y `trunk`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Traducciones
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Los textos se escriben en español dentro de `t("…")` (`src/lib/i18n.ts`). Cada idioma tiene su archivo en `src/locales/`. Para ver qué falta traducir:
 
-## Learn More
+```bash
+node scripts/i18n-extract.mjs
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/views/`: pantallas (Inicio, nota, materia o proyecto, calendario, ajustes…).
+- `src/components/`: piezas de la interfaz.
+- `src/lib/`: base local (Dexie), perfiles, IA, calendario e idiomas.
+- `src-tauri/`: la app de escritorio. Los datos se guardan en `Documentos\UniCore`.
+- `docs/convenciones.md`: cómo está escrito el código.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Licencia
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT. Los editores incrustados se basan en proyectos con licencia MIT/Apache-2.0; sus licencias se copian al compilarlos.

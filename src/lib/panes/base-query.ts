@@ -2,6 +2,7 @@
 
 // Motor de la vista Base: filtros, orden y agrupación sobre las notas, y la configuración guardada.
 
+import { t, intlLocale } from "@/lib/i18n";
 import { normalizeText } from "@/lib/ai/rag";
 import type { Note } from "@/lib/types";
 import { folderLabel, noteTitle } from "./note-data";
@@ -13,10 +14,10 @@ export const NO_VALUE_OPS: FilterOp[] = ["existe", "no existe"];
 
 // Campos fijos. Cualquier otro campo es el nombre de una propiedad.
 export const FIXED_FIELDS: { key: string; label: string }[] = [
-  { key: "title", label: "Título" },
-  { key: "subject", label: "Materia" },
-  { key: "tags", label: "Etiquetas" },
-  { key: "updated", label: "Modificación" },
+  { key: "title", label: t("Título") },
+  { key: "subject", label: t("Materia") },
+  { key: "tags", label: t("Etiquetas") },
+  { key: "updated", label: t("Modificación") },
 ];
 const FIXED_KEYS = FIXED_FIELDS.map((f) => f.key);
 
@@ -138,7 +139,7 @@ function compareValues(a: PropValue | undefined, b: PropValue | undefined, dir: 
   const c =
     na !== undefined && nb !== undefined
       ? na - nb
-      : displayText(a).localeCompare(displayText(b), "es", { numeric: true, sensitivity: "base" });
+      : displayText(a).localeCompare(displayText(b), intlLocale(), { numeric: true, sensitivity: "base" });
   return dir === "asc" ? c : -c;
 }
 
@@ -170,14 +171,14 @@ export function runBaseQuery(
     const label =
       config.groupBy === "subject"
         ? subjectOf(note)
-        : displayText(fieldValue(note, config.groupBy, subjectOf(note))) || "Sin valor";
+        : displayText(fieldValue(note, config.groupBy, subjectOf(note))) || t("Sin valor");
     groups.set(label, [...(groups.get(label) ?? []), note]);
   }
   return [...groups.entries()]
     .sort(([a], [b]) => {
-      if (a === "Sin valor") return 1;
-      if (b === "Sin valor") return -1;
-      return a.localeCompare(b, "es");
+      if (a === t("Sin valor")) return 1;
+      if (b === t("Sin valor")) return -1;
+      return a.localeCompare(b, intlLocale());
     })
     .map(([label, groupRows]) => ({ label, rows: groupRows }));
 }

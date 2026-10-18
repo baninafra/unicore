@@ -12,6 +12,7 @@ import { isSpecialFolder } from "@/lib/nav/actions";
 import { isClassNote, taskFromNote } from "@/lib/tasks/class-tasks";
 import { shortDateTime } from "@/lib/format";
 import type { Note } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export function NoteTasks({ note }: { note: Note }) {
   const { openTaskDialog } = useAppState();
@@ -22,22 +23,22 @@ export function NoteTasks({ note }: { note: Note }) {
 
   return (
     <div className="flex flex-col gap-1">
-      {tasks.length > 0 && <p className="section-label">{klass ? "Tareas de esta clase" : "Tareas de esta nota"}</p>}
+      {tasks.length > 0 && <p className="section-label">{klass ? t("Tareas de esta clase") : t("Tareas de esta nota")}</p>}
       {tasks
         .sort((a, b) => (a.dueDate ?? "9").localeCompare(b.dueDate ?? "9"))
-        .map((t) => (
-          <div key={t.id} className="row gap-2">
+        .map((task) => (
+          <div key={task.id} className="row gap-2">
             <input
               type="checkbox"
-              checked={t.status === "DONE"}
-              onChange={(e) => void db.tasks.update(t.id, { status: e.target.checked ? "DONE" : "TODO" })}
-              aria-label={`Marcar «${t.title}» como hecha`}
+              checked={task.status === "DONE"}
+              onChange={(e) => void db.tasks.update(task.id, { status: e.target.checked ? "DONE" : "TODO" })}
+              aria-label={t("Marcar «{title}» como hecha", { title: task.title })}
             />
-            <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => openTaskDialog(t)}>
-              <span className={clsx(t.status === "DONE" && "text-faint line-through")}>{t.title}</span>
+            <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => openTaskDialog(task)}>
+              <span className={clsx(task.status === "DONE" && "text-faint line-through")}>{task.title}</span>
             </button>
-            <span className="badge badge-amber">{taskLabel(t)}</span>
-            {t.dueDate && <span className="num text-[length:calc(12px*var(--ui-scale,1))] text-faint">{shortDateTime(t.dueDate)}</span>}
+            <span className="badge badge-amber">{taskLabel(task)}</span>
+            {task.dueDate && <span className="num text-[length:calc(12px*var(--ui-scale,1))] text-faint">{shortDateTime(task.dueDate)}</span>}
           </div>
         ))}
       <button
@@ -46,7 +47,7 @@ export function NoteTasks({ note }: { note: Note }) {
         onClick={async () => openTaskDialog(await taskFromNote(note))}
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-        {klass ? "Tarea para esta clase" : "Tarea desde esta nota"}
+        {klass ? t("Tarea para esta clase") : t("Tarea desde esta nota")}
       </button>
     </div>
   );

@@ -3,6 +3,7 @@
 import { Rating, State, createEmptyCard, fsrs, generatorParameters, type Card, type Grade } from "ts-fsrs";
 import { db } from "./db";
 import type { Flashcard } from "./types";
+import { t } from "@/lib/i18n";
 
 // Scheduler FSRS (repetición espaciada). Un único objeto para todo el módulo.
 const scheduler = fsrs(generatorParameters({ enable_fuzz: true }));
@@ -67,11 +68,11 @@ export function newCardFields(now: Date = new Date()): FsrsFields {
 // "1 min", "8 min", "3 h", "2 días", "1 día"
 function formatWait(due: Date, now: Date): string {
   const mins = Math.max(1, Math.round((due.getTime() - now.getTime()) / 60000));
-  if (mins < 60) return `${mins} min`;
+  if (mins < 60) return t("{mins} min", { mins });
   const hours = Math.round(mins / 60);
-  if (mins < 60 * 24) return `${hours} h`;
+  if (mins < 60 * 24) return t("{hours} h", { hours });
   const days = Math.round(mins / (60 * 24));
-  return days === 1 ? "1 día" : `${days} días`;
+  return days === 1 ? t("1 día") : t("{days} días", { days });
 }
 
 // Intervalo que quedaría por cada calificación. Usá el mismo `now` que en rateCard

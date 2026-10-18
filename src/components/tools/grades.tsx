@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { grade } from "@/lib/format";
+import { t } from "@/lib/i18n";
 
 const LS_KEY = "uc-grades-tool";
 
@@ -17,8 +18,8 @@ const num = (s: string) => {
 };
 
 const START: Row[] = [
-  { name: "Parcial 1", nota: "", peso: "35" },
-  { name: "Parcial 2", nota: "", peso: "35" },
+  { name: t("Parcial 1"), nota: "", peso: "35" },
+  { name: t("Parcial 2"), nota: "", peso: "35" },
   { name: "TP", nota: "", peso: "30" },
 ];
 
@@ -59,51 +60,51 @@ export function GradesTool() {
   const doneSum = done.reduce((a, x) => a + x.n * x.w, 0);
   const current = doneW ? doneSum / doneW : NaN;
   const pending = totalW - doneW;
-  const t = num(target);
+  const targetNum = num(target);
   const m = num(max);
-  const needed = pending > 0 && !Number.isNaN(t) ? (t * totalW - doneSum) / pending : NaN;
+  const needed = pending > 0 && !Number.isNaN(targetNum) ? (targetNum * totalW - doneSum) / pending : NaN;
 
   let verdict = "";
-  if (!done.length) verdict = "Cargá al menos una nota.";
-  else if (pending <= 0) verdict = current >= t ? `Llegaste: ${grade(current)}.` : `Te faltó ${grade(t - current)} para el ${grade(t, 0)}.`;
-  else if (needed <= 0) verdict = "Ya llegaste aunque saques lo mínimo en lo que falta.";
-  else if (!Number.isNaN(m) && needed > m) verdict = `Necesitarías ${grade(needed)}: no alcanza ni con la nota máxima.`;
-  else verdict = `En lo que falta (${grade(pending, 0)} %) necesitás un ${grade(needed)} de promedio.`;
+  if (!done.length) verdict = t("Cargá al menos una nota.");
+  else if (pending <= 0) verdict = current >= targetNum ? t("Llegaste: {nota}.", { nota: grade(current) }) : t("Te faltó {falta} para el {nota}.", { falta: grade(targetNum - current), nota: grade(targetNum, 0) });
+  else if (needed <= 0) verdict = t("Ya llegaste aunque saques lo mínimo en lo que falta.");
+  else if (!Number.isNaN(m) && needed > m) verdict = t("Necesitarías {nota}: no alcanza ni con la nota máxima.", { nota: grade(needed) });
+  else verdict = t("En lo que falta ({peso} %) necesitás un {nota} de promedio.", { peso: grade(pending, 0), nota: grade(needed) });
 
   return (
     <div className="tool-pane">
       <div className="grid grid-cols-[1fr_64px_64px_24px] items-center gap-1.5">
-        <span className="t-label text-muted">Instancia</span>
-        <span className="t-label text-muted">Nota</span>
-        <span className="t-label text-muted">Peso %</span>
+        <span className="t-label text-muted">{t("Instancia")}</span>
+        <span className="t-label text-muted">{t("Nota")}</span>
+        <span className="t-label text-muted">{t("Peso %")}</span>
         <span />
         {rows.map((r, i) => (
           <div key={i} className="contents">
-            <input className="input" value={r.name} onChange={(e) => update(i, { name: e.target.value })} aria-label="Instancia" />
-            <input className="input num" inputMode="decimal" placeholder="—" value={r.nota} onChange={(e) => update(i, { nota: e.target.value })} aria-label="Nota" />
+            <input className="input" value={r.name} onChange={(e) => update(i, { name: e.target.value })} aria-label={t("Instancia")} />
+            <input className="input num" inputMode="decimal" placeholder="—" value={r.nota} onChange={(e) => update(i, { nota: e.target.value })} aria-label={t("Nota")} />
             <input
               className="input num"
               inputMode="decimal"
               placeholder={grade(share, 0)}
               value={r.peso}
               onChange={(e) => update(i, { peso: e.target.value })}
-              aria-label="Peso"
+              aria-label={t("Peso")}
             />
-            <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label="Quitar" onClick={() => persist(rows.filter((_, j) => j !== i))}>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t("Quitar")} onClick={() => persist(rows.filter((_, j) => j !== i))}>
               <X className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           </div>
         ))}
       </div>
-      <button type="button" className="btn btn-ghost btn-sm self-start" onClick={() => persist([...rows, { name: `Instancia ${rows.length + 1}`, nota: "", peso: "" }])}>
+      <button type="button" className="btn btn-ghost btn-sm self-start" onClick={() => persist([...rows, { name: t("Instancia {n}", { n: rows.length + 1 }), nota: "", peso: "" }])}>
         <Plus className="h-4 w-4" strokeWidth={1.75} />
-        Agregar instancia
+        {t("Agregar instancia")}
       </button>
-      {Math.round(totalW) !== 100 && <div className="t-small text-amber">Los pesos suman {grade(totalW, 0)} %: se toma esa suma como el total.</div>}
+      {Math.round(totalW) !== 100 && <div className="t-small text-amber">{t("Los pesos suman {peso} %: se toma esa suma como el total.", { peso: grade(totalW, 0) })}</div>}
 
       <div className="flex gap-2">
         <label className="field flex-1">
-          <span>Quiero llegar a</span>
+          <span>{t("Quiero llegar a")}</span>
           <input
             className="input num"
             inputMode="decimal"
@@ -115,7 +116,7 @@ export function GradesTool() {
           />
         </label>
         <label className="field flex-1">
-          <span>Nota máxima</span>
+          <span>{t("Nota máxima")}</span>
           <input
             className="input num"
             inputMode="decimal"
@@ -130,7 +131,7 @@ export function GradesTool() {
 
       <div className="rounded-md border border-border bg-surface p-3">
         <div className="flex items-baseline justify-between">
-          <span className="t-small text-muted">Promedio actual</span>
+          <span className="t-small text-muted">{t("Promedio actual")}</span>
           <span className="t-h2 num">{grade(current)}</span>
         </div>
         <div className="t-small mt-1 text-text">{verdict}</div>

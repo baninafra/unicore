@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { createOfficeDoc, deleteOfficeDoc } from "@/lib/editors/editors";
 import { useWorkspace } from "@/lib/workspace";
 import type { OfficeKind } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 const EVENT = "uc:editor-app";
 
@@ -28,7 +29,7 @@ export function EditorApp() {
       const { kind, file } = (e as CustomEvent<{ kind: OfficeKind; file?: File }>).detail;
       void (async () => {
         // Primero se elige dónde queda (materia o carpeta); si se cancela, no se crea nada.
-        const to = await pickFolder("¿Dónde lo guardo?");
+        const to = await pickFolder(t("¿Dónde lo guardo?"));
         if (!to) return;
         const id = await createOfficeDoc({ kind, subjectId: to, file });
         if (!file) fresh.current.add(id);
@@ -41,7 +42,7 @@ export function EditorApp() {
 
   // Cuando se cierra la pestaña de un archivo nuevo que quedó vacío, se borra.
   useEffect(() => {
-    const open = new Set(panes.flatMap((p) => p.tabs.map((t) => t.view)).flatMap((v) => (v.type === "editor" ? [v.id] : [])));
+    const open = new Set(panes.flatMap((p) => p.tabs.map((tab) => tab.view)).flatMap((v) => (v.type === "editor" ? [v.id] : [])));
     for (const id of [...fresh.current]) {
       if (open.has(id)) continue;
       fresh.current.delete(id);

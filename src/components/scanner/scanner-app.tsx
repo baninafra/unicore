@@ -6,6 +6,7 @@
 // (OCR) y lo guarda como PDF buscable, en la bibliografía de una materia o como nota.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { t, intlLocale } from "@/lib/i18n";
 import clsx from "clsx";
 import {
   ArrowLeft,
@@ -135,7 +136,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
           }),
         );
       } catch (e) {
-        patch(page.id, { busy: false, error: e instanceof Error ? e.message : "No pudimos procesar la foto." });
+        patch(page.id, { busy: false, error: e instanceof Error ? e.message : t("No pudimos procesar la foto.") });
       }
     },
     [patch],
@@ -174,7 +175,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
           setPages((list) => [...list, page]);
           void process(page, page.corners, filter, 0);
         } catch {
-          toast("No pudimos abrir una de las imágenes.", { tone: "error" });
+          toast(t("No pudimos abrir una de las imágenes."), { tone: "error" });
         }
       }
     },
@@ -188,7 +189,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
   useEffect(() => {
     if (!visible || warmed.current) return;
     warmed.current = true;
-    void warmUpScanner().catch((err: unknown) => toast(err instanceof Error ? err.message : "No se pudo iniciar el escáner.", { tone: "error" }));
+    void warmUpScanner().catch((err: unknown) => toast(err instanceof Error ? err.message : t("No se pudo iniciar el escáner."), { tone: "error" }));
   }, [visible]);
 
   useEffect(() => {
@@ -245,7 +246,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
   };
 
   const discard = () => {
-    if (pagesRef.current.length && !window.confirm("¿Descartar las páginas escaneadas sin guardar?")) return;
+    if (pagesRef.current.length && !window.confirm(t("¿Descartar las páginas escaneadas sin guardar?"))) return;
     reset();
   };
 
@@ -257,7 +258,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
     let n = 0;
     const done = new Map<string, OcrResult>();
     for (const p of todo) {
-      setWorking(`Reconociendo el texto… página ${++n} de ${todo.length}`);
+      setWorking(t("Reconociendo el texto… página {n} de {total}", { n: ++n, total: todo.length }));
       patch(p.id, { ocrBusy: true });
       try {
         const ocr = await recognize(p.result!.blob);
@@ -265,7 +266,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
         patch(p.id, { ocr, ocrBusy: false });
       } catch {
         patch(p.id, { ocrBusy: false });
-        toast("No pudimos reconocer el texto de una página.", { tone: "error" });
+        toast(t("No pudimos reconocer el texto de una página."), { tone: "error" });
       }
     }
     setWorking("");
@@ -273,16 +274,16 @@ export function ScannerApp({ visible }: { visible: boolean }) {
   };
 
   const ready = pages.length > 0 && pages.every((p) => p.result && !p.busy);
-  const name = () => safeFileName(title.trim() || `Escaneo ${new Date().toLocaleDateString("es-AR").replace(/\//g, "-")}`);
+  const name = () => safeFileName(title.trim() || t("Escaneo {fecha}", { fecha: new Date().toLocaleDateString(intlLocale()).replace(/\//g, "-") }));
 
   const makePdf = async (withText: boolean) => {
     const list = withText ? await runOcr() : pagesRef.current;
-    setWorking("Armando el PDF…");
+    setWorking(t("Armando el PDF…"));
     try {
       return await buildPdf(
         list.filter((p) => p.result).map((p) => ({ jpeg: p.result!.blob, width: p.result!.width, height: p.result!.height, words: p.ocr?.words })),
         size,
-        title.trim() || "Escaneo",
+        title.trim() || t("Escaneo"),
       );
     } finally {
       setWorking("");
@@ -303,20 +304,20 @@ export function ScannerApp({ visible }: { visible: boolean }) {
   };
 
   const saveAsPdf = async () => {
-    const folder = await pickFolder("¿Dónde guardo el PDF?");
+    const folder = await pickFolder(t("¿Dónde guardo el PDF?"));
     if (!folder) return;
     const pdf = await makePdf(true);
     const id = await createOfficeDoc({ kind: "pdf", subjectId: folder, name: `${name()}.pdf`, file: pdf });
     await db.officeDocs.update(id, { textCache: allText(pagesRef.current).slice(0, 60000) });
-    toast("PDF guardado.");
+    toast(t("PDF guardado."));
     finish({ type: "editor", id });
   };
 
   const saveToBibliography = async () => {
-    const folder = await pickFolder("¿En la bibliografía de qué materia?");
+    const folder = await pickFolder(t("¿En la bibliografía de qué materia?"));
     if (!folder) return;
     if (isSpecialFolder(folder)) {
-      toast("La bibliografía es de una materia: elegí una materia, no una carpeta.", { tone: "error" });
+      toast(t("La bibliografía es de una materia: elegí una materia, no una carpeta."), { tone: "error" });
       return;
     }
     const pdf = await makePdf(true);
@@ -334,12 +335,12 @@ export function ScannerApp({ visible }: { visible: boolean }) {
       usedOcr: true,
       createdAt: nowIso(),
     });
-    toast("Agregado a la bibliografía.");
+    toast(t("Agregado a la bibliografía."));
     finish({ type: "pdf", id });
   };
 
   const saveAsNote = async (withImages: boolean) => {
-    const folder = await pickFolder("¿Dónde creo la nota?");
+    const folder = await pickFolder(t("¿Dónde creo la nota?"));
     if (!folder) return;
     const list = await runOcr();
     const body = allText(list);
@@ -349,7 +350,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
     }
     blocks.push(...markdownToBlocks(body));
     const id = await createNote({ subjectId: folder, title: title.trim() || name(), unitNumber: 1, content: blocks, plainTextCache: body });
-    toast("Nota creada.");
+    toast(t("Nota creada."));
     finish({ type: "nota", id });
   };
 
@@ -362,8 +363,8 @@ export function ScannerApp({ visible }: { visible: boolean }) {
   const tidyWithAI = async () => {
     const list = await runOcr();
     const raw = allText(list).slice(0, 12000);
-    if (!raw.trim()) return toast("No hay texto para ordenar.", { tone: "error" });
-    setWorking("La IA está ordenando el texto…");
+    if (!raw.trim()) return toast(t("No hay texto para ordenar."), { tone: "error" });
+    setWorking(t("La IA está ordenando el texto…"));
     try {
       const out = await ai.generate(
         [
@@ -385,7 +386,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
       }
       if (parsed.titulo?.trim()) setTitle(parsed.titulo.trim().slice(0, 80));
     } catch {
-      toast("La IA no pudo ordenar el texto. Revisá Ajustes > IA.", { tone: "error" });
+      toast(t("La IA no pudo ordenar el texto. Revisá Ajustes > IA."), { tone: "error" });
     } finally {
       setWorking("");
     }
@@ -394,17 +395,17 @@ export function ScannerApp({ visible }: { visible: boolean }) {
   const guard = (fn: () => Promise<unknown>) => () =>
     void fn().catch((e: unknown) => {
       setWorking("");
-      toast(e instanceof Error ? e.message : "Algo salió mal.", { tone: "error" });
+      toast(e instanceof Error ? e.message : t("Algo salió mal."), { tone: "error" });
     });
 
   const saveMenu: MenuItem[] = [
-    { label: "PDF en una carpeta", icon: FileText, onSelect: guard(saveAsPdf) },
-    { label: "PDF en la bibliografía de una materia", icon: BookOpen, onSelect: guard(saveToBibliography) },
+    { label: t("PDF en una carpeta"), icon: FileText, onSelect: guard(saveAsPdf) },
+    { label: t("PDF en la bibliografía de una materia"), icon: BookOpen, onSelect: guard(saveToBibliography) },
     { type: "separator" },
-    { label: "Nota con el texto", icon: FilePlus, onSelect: guard(() => saveAsNote(false)) },
-    { label: "Nota con las imágenes y el texto", icon: ImagePlus, onSelect: guard(() => saveAsNote(true)) },
+    { label: t("Nota con el texto"), icon: FilePlus, onSelect: guard(() => saveAsNote(false)) },
+    { label: t("Nota con las imágenes y el texto"), icon: ImagePlus, onSelect: guard(() => saveAsNote(true)) },
     { type: "separator" },
-    { label: "Descargar PDF", icon: Download, onSelect: guard(download) },
+    { label: t("Descargar PDF"), icon: Download, onSelect: guard(download) },
   ];
 
   const startEdit = (p: Page) => {
@@ -461,12 +462,12 @@ export function ScannerApp({ visible }: { visible: boolean }) {
         {mode === "edit" ? (
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => (setMode("pages"), setEditing(null), setDraft(null))}>
             <ArrowLeft />
-            Volver
+            {t("Volver")}
           </button>
         ) : (
           <ScanLine className="h-4 w-4 text-primary-soft" strokeWidth={1.75} />
         )}
-        {pages.length > 0 && <span className="t-small text-faint">{pages.length === 1 ? "1 página" : `${pages.length} páginas`}</span>}
+        {pages.length > 0 && <span className="t-small text-faint">{pages.length === 1 ? t("1 página") : t("{n} páginas", { n: pages.length })}</span>}
         {working && (
           <span className="t-small flex items-center gap-1.5 text-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -476,11 +477,11 @@ export function ScannerApp({ visible }: { visible: boolean }) {
         <div className="ml-auto flex items-center gap-1.5">
           {mode === "pages" && (
             <>
-              <button type="button" className="btn btn-sm btn-icon" aria-label="Subir fotos" title="Subir fotos" onClick={upload}>
+              <button type="button" className="btn btn-sm btn-icon" aria-label={t("Subir fotos")} title={t("Subir fotos")} onClick={upload}>
                 <ImagePlus />
               </button>
               {pages.length > 0 && (
-                <button type="button" className="btn btn-ghost btn-sm btn-icon hover:text-rose" aria-label="Descartar todo" title="Descartar todo" onClick={discard}>
+                <button type="button" className="btn btn-ghost btn-sm btn-icon hover:text-rose" aria-label={t("Descartar todo")} title={t("Descartar todo")} onClick={discard}>
                   <Trash2 />
                 </button>
               )}
@@ -494,7 +495,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                 }}
               >
                 <Check />
-                Guardar
+                {t("Guardar")}
                 <ChevronDown />
               </button>
             </>
@@ -502,7 +503,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
           {mode === "edit" && (
             <button type="button" className="btn btn-primary btn-sm" onClick={applyEdit}>
               <Check />
-              Aplicar
+              {t("Aplicar")}
             </button>
           )}
         </div>
@@ -523,21 +524,21 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                   const found = await detectCorners(bmp, bmp.width, bmp.height).catch(() => null);
                   bmp.close();
                   if (found) setDraft({ ...draft, corners: found });
-                  else toast("No encontramos los bordes de la hoja: ajustalos a mano.");
+                  else toast(t("No encontramos los bordes de la hoja: ajustalos a mano."));
                 }}
               >
                 <ScanLine />
-                Detectar la hoja
+                {t("Detectar la hoja")}
               </button>
               <button type="button" className="btn btn-sm" onClick={() => setDraft({ ...draft, corners: defaultCorners(edited.sw, edited.sh, 0) })}>
                 <Crop />
-                Toda la foto
+                {t("Toda la foto")}
               </button>
               <div className="mx-2 h-5 w-px bg-border" />
-              <button type="button" className="btn btn-sm btn-icon" aria-label="Rotar a la izquierda" title="Rotar a la izquierda" onClick={() => setDraft({ ...draft, rotation: draft.rotation - 90 })}>
+              <button type="button" className="btn btn-sm btn-icon" aria-label={t("Rotar a la izquierda")} title={t("Rotar a la izquierda")} onClick={() => setDraft({ ...draft, rotation: draft.rotation - 90 })}>
                 <RotateCcw />
               </button>
-              <button type="button" className="btn btn-sm btn-icon" aria-label="Rotar a la derecha" title="Rotar a la derecha" onClick={() => setDraft({ ...draft, rotation: draft.rotation + 90 })}>
+              <button type="button" className="btn btn-sm btn-icon" aria-label={t("Rotar a la derecha")} title={t("Rotar a la derecha")} onClick={() => setDraft({ ...draft, rotation: draft.rotation + 90 })}>
                 <RotateCw />
               </button>
               <span className="t-small text-faint">{(((draft.rotation % 360) + 360) % 360) || 0}°</span>
@@ -557,11 +558,11 @@ export function ScannerApp({ visible }: { visible: boolean }) {
               {pages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                   <ScanLine className="h-10 w-10 text-faint" strokeWidth={1.5} />
-                  <div className="t-h3">Escaneá apuntes, fotocopias o pizarrones</div>
-                  <div className="t-small max-w-md text-muted">Subí fotos JPG o PNG (o pegá una con Ctrl+V). La app encuentra la hoja, la endereza y la deja legible.</div>
+                  <div className="t-h3">{t("Escaneá apuntes, fotocopias o pizarrones")}</div>
+                  <div className="t-small max-w-md text-muted">{t("Subí fotos JPG o PNG (o pegá una con Ctrl+V). La app encuentra la hoja, la endereza y la deja legible.")}</div>
                   <button type="button" className="btn btn-primary mt-2" onClick={upload}>
                     <ImagePlus />
-                    Subir fotos
+                    {t("Subir fotos")}
                   </button>
                 </div>
               ) : (
@@ -580,13 +581,13 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                     >
                       <button
                         type="button"
-                        title="Ajustar bordes, filtro y rotación"
+                        title={t("Ajustar bordes, filtro y rotación")}
                         onClick={() => startEdit(p)}
                         className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-md border border-border bg-surface hover:border-primary"
                       >
                         {p.result ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.result.url} alt={`Página ${i + 1}`} className="max-h-full max-w-full object-contain" />
+                          <img src={p.result.url} alt={t("Página {n}", { n: i + 1 })} className="max-h-full max-w-full object-contain" />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.sourceUrl} alt="" className="max-h-full max-w-full object-contain opacity-40" />
@@ -600,15 +601,15 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                       </button>
                       <div className="flex items-center gap-1">
                         <span className="num t-small text-muted">{i + 1}</span>
-                        {p.ocr && <span className="badge badge-mint">Texto</span>}
+                        {p.ocr && <span className="badge badge-mint">{t("Texto")}</span>}
                         <div className="ml-auto flex opacity-0 transition-opacity group-hover:opacity-100">
-                          <button type="button" className="icon-btn" aria-label="Rotar" title="Rotar" onClick={() => void process(p, p.corners, p.filter, p.rotation + 90)}>
+                          <button type="button" className="icon-btn" aria-label={t("Rotar")} title={t("Rotar")} onClick={() => void process(p, p.corners, p.filter, p.rotation + 90)}>
                             <RotateCw />
                           </button>
-                          <button type="button" className="icon-btn" aria-label="Ajustar" title="Ajustar" onClick={() => startEdit(p)}>
+                          <button type="button" className="icon-btn" aria-label={t("Ajustar")} title={t("Ajustar")} onClick={() => startEdit(p)}>
                             <Crop />
                           </button>
-                          <button type="button" className="icon-btn hover:text-rose" aria-label="Borrar página" title="Borrar página" onClick={() => removePage(p.id)}>
+                          <button type="button" className="icon-btn hover:text-rose" aria-label={t("Borrar página")} title={t("Borrar página")} onClick={() => removePage(p.id)}>
                             <Trash2 />
                           </button>
                         </div>
@@ -621,7 +622,7 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                     className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border-strong text-faint hover:border-primary hover:text-text"
                   >
                     <ImagePlus className="h-6 w-6" strokeWidth={1.5} />
-                    <span className="t-small">Otra página</span>
+                    <span className="t-small">{t("Otra página")}</span>
                   </button>
                 </div>
               )}
@@ -630,11 +631,11 @@ export function ScannerApp({ visible }: { visible: boolean }) {
             {pages.length > 0 && (
               <section className="flex flex-col gap-3 border-t border-border p-3">
                 <label className="field">
-                  <span>Nombre</span>
-                  <input className="input" value={title} placeholder="Escaneo" onChange={(e) => setTitle(e.target.value)} />
+                  <span>{t("Nombre")}</span>
+                  <input className="input" value={title} placeholder={t("Escaneo")} onChange={(e) => setTitle(e.target.value)} />
                 </label>
                 <div className="field">
-                  <span>Filtro para todas</span>
+                  <span>{t("Filtro para todas")}</span>
                   <div className="flex flex-wrap gap-1.5">
                     {FILTERS.map((f) => (
                       <button key={f} type="button" aria-pressed={pages.every((p) => p.filter === f)} className="btn btn-sm aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft" onClick={() => setAllFilters(f)}>
@@ -644,13 +645,13 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                   </div>
                 </div>
                 <div className="field">
-                  <span>Tamaño de página del PDF</span>
+                  <span>{t("Tamaño de página del PDF")}</span>
                   <div className="flex gap-1.5">
                     {(
                       [
-                        ["original", "Como la foto"],
+                        ["original", t("Como la foto")],
                         ["a4", "A4"],
-                        ["carta", "Carta"],
+                        ["carta", t("Carta")],
                       ] as const
                     ).map(([k, label]) => (
                       <button key={k} type="button" aria-pressed={size === k} className="btn btn-sm aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft" onClick={() => setSize(k)}>
@@ -661,8 +662,8 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                 </div>
                 <div className="field">
                   <span className="flex items-center gap-2">
-                    Texto
-                    {textEdited && <span className="badge">Editado</span>}
+                    {t("Texto")}
+                    {textEdited && <span className="badge">{t("Editado")}</span>}
                   </span>
                   {text ? (
                     <textarea
@@ -675,31 +676,31 @@ export function ScannerApp({ visible }: { visible: boolean }) {
                     />
                   ) : (
                     <div className="t-small rounded-md border border-dashed border-border p-3 text-faint">
-                      Se reconoce al guardar, para que el PDF se pueda buscar y la IA lo pueda leer. También podés reconocerlo ahora.
+                      {t("Se reconoce al guardar, para que el PDF se pueda buscar y la IA lo pueda leer. También podés reconocerlo ahora.")}
                     </div>
                   )}
                   <div className="flex flex-wrap gap-1.5">
                     <button type="button" className="btn btn-sm" disabled={!ready || !!working || pages.every((p) => p.ocr)} onClick={guard(runOcr)}>
                       <ScanText />
-                      Reconocer texto
+                      {t("Reconocer texto")}
                     </button>
-                    <button type="button" className="btn btn-ai btn-sm" disabled={!ready || !!working} title="La IA corrige los errores del reconocimiento y le da formato" onClick={guard(tidyWithAI)}>
+                    <button type="button" className="btn btn-ai btn-sm" disabled={!ready || !!working} title={t("La IA corrige los errores del reconocimiento y le da formato")} onClick={guard(tidyWithAI)}>
                       <Sparkles />
-                      Ordenar con IA
+                      {t("Ordenar con IA")}
                     </button>
                     {text && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => void navigator.clipboard.writeText(text).then(() => toast("Texto copiado."))}
+                        onClick={() => void navigator.clipboard.writeText(text).then(() => toast(t("Texto copiado.")))}
                       >
                         <Copy />
-                        Copiar
+                        {t("Copiar")}
                       </button>
                     )}
                     {textEdited && (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTextEdited(false)}>
-                        Volver al reconocido
+                        {t("Volver al reconocido")}
                       </button>
                     )}
                   </div>

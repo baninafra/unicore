@@ -10,15 +10,16 @@ import { get } from "../ai/web";
 import { isDesktop } from "../desktop";
 import type { CalendarColor, CalendarEvent, CalendarSource } from "../types";
 import { parseIcs } from "./ics";
+import { t } from "@/lib/i18n";
 
 export const CALENDAR_COLORS: CalendarColor[] = ["primary", "cyan", "mint", "amber", "rose"];
 
 export const CALENDAR_COLOR_LABEL: Record<CalendarColor, string> = {
-  primary: "Violeta",
-  cyan: "Celeste",
-  mint: "Verde",
-  amber: "Ámbar",
-  rose: "Rosa",
+  primary: t("Violeta"),
+  cyan: t("Celeste"),
+  mint: t("Verde"),
+  amber: t("Ámbar"),
+  rose: t("Rosa"),
 };
 
 // Clases completas para que Tailwind las detecte.
@@ -50,12 +51,12 @@ async function readUrl(url: string): Promise<string> {
   } catch {
     throw new Error(
       isDesktop()
-        ? "No pudimos abrir el enlace. Revisá que esté bien copiado y que tengas internet."
-        : "Este navegador no deja leer ese enlace. Usá la app de escritorio o importá el archivo .ics.",
+        ? t("No pudimos abrir el enlace. Revisá que esté bien copiado y que tengas internet.")
+        : t("Este navegador no deja leer ese enlace. Usá la app de escritorio o importá el archivo .ics."),
     );
   }
   if (!/BEGIN:VCALENDAR/i.test(text)) {
-    throw new Error("El enlace no devolvió un calendario. Copiá la dirección en formato iCal (termina en .ics).");
+    throw new Error(t("El enlace no devolvió un calendario. Copiá la dirección en formato iCal (termina en .ics)."));
   }
   return text;
 }
@@ -82,7 +83,7 @@ export async function syncCalendar(cal: CalendarSource): Promise<void> {
       await db.calendars.update(cal.id, { lastSync: nowIso(), error: undefined, eventCount: rows.length });
     });
   } catch (e) {
-    const error = e instanceof Error ? e.message : "No pudimos sincronizar este calendario.";
+    const error = e instanceof Error ? e.message : t("No pudimos sincronizar este calendario.");
     await db.calendars.update(cal.id, { error });
   }
 }
@@ -95,7 +96,7 @@ export async function syncAllCalendars(): Promise<void> {
 export async function addCalendar(input: { name: string; url?: string; ics?: string; color: CalendarColor }): Promise<CalendarSource> {
   const cal: CalendarSource = {
     id: newId(),
-    name: input.name.trim() || "Calendario",
+    name: input.name.trim() || t("Calendario"),
     url: input.url ? normalizeCalendarUrl(input.url) : undefined,
     ics: input.ics,
     color: input.color,

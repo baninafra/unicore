@@ -8,7 +8,11 @@ import "@blocknote/mantine/style.css";
 import "./editor.css";
 
 import { useEffect } from "react";
-import { es } from "@blocknote/core/locales";
+import { de as bnDe, en as bnEn, es as bnEs, fr as bnFr, pt as bnPt, zh as bnZh } from "@blocknote/core/locales";
+import { getLang } from "@/lib/i18n";
+
+// Menús propios del editor en el idioma de la app.
+const es = { es: bnEs, en: bnEn, fr: bnFr, de: bnDe, pt: bnPt, zh: bnZh }[getLang()];
 import type { PartialBlock } from "@blocknote/core";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";

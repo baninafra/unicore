@@ -10,6 +10,7 @@ import { useOpen } from "@/components/workspace/use-open";
 import { useWorkspace, type OpenMode, type ViewState } from "@/lib/workspace";
 import { noteTitle } from "@/lib/panes/note-data";
 import type { Note } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export const FIELD_CLASS =
   "h-7 w-full rounded-md border border-border bg-surface-raised px-2 text-[length:calc(13px*var(--ui-scale,1))] text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary";
@@ -81,9 +82,9 @@ export function NoteRow({
 // Menú contextual estándar para abrir una vista de cualquier fila.
 export function viewMenuItems(view: ViewState, openView: (v: ViewState, mode?: OpenMode) => void): MenuItem[] {
   return [
-    { label: "Abrir", onSelect: () => openView(view) },
-    { label: "Abrir en pestaña nueva", onSelect: () => openView(view, "tab") },
-    { label: "Abrir en panel dividido", onSelect: () => openView(view, "split") },
+    { label: t("Abrir"), onSelect: () => openView(view) },
+    { label: t("Abrir en pestaña nueva"), onSelect: () => openView(view, "tab") },
+    { label: t("Abrir en panel dividido"), onSelect: () => openView(view, "split") },
   ];
 }
 

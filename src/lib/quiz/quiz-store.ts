@@ -5,6 +5,7 @@
 // Se abren como página (QuizPage) y se puede pedir otro sobre lo mismo.
 
 import { db, nowIso } from "../db";
+import { t } from "@/lib/i18n";
 import { createNote } from "@/components/notes/note-utils";
 import type { LocalAI } from "../ai/use-local-ai";
 import { generateQuiz, type QuizQuestion } from "../ai/prompts";
@@ -47,7 +48,7 @@ function questionsToBlocks(qs: QuizQuestion[]): unknown[] {
   qs.forEach((q, i) => {
     blocks.push({ type: "heading", props: { level: 3 }, content: `${i + 1}. ${q.question}` });
     q.options.forEach((o, oi) => blocks.push({ type: "bulletListItem", content: `${"ABCDEF"[oi]}) ${o}` }));
-    blocks.push({ type: "paragraph", content: [{ type: "text", text: `Respuesta: ${"ABCDEF"[q.answerIndex]}. ${q.explanation ?? ""}`, styles: { italic: true } }] });
+    blocks.push({ type: "paragraph", content: [{ type: "text", text: t("Respuesta: {letra}. {explicacion}", { letra: "ABCDEF"[q.answerIndex], explicacion: q.explanation ?? "" }), styles: { italic: true } }] });
   });
   return blocks;
 }
@@ -167,7 +168,7 @@ export async function quizFromNote(ai: LocalAI, note: Note, count = 6): Promise<
   const questions = await generateQuiz(ai, `[${note.title}]\n${note.plainTextCache}`, count);
   return saveQuiz({
     subjectId: note.subjectId,
-    title: `Cuestionario · ${note.title.replace(/^Clase (\d+) · \d{2}\/\d{2} · /, "Clase $1: ")}`,
+    title: t("Cuestionario · {title}", { title: note.title.replace(/^Clase (\d+) · \d{2}\/\d{2} · /, "Clase $1: ") }),
     questions,
     claseId: note.id,
     tema: note.title,

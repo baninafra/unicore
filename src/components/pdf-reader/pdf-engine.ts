@@ -1,6 +1,7 @@
 "use client";
 
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { t } from "@/lib/i18n";
 import { db, newId, nowIso } from "@/lib/db";
 import type { PdfHighlight } from "@/lib/types";
 
@@ -37,10 +38,10 @@ export async function openPdfFile(fileId: string): Promise<OpenedPdf | null> {
 }
 
 export const HL_COLORS: Record<PdfHighlight["color"], { bg: string; solid: string; label: string }> = {
-  amarillo: { bg: "rgba(250,204,21,0.38)", solid: "#facc15", label: "Amarillo" },
-  verde: { bg: "rgba(74,222,128,0.36)", solid: "#4ade80", label: "Verde" },
-  azul: { bg: "rgba(96,165,250,0.38)", solid: "#60a5fa", label: "Azul" },
-  rosa: { bg: "rgba(244,114,182,0.36)", solid: "#f472b6", label: "Rosa" },
+  amarillo: { bg: "rgba(250,204,21,0.38)", solid: "#facc15", label: t("Amarillo") },
+  verde: { bg: "rgba(74,222,128,0.36)", solid: "#4ade80", label: t("Verde") },
+  azul: { bg: "rgba(96,165,250,0.38)", solid: "#60a5fa", label: t("Azul") },
+  rosa: { bg: "rgba(244,114,182,0.36)", solid: "#f472b6", label: t("Rosa") },
 };
 
 export const HL_ORDER: PdfHighlight["color"][] = ["amarillo", "verde", "azul", "rosa"];

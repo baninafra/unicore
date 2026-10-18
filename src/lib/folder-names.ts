@@ -3,15 +3,16 @@
 // Nombres que el usuario les pone a las carpetas fijas (Diario, Notas, Ideas). Se guardan en este equipo.
 
 import { useEffect, useState } from "react";
+import { t } from "./i18n";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER } from "./types";
 
 const LS_KEY = "uc-folder-names";
 const EVENT = "uc:folder-names";
 
 export const DEFAULT_FOLDER_NAMES: Record<string, string> = {
-  [DAILY_FOLDER]: "Diario",
-  [LOOSE_FOLDER]: "Notas",
-  [IDEAS_FOLDER]: "Ideas",
+  [DAILY_FOLDER]: t("Diario"),
+  [LOOSE_FOLDER]: t("Notas"),
+  [IDEAS_FOLDER]: t("Ideas"),
 };
 
 function read(): Record<string, string> {

@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import { Modal } from "@/components/ui/modal";
 import type { QuizQuestion } from "@/lib/ai/prompts";
 
@@ -24,21 +25,21 @@ export function QuizModal({ questions, onClose, title }: { questions: QuizQuesti
     <Modal
       open
       onClose={onClose}
-      title={title ? `Cuestionario: ${title}` : "Tomame examen"}
+      title={title ? t("Cuestionario: {title}", { title }) : t("Tomame examen")}
       width={640}
       footer={
         <>
           {done ? (
             <button type="button" className="btn" onClick={restart}>
-              Repetir examen
+              {t("Repetir examen")}
             </button>
           ) : (
             <span className="t-small num text-muted">
-              {answered} de {questions.length} respondidas
+              {t("{answered} de {total} respondidas", { answered, total: questions.length })}
             </span>
           )}
           <button type="button" className="btn" onClick={onClose}>
-            Cerrar
+            {t("Cerrar")}
           </button>
         </>
       }
@@ -80,7 +81,7 @@ export function QuizModal({ questions, onClose, title }: { questions: QuizQuesti
                 {revealed && (
                   <p className="t-small text-muted">
                     <span className={chosen === q.answerIndex ? "text-mint" : "text-rose"}>
-                      {chosen === q.answerIndex ? "Correcta." : "Incorrecta."}
+                      {chosen === q.answerIndex ? t("Correcta.") : t("Incorrecta.")}
                     </span>{" "}
                     {q.explanation}
                   </p>
@@ -92,9 +93,9 @@ export function QuizModal({ questions, onClose, title }: { questions: QuizQuesti
 
         {done && (
           <div className="flex items-baseline justify-between gap-3 rounded-md border border-border bg-surface-raised px-4 py-3">
-            <span className="t-h3">Puntaje final</span>
+            <span className="t-h3">{t("Puntaje final")}</span>
             <span className="t-h2 num">
-              {score} de {questions.length}
+              {t("{score} de {total}", { score, total: questions.length })}
             </span>
           </div>
         )}

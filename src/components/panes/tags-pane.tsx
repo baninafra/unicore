@@ -7,6 +7,7 @@ import { useOpen } from "@/components/workspace/use-open";
 import { useAllNotes } from "@/lib/panes/hooks";
 import { buildTagTree, sortNodes, type TagNode } from "@/lib/panes/tag-tree";
 import { PaneEmpty } from "./pane-ui";
+import { t } from "@/lib/i18n";
 
 type SortMode = "nombre" | "frecuencia";
 
@@ -36,12 +37,12 @@ export function TagsPane() {
             onClick={() => setSort(mode)}
             className={clsx("text-[length:calc(12px*var(--ui-scale,1))] capitalize", sort === mode ? "text-text" : "text-faint hover:text-text")}
           >
-            {mode === "nombre" ? "Nombre" : "Frecuencia"}
+            {mode === "nombre" ? t("Nombre") : t("Frecuencia")}
           </button>
         ))}
       </div>
       {roots.length === 0 ? (
-        <PaneEmpty>Sin etiquetas</PaneEmpty>
+        <PaneEmpty>{t("Sin etiquetas")}</PaneEmpty>
       ) : (
         sortNodes(roots, sort).map((node) => (
           <TagBranch key={node.path} node={node} depth={0} sort={sort} collapsed={collapsed} toggle={toggle} />
@@ -74,7 +75,7 @@ function TagBranch({
         {hasChildren ? (
           <button
             type="button"
-            aria-label={isCollapsed ? "Desplegar" : "Plegar"}
+            aria-label={isCollapsed ? t("Desplegar") : t("Plegar")}
             onClick={() => toggle(node.path)}
             className="icon-btn h-5 w-5 flex-none"
           >

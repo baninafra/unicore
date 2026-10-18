@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { t } from "@/lib/i18n";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 
 // Busca en el texto visible del editor. Resalta con la CSS Custom Highlight API si está disponible;
@@ -150,30 +151,30 @@ export function FindBar({
     }
   };
 
-  const counter = !query ? "" : ranges.length ? `${current + 1} de ${ranges.length}` : "Sin resultados";
+  const counter = !query ? "" : ranges.length ? t("{n} de {total}", { n: current + 1, total: ranges.length }) : t("Sin resultados");
 
   return (
     <div className="sticky top-0 z-20 -mx-1 mb-2 flex flex-col gap-1.5 rounded-md border border-border bg-surface p-2 shadow-pop">
       <div className="flex items-center gap-1.5">
-        <button type="button" className="icon-btn" onClick={() => setShowReplace((v) => !v)} aria-label="Mostrar reemplazo">
+        <button type="button" className="icon-btn" onClick={() => setShowReplace((v) => !v)} aria-label={t("Mostrar reemplazo")}>
           {showReplace ? <ChevronDown /> : <ChevronRight />}
         </button>
         <input
           ref={findInput}
           className="input h-7 min-w-0 flex-1 text-[length:calc(13px*var(--ui-scale,1))]"
-          placeholder="Buscar en la nota"
+          placeholder={t("Buscar en la nota")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => onKey(e, false)}
         />
         <span className="t-small num whitespace-nowrap text-faint">{counter}</span>
-        <button type="button" className="icon-btn" onClick={() => step(-1)} aria-label="Anterior" disabled={!ranges.length}>
+        <button type="button" className="icon-btn" onClick={() => step(-1)} aria-label={t("Anterior")} disabled={!ranges.length}>
           <ChevronDown className="rotate-180" />
         </button>
-        <button type="button" className="icon-btn" onClick={() => step(1)} aria-label="Siguiente" disabled={!ranges.length}>
+        <button type="button" className="icon-btn" onClick={() => step(1)} aria-label={t("Siguiente")} disabled={!ranges.length}>
           <ChevronDown />
         </button>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Cerrar búsqueda">
+        <button type="button" className="icon-btn" onClick={onClose} aria-label={t("Cerrar búsqueda")}>
           <X />
         </button>
       </div>
@@ -181,16 +182,16 @@ export function FindBar({
         <div className="flex items-center gap-1.5 pl-7">
           <input
             className="input h-7 min-w-0 flex-1 text-[length:calc(13px*var(--ui-scale,1))]"
-            placeholder="Reemplazar con"
+            placeholder={t("Reemplazar con")}
             value={replacement}
             onChange={(e) => setReplacement(e.target.value)}
             onKeyDown={(e) => onKey(e, true)}
           />
           <button type="button" className="btn btn-sm" onClick={replaceOne} disabled={!ranges.length}>
-            Reemplazar
+            {t("Reemplazar")}
           </button>
           <button type="button" className="btn btn-sm" onClick={replaceAll} disabled={!ranges.length}>
-            Reemplazar todo
+            {t("Reemplazar todo")}
           </button>
         </div>
       )}

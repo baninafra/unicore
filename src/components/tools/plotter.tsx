@@ -8,6 +8,7 @@ import { compile, type EvalFunction } from "mathjs";
 import { ImageDown, RotateCcw } from "lucide-react";
 import { saveFile } from "@/lib/db";
 import { toast } from "@/lib/undo";
+import { t } from "@/lib/i18n";
 
 const LS_KEY = "uc-plot-functions";
 const COLORS = ["#8b7cf6", "#34d399", "#f59e0b", "#f472b6", "#22d3ee", "#f87171"];
@@ -154,7 +155,7 @@ export function PlotTool() {
   return (
     <div className="tool-pane">
       <label className="field">
-        <span>Funciones de x (una por renglón)</span>
+        <span>{t("Funciones de x (una por renglón)")}</span>
         <textarea
           className="input num min-h-[64px] resize-y"
           value={text}
@@ -167,7 +168,7 @@ export function PlotTool() {
           }}
         />
       </label>
-      {fns.some((f) => f.error) && <div className="t-small text-rose">Revisá: {fns.find((f) => f.error)?.line}</div>}
+      {fns.some((f) => f.error) && <div className="t-small text-rose">{t("Revisá: {line}", { line: fns.find((f) => f.error)?.line ?? "" })}</div>}
 
       <div ref={box} className="relative w-full overflow-hidden rounded-md border border-border bg-surface">
         <canvas
@@ -209,12 +210,12 @@ export function PlotTool() {
         ))}
         <button type="button" className="btn btn-ghost btn-sm ml-auto" onClick={() => setView(HOME)}>
           <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
-          Centrar
+          {t("Centrar")}
         </button>
         <button
           type="button"
           className="btn btn-primary btn-sm"
-          title="Pega el gráfico como imagen donde está el cursor en la nota abierta"
+          title={t("Pega el gráfico como imagen donde está el cursor en la nota abierta")}
           onClick={() => {
             const c = canvas.current;
             if (!c) return;
@@ -224,12 +225,12 @@ export function PlotTool() {
               const caption = fns.map((f) => `y = ${f.line}`).join(" · ");
               const detail = { blocks: [{ type: "image", props: { url, caption, previewWidth: 520 } }], handled: false };
               window.dispatchEvent(new CustomEvent("uc:insert-blocks", { detail }));
-              toast(detail.handled ? "Pegué el gráfico en la nota." : "Abrí una nota para pegar el gráfico.", detail.handled ? {} : { tone: "error" });
+              toast(detail.handled ? t("Pegué el gráfico en la nota.") : t("Abrí una nota para pegar el gráfico."), detail.handled ? {} : { tone: "error" });
             }, "image/png");
           }}
         >
           <ImageDown className="h-4 w-4" strokeWidth={1.75} />
-          Pegar en la nota
+          {t("Pegar en la nota")}
         </button>
       </div>
     </div>

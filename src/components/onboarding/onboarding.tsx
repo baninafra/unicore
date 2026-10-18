@@ -17,6 +17,7 @@ import type { Degree, DegreeColor, Subject } from "@/lib/types";
 import { useSettings } from "@/components/settings/apply-settings";
 import { LogoMark } from "@/components/ui/logo";
 import { toast } from "@/lib/undo";
+import { getLang, LANGS, setLang, t } from "@/lib/i18n";
 
 export type OnboardingMode = "inicio" | "agregar" | "rehacer";
 
@@ -155,10 +156,10 @@ async function createFromAnswers(a: Answers, profiles: Profile[]): Promise<strin
     const [h, m] = work.hasta.split(":").map(Number);
     const end = new Date(start);
     end.setHours(h || 0, m || 0, 0, 0);
-    const calendarId = await createLocalCalendar("Trabajo");
+    const calendarId = await createLocalCalendar(t("Trabajo"));
     await saveEvent({
       calendarId,
-      title: `Trabajo · ${work.empresa.trim() || profileName("trabajo")}`,
+      title: t("Trabajo · {nombre}", { nombre: work.empresa.trim() || profileName("trabajo") }),
       start: start.toISOString(),
       end: end.toISOString(),
       allDay: false,
@@ -200,7 +201,7 @@ function ChipInput({ value, onChange, placeholder, suggestions = [], autoFocus }
         {value.map((v) => (
           <span key={v} className="tag flex items-center gap-1">
             {v}
-            <button type="button" aria-label={`Sacar ${v}`} className="text-faint hover:text-text" onClick={() => onChange(value.filter((x) => x !== v))}>
+            <button type="button" aria-label={t("Sacar {v}", { v })} className="text-faint hover:text-text" onClick={() => onChange(value.filter((x) => x !== v))}>
               <X className="h-3 w-3" strokeWidth={2} />
             </button>
           </span>
@@ -209,7 +210,7 @@ function ChipInput({ value, onChange, placeholder, suggestions = [], autoFocus }
           className="min-w-[140px] flex-1 bg-transparent outline-none"
           autoFocus={autoFocus}
           value={text}
-          placeholder={value.length ? "Agregar otra…" : placeholder}
+          placeholder={value.length ? t("Agregar otra…") : placeholder}
           onChange={(e) => (e.target.value.includes(",") ? add(e.target.value) : setText(e.target.value))}
           onKeyDown={(e) => {
             if (e.key === "Enter" && text.trim()) {
@@ -272,23 +273,23 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
       const up = (p: Partial<Answers["uni"]>) => set({ uni: { ...u, ...p } });
       return (
         <>
-          <Heading big title="Tu carrera" sub="Con esto armamos tu plan. Las demás materias las podés sumar después." />
-          <Field label="¿Qué carrera estudiás?">
-            <input className="input" autoFocus value={u.carrera} onChange={(e) => up({ carrera: e.target.value })} placeholder="Ingeniería en Sistemas" />
+          <Heading big title={t("Tu carrera")} sub={t("Con esto armamos tu plan. Las demás materias las podés sumar después.")} />
+          <Field label={t("¿Qué carrera estudiás?")}>
+            <input className="input" autoFocus value={u.carrera} onChange={(e) => up({ carrera: e.target.value })} placeholder={t("Ingeniería en Sistemas")} />
           </Field>
-          <Field label="¿Dónde?">
-            <input className="input" value={u.institucion} onChange={(e) => up({ institucion: e.target.value })} placeholder="Universidad, facultad o instituto" />
+          <Field label={t("¿Dónde?")}>
+            <input className="input" value={u.institucion} onChange={(e) => up({ institucion: e.target.value })} placeholder={t("Universidad, facultad o instituto")} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="¿Cuántos años dura?">
+            <Field label={t("¿Cuántos años dura?")}>
               <input className="input" inputMode="numeric" value={u.anios} onChange={(e) => up({ anios: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
             </Field>
-            <Field label="¿Qué año estás cursando?">
+            <Field label={t("¿Qué año estás cursando?")}>
               <input className="input" inputMode="numeric" value={u.anio} onChange={(e) => up({ anio: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
             </Field>
           </div>
-          <Field group label="¿Qué materias cursás ahora?" hint="Escribí una y apretá Enter.">
-            <ChipInput value={u.materias} onChange={(materias) => up({ materias })} placeholder="Álgebra, Análisis Matemático I…" />
+          <Field group label={t("¿Qué materias cursás ahora?")} hint={t("Escribí una y apretá Enter.")}>
+            <ChipInput value={u.materias} onChange={(materias) => up({ materias })} placeholder={t("Álgebra, Análisis Matemático I…")} />
           </Field>
         </>
       );
@@ -298,21 +299,21 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
       const up = (p: Partial<Answers["colegio"]>) => set({ colegio: { ...c, ...p } });
       return (
         <>
-          <Heading big title="Tu colegio" sub="Secundario, terciario o instituto." />
+          <Heading big title={t("Tu colegio")} sub={t("Secundario, terciario o instituto.")} />
           <div className="grid grid-cols-2 gap-4">
-            <Field label="¿Qué curso?">
-              <input className="input" autoFocus value={c.curso} onChange={(e) => up({ curso: e.target.value })} placeholder="5.º año B" />
+            <Field label={t("¿Qué curso?")}>
+              <input className="input" autoFocus value={c.curso} onChange={(e) => up({ curso: e.target.value })} placeholder={t("5.º año B")} />
             </Field>
-            <Field label="¿En qué escuela?">
-              <input className="input" value={c.escuela} onChange={(e) => up({ escuela: e.target.value })} placeholder="Opcional" />
+            <Field label={t("¿En qué escuela?")}>
+              <input className="input" value={c.escuela} onChange={(e) => up({ escuela: e.target.value })} placeholder={t("Opcional")} />
             </Field>
           </div>
-          <Field group label="¿Qué materias tenés?" hint="Escribí una y apretá Enter, o tocá las sugerencias.">
+          <Field group label={t("¿Qué materias tenés?")} hint={t("Escribí una y apretá Enter, o tocá las sugerencias.")}>
             <ChipInput
               value={c.materias}
               onChange={(materias) => up({ materias })}
-              placeholder="Matemática, Historia…"
-              suggestions={["Matemática", "Lengua y Literatura", "Historia", "Geografía", "Biología", "Física", "Química", "Inglés", "Educación Física"]}
+              placeholder={t("Matemática, Historia…")}
+              suggestions={[t("Matemática"), t("Lengua y Literatura"), t("Historia"), t("Geografía"), t("Biología"), t("Física"), t("Química"), t("Inglés"), t("Educación Física")]}
             />
           </Field>
         </>
@@ -323,19 +324,19 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
       const up = (p: Partial<Answers["trabajo"]>) => set({ trabajo: { ...w, ...p } });
       return (
         <>
-          <Heading big title="Tu trabajo" sub="Tus proyectos van a tener sus notas, tareas, reuniones y archivos." />
+          <Heading big title={t("Tu trabajo")} sub={t("Tus proyectos van a tener sus notas, tareas, reuniones y archivos.")} />
           <div className="grid grid-cols-2 gap-4">
-            <Field label="¿Dónde trabajás?">
-              <input className="input" autoFocus value={w.empresa} onChange={(e) => up({ empresa: e.target.value })} placeholder="Empresa, estudio u organismo" />
+            <Field label={t("¿Dónde trabajás?")}>
+              <input className="input" autoFocus value={w.empresa} onChange={(e) => up({ empresa: e.target.value })} placeholder={t("Empresa, estudio u organismo")} />
             </Field>
-            <Field label="¿Qué hacés?">
-              <input className="input" value={w.puesto} onChange={(e) => up({ puesto: e.target.value })} placeholder="Puesto o rol" />
+            <Field label={t("¿Qué hacés?")}>
+              <input className="input" value={w.puesto} onChange={(e) => up({ puesto: e.target.value })} placeholder={t("Puesto o rol")} />
             </Field>
           </div>
-          <Field group label="¿En qué proyectos o áreas estás ahora?" hint="Escribí uno y apretá Enter.">
-            <ChipInput value={w.proyectos} onChange={(proyectos) => up({ proyectos })} placeholder="Lanzamiento web, Clientes, Informes mensuales…" />
+          <Field group label={t("¿En qué proyectos o áreas estás ahora?")} hint={t("Escribí uno y apretá Enter.")}>
+            <ChipInput value={w.proyectos} onChange={(proyectos) => up({ proyectos })} placeholder={t("Lanzamiento web, Clientes, Informes mensuales…")} />
           </Field>
-          <Field group label="¿Qué días y en qué horario trabajás?" hint="Lo agregamos al calendario. Si no tenés horario fijo, desmarcá todos los días.">
+          <Field group label={t("¿Qué días y en qué horario trabajás?")} hint={t("Lo agregamos al calendario. Si no tenés horario fijo, desmarcá todos los días.")}>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex gap-1">
                 {DAY_CODES.map((d) => (
@@ -351,9 +352,9 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <input type="time" className="input w-[110px]" value={w.desde} onChange={(e) => up({ desde: e.target.value })} aria-label="Desde" />
-                <span className="t-small text-faint">a</span>
-                <input type="time" className="input w-[110px]" value={w.hasta} onChange={(e) => up({ hasta: e.target.value })} aria-label="Hasta" />
+                <input type="time" className="input w-[110px]" value={w.desde} onChange={(e) => up({ desde: e.target.value })} aria-label={t("Desde")} />
+                <span className="t-small text-faint">{t("a")}</span>
+                <input type="time" className="input w-[110px]" value={w.hasta} onChange={(e) => up({ hasta: e.target.value })} aria-label={t("Hasta")} />
               </div>
             </div>
           </Field>
@@ -365,9 +366,9 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
       const up = (x: Partial<Answers["proyectos"]>) => set({ proyectos: { ...p, ...x } });
       return (
         <>
-          <Heading big title="Tus proyectos" sub="Freelance, un emprendimiento, algo que estás armando por tu cuenta…" />
-          <Field group label="¿En qué proyectos estás?" hint="Escribí uno y apretá Enter.">
-            <ChipInput value={p.proyectos} onChange={(proyectos) => up({ proyectos })} placeholder="App de recetas, Cliente Pérez, Canal de YouTube…" autoFocus />
+          <Heading big title={t("Tus proyectos")} sub={t("Freelance, un emprendimiento, algo que estás armando por tu cuenta…")} />
+          <Field group label={t("¿En qué proyectos estás?")} hint={t("Escribí uno y apretá Enter.")}>
+            <ChipInput value={p.proyectos} onChange={(proyectos) => up({ proyectos })} placeholder={t("App de recetas, Cliente Pérez, Canal de YouTube…")} autoFocus />
           </Field>
         </>
       );
@@ -375,13 +376,13 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
     case "personal":
       return (
         <>
-          <Heading big title="Tu vida personal" sub="Cada área tiene sus notas, pendientes y metas." />
-          <Field group label="¿Qué querés organizar?" hint="Tocá las que te sirvan o escribí otras.">
+          <Heading big title={t("Tu vida personal")} sub={t("Cada área tiene sus notas, pendientes y metas.")} />
+          <Field group label={t("¿Qué querés organizar?")} hint={t("Tocá las que te sirvan o escribí otras.")}>
             <ChipInput
               value={a.personal.areas}
               onChange={(areas) => set({ personal: { areas } })}
-              placeholder="Salud, Finanzas…"
-              suggestions={["Salud", "Finanzas", "Hogar", "Deporte", "Lectura", "Viajes", "Trámites", "Idiomas"]}
+              placeholder={t("Salud, Finanzas…")}
+              suggestions={[t("Salud"), t("Finanzas"), t("Hogar"), t("Deporte"), t("Lectura"), t("Viajes"), t("Trámites"), t("Idiomas")]}
             />
           </Field>
         </>
@@ -395,23 +396,23 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
 function suggestedName(kind: ProfileKind, a: Answers): string {
   switch (kind) {
     case "universidad":
-      return "Facultad";
+      return t("Facultad");
     case "colegio":
-      return "Colegio";
+      return t("Colegio");
     case "trabajo":
-      return a.trabajo.empresa.trim() || "Trabajo";
+      return a.trabajo.empresa.trim() || t("Trabajo");
     case "proyectos":
-      return "Proyectos";
+      return t("Proyectos");
     case "personal":
-      return "Personal";
+      return t("Personal");
   }
 }
 
 const STEP_LABEL: Record<Exclude<Step, ProfileKind>, string> = {
-  bienvenida: "Bienvenida",
-  perfiles: "Perfiles",
-  preferencias: "Preferencias",
-  listo: "Listo",
+  bienvenida: t("Bienvenida"),
+  perfiles: t("Perfiles"),
+  preferencias: t("Preferencias"),
+  listo: t("Listo"),
 };
 const stepLabel = (s: Step) => (PROFILE_KINDS.includes(s as ProfileKind) ? PROFILES[s as ProfileKind].label : STEP_LABEL[s as Exclude<Step, ProfileKind>]);
 
@@ -441,7 +442,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
       const current = readProfile();
       if (sample) {
         await seedIfEmpty();
-        writeProfile({ name: a.name.trim(), profiles: [newProfile("universidad", "Facultad")], active: "todos", onboarded: true });
+        writeProfile({ name: a.name.trim(), profiles: [newProfile("universidad", t("Facultad"))], active: "todos", onboarded: true });
         onClose();
         return;
       }
@@ -461,11 +462,11 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
         if (a.theme !== theme) toggleTheme();
         updateSettings({ weekStart: a.weekStart, notifReview: study && a.flashcards });
       }
-      if (mode !== "inicio") toast(created.length === 1 ? `Listo, creamos el perfil «${created[0].name}»` : "Listo, creamos tus perfiles");
+      if (mode !== "inicio") toast(created.length === 1 ? t("Listo, creamos el perfil «{name}»", { name: created[0].name }) : t("Listo, creamos tus perfiles"));
       onClose();
     } catch (e) {
       console.error(e);
-      toast("No pudimos guardar todo. Probá de nuevo.", { tone: "error" });
+      toast(t("No pudimos guardar todo. Probá de nuevo."), { tone: "error" });
       setBusy(false);
     }
   }
@@ -484,7 +485,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
     const list =
       k === "universidad" ? a.uni.materias : k === "colegio" ? a.colegio.materias : k === "trabajo" ? a.trabajo.proyectos : k === "proyectos" ? a.proyectos.proyectos : a.personal.areas;
     const space =
-      k === "universidad" ? a.uni.carrera : k === "colegio" ? a.colegio.curso || a.colegio.escuela : k === "trabajo" ? a.trabajo.empresa : k === "proyectos" ? a.proyectos.espacio || (list.length ? "Proyectos propios" : "") : list.length ? "Personal" : "";
+      k === "universidad" ? a.uni.carrera : k === "colegio" ? a.colegio.curso || a.colegio.escuela : k === "trabajo" ? a.trabajo.empresa : k === "proyectos" ? a.proyectos.espacio || (list.length ? t("Proyectos propios") : "") : list.length ? t("Personal") : "";
     return { def, name: nameOf(k), space: space.trim(), list };
   });
 
@@ -494,11 +495,26 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
         <>
           <Heading
             big={full}
-            title="Te damos la bienvenida"
-            sub="Te hacemos unas preguntas cortas para dejar la app armada a tu medida: para estudiar, trabajar, tus proyectos o todo junto. Tarda un minuto y después podés cambiar lo que quieras."
+            title={t("Te damos la bienvenida")}
+            sub={t("Te hacemos unas preguntas cortas para dejar la app armada a tu medida: para estudiar, trabajar, tus proyectos o todo junto. Tarda un minuto y después podés cambiar lo que quieras.")}
           />
-          <Field label="¿Cómo te llamás?">
-            <input className="input h-11 text-[length:calc(15px*var(--ui-scale,1))]" autoFocus value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder="Tu nombre" />
+          <Field group label="Idioma · Language">
+            <div className="flex flex-wrap gap-1.5" role="group">
+              {LANGS.map((l) => (
+                <button
+                  key={l.value}
+                  type="button"
+                  aria-pressed={getLang() === l.value}
+                  onClick={() => getLang() !== l.value && setLang(l.value)}
+                  className="btn btn-sm aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft"
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label={t("¿Cómo te llamás?")}>
+            <input className="input h-11 text-[length:calc(15px*var(--ui-scale,1))]" autoFocus value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder={t("Tu nombre")} />
           </Field>
         </>
       )}
@@ -507,11 +523,11 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
         <>
           <Heading
             big={full}
-            title={mode === "agregar" ? "¿Qué perfil querés crear?" : `${a.name.trim() ? `${a.name.trim().split(" ")[0]}, ¿p` : "¿P"}ara qué vas a usar UniCore?`}
+            title={mode === "agregar" ? t("¿Qué perfil querés crear?") : a.name.trim() ? t("{name}, ¿para qué vas a usar UniCore?", { name: a.name.trim().split(" ")[0] }) : t("¿Para qué vas a usar UniCore?")}
             sub={
               mode === "agregar"
-                ? "Podés tener varios del mismo tipo, por ejemplo dos trabajos. En el próximo paso le ponés nombre."
-                : "Elegí todos los que quieras: cada uno se vuelve un perfil con su nombre. Después vas a poder crear más, incluso varios del mismo tipo."
+                ? t("Podés tener varios del mismo tipo, por ejemplo dos trabajos. En el próximo paso le ponés nombre.")
+                : t("Elegí todos los que quieras: cada uno se vuelve un perfil con su nombre. Después vas a poder crear más, incluso varios del mismo tipo.")
             }
           />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -549,7 +565,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
       {PROFILE_KINDS.includes(step as ProfileKind) && (
         <>
           <KindStep kind={step as ProfileKind} a={a} set={set} />
-          <Field label="Nombre del perfil" hint="Así lo vas a ver arriba de Archivos para cambiar de un perfil a otro.">
+          <Field label={t("Nombre del perfil")} hint={t("Así lo vas a ver arriba de Archivos para cambiar de un perfil a otro.")}>
             <input
               className="input"
               value={a.profileNames[step as ProfileKind] ?? ""}
@@ -562,38 +578,38 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
 
       {step === "preferencias" && (
         <>
-          <Heading big={full} title="Últimos detalles" sub="Cómo querés que se vea y qué querés que sepa la IA de vos." />
+          <Heading big={full} title={t("Últimos detalles")} sub={t("Cómo querés que se vea y qué querés que sepa la IA de vos.")} />
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field group label="Tema">
-              <Choice value={a.theme} options={[{ value: "dark", label: "Oscuro" }, { value: "light", label: "Claro" }]} onChange={(theme) => set({ theme })} />
+            <Field group label={t("Tema de colores")}>
+              <Choice value={a.theme} options={[{ value: "dark", label: t("Oscuro") }, { value: "light", label: t("Claro") }]} onChange={(theme) => set({ theme })} />
             </Field>
-            <Field group label="La semana empieza el">
-              <Choice value={a.weekStart} options={[{ value: "lun", label: "Lunes" }, { value: "dom", label: "Domingo" }]} onChange={(weekStart) => set({ weekStart })} />
+            <Field group label={t("La semana empieza el")}>
+              <Choice value={a.weekStart} options={[{ value: "lun", label: t("Lunes") }, { value: "dom", label: t("Domingo") }]} onChange={(weekStart) => set({ weekStart })} />
             </Field>
           </div>
-          <Field group label="Tamaño del texto" hint="Se aplica al instante, así ves cómo queda.">
+          <Field group label={t("Tamaño del texto")} hint={t("Se aplica al instante, así ves cómo queda.")}>
             <Choice
               value={String(settings.uiFont)}
               options={[
-                { value: "13", label: "Chico" },
-                { value: "15", label: "Normal" },
-                { value: "17", label: "Grande" },
-                { value: "19", label: "Muy grande" },
+                { value: "13", label: t("Chico") },
+                { value: "15", label: t("Normal") },
+                { value: "17", label: t("Grande") },
+                { value: "19", label: t("Muy grande") },
               ]}
               onChange={(v) => updateSettings({ uiFont: Number(v), editorFont: Number(v) + 2 })}
             />
           </Field>
           {study && (
-            <Field group label="¿Querés que te avisemos cuando tengas flashcards para repasar?">
-              <Choice value={a.flashcards ? "si" : "no"} options={[{ value: "si", label: "Sí" }, { value: "no", label: "No" }]} onChange={(v) => set({ flashcards: v === "si" })} />
+            <Field group label={t("¿Querés que te avisemos cuando tengas flashcards para repasar?")}>
+              <Choice value={a.flashcards ? "si" : "no"} options={[{ value: "si", label: t("Sí") }, { value: "no", label: t("No") }]} onChange={(v) => set({ flashcards: v === "si" })} />
             </Field>
           )}
-          <Field label="Contale a la IA sobre vos (opcional)" hint="Qué hacés, qué querés lograr, cómo te gusta que te expliquen. La IA lo tiene en cuenta en cada respuesta.">
+          <Field label={t("Contale a la IA sobre vos (opcional)")} hint={t("Qué hacés, qué querés lograr, cómo te gusta que te expliquen. La IA lo tiene en cuenta en cada respuesta.")}>
             <textarea
               className="input min-h-[96px] py-2"
               value={a.about}
               onChange={(e) => set({ about: e.target.value })}
-              placeholder="Ej.: trabajo de mañana y curso de noche, quiero recibirme el año que viene, prefiero explicaciones con ejemplos."
+              placeholder={t("Ej.: trabajo de mañana y curso de noche, quiero recibirme el año que viene, prefiero explicaciones con ejemplos.")}
             />
           </Field>
         </>
@@ -601,7 +617,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
 
       {step === "listo" && (
         <>
-          <Heading big={full} title="Todo listo" sub="Esto es lo que vamos a armar. Lo podés cambiar cuando quieras desde Ajustes → Perfiles." />
+          <Heading big={full} title={t("Todo listo")} sub={t("Esto es lo que vamos a armar. Lo podés cambiar cuando quieras desde Ajustes → Perfiles.")} />
           <div className="flex flex-col gap-2.5">
             {summary.map(({ def, name, space, list }) => (
               <div key={def.kind} className="flex items-start gap-3.5 rounded-lg border border-border bg-surface p-4">
@@ -611,23 +627,23 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="t-h3 font-semibold">
                     {name}
-                    <span className="t-small font-normal text-faint"> · perfil {def.label.toLowerCase()}</span>
+                    <span className="t-small font-normal text-faint">{t(" · perfil {tipo}", { tipo: def.label.toLowerCase() })}</span>
                   </span>
                   <span className="t-small text-muted">
                     {!def.study
                       ? list.length
-                        ? `${list.length} ${list.length === 1 ? def.item.one : def.item.many}: ${list.join(", ")}`
-                        : `Sin ${def.item.many} por ahora; los sumás cuando quieras`
+                        ? t("{n} {items}: {lista}", { n: list.length, items: list.length === 1 ? def.item.one : def.item.many, lista: list.join(", ") })
+                        : t("Sin {items} por ahora; los sumás cuando quieras", { items: def.item.many })
                       : space
-                        ? `${space}${list.length ? ` · ${list.length} ${list.length === 1 ? def.item.one : def.item.many}: ${list.join(", ")}` : ""}`
-                        : `${def.space.f ? "La" : "El"} ${def.space.one} lo cargás después`}
+                        ? `${space}${list.length ? t(" · {n} {items}: {lista}", { n: list.length, items: list.length === 1 ? def.item.one : def.item.many, lista: list.join(", ") }) : ""}`
+                        : t("{art} {space} lo cargás después", { art: def.space.f ? t("La") : t("El"), space: def.space.one })}
                   </span>
                 </div>
               </div>
             ))}
             {kinds.includes("trabajo") && a.trabajo.dias.length > 0 && a.trabajo.desde < a.trabajo.hasta && (
               <p className="t-small text-muted">
-                Horario de trabajo en el calendario: {a.trabajo.dias.map((d) => DAY_SHORT[d]).join(" ")} de {a.trabajo.desde} a {a.trabajo.hasta}.
+                {t("Horario de trabajo en el calendario: {dias} de {desde} a {hasta}.", { dias: a.trabajo.dias.map((d) => DAY_SHORT[d]).join(" "), desde: a.trabajo.desde, hasta: a.trabajo.hasta })}
               </p>
             )}
           </div>
@@ -640,11 +656,11 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
     <div className="flex items-center gap-2">
       {step === "bienvenida" ? (
         <>
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void finish(true)} title="Carga una carrera de ejemplo con materias y tareas">
-            Probar con datos de ejemplo
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void finish(true)} title={t("Carga una carrera de ejemplo con materias y tareas")}>
+            {t("Probar con datos de ejemplo")}
           </button>
           <button type="button" className="btn btn-primary ml-auto h-10 px-5" onClick={next}>
-            Empezar
+            {t("Empezar")}
             <ArrowRight strokeWidth={1.75} />
           </button>
         </>
@@ -653,22 +669,22 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
           {index > 0 ? (
             <button type="button" className="btn h-10" onClick={back} disabled={busy}>
               <ArrowLeft strokeWidth={1.75} />
-              Atrás
+              {t("Atrás")}
             </button>
           ) : (
             <button type="button" className="btn h-10" onClick={onClose}>
-              Cancelar
+              {t("Cancelar")}
             </button>
           )}
-          {PROFILE_KINDS.includes(step as ProfileKind) && <span className="t-small ml-2 hidden text-faint sm:inline">Podés dejar vacío lo que no sepas</span>}
+          {PROFILE_KINDS.includes(step as ProfileKind) && <span className="t-small ml-2 hidden text-faint sm:inline">{t("Podés dejar vacío lo que no sepas")}</span>}
           {step === "listo" ? (
             <button type="button" className="btn btn-primary ml-auto h-10 px-5" disabled={busy || kinds.length === 0} onClick={() => void finish()}>
-              {mode === "agregar" ? (kinds.length === 1 ? "Crear perfil" : "Crear perfiles") : "Abrir UniCore"}
+              {mode === "agregar" ? (kinds.length === 1 ? t("Crear perfil") : t("Crear perfiles")) : t("Abrir UniCore")}
               <Check strokeWidth={1.75} />
             </button>
           ) : (
             <button type="button" className="btn btn-primary ml-auto h-10 px-5" disabled={!canNext} onClick={next}>
-              Siguiente
+              {t("Siguiente")}
               <ArrowRight strokeWidth={1.75} />
             </button>
           )}
@@ -681,7 +697,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
   if (!full) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-1.5" aria-label={`Paso ${index + 1} de ${steps.length}`}>
+        <div className="flex items-center gap-1.5" aria-label={t("Paso {n} de {total}", { n: index + 1, total: steps.length })}>
           {steps.map((s, i) => (
             <span key={`${s}-${i}`} className={clsx("h-1 flex-1 rounded-full", i <= index ? "bg-primary" : "bg-border")} />
           ))}
@@ -721,7 +737,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
             })}
           </ol>
         </div>
-        <p className="t-small text-faint">Todo se guarda en este equipo. No hace falta crear una cuenta.</p>
+        <p className="t-small text-faint">{t("Todo se guarda en este equipo. No hace falta crear una cuenta.")}</p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -731,7 +747,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
             <div className="flex items-center gap-3 lg:hidden">
               <LogoMark size={28} />
               <span className="t-small text-faint">
-                Paso {index + 1} de {steps.length} · {stepLabel(step)}
+                {t("Paso {n} de {total} · {paso}", { n: index + 1, total: steps.length, paso: stepLabel(step) })}
               </span>
             </div>
             {body}

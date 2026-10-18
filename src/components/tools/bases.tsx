@@ -4,12 +4,13 @@
 // o una base a elección), más el complemento a 2 y el texto ASCII cuando corresponde.
 
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 
 const BASES = [
-  { base: 2, label: "Binario", re: /^-?[01]*$/ },
-  { base: 8, label: "Octal", re: /^-?[0-7]*$/ },
-  { base: 10, label: "Decimal", re: /^-?\d*$/ },
-  { base: 16, label: "Hexadecimal", re: /^-?[0-9a-f]*$/i },
+  { base: 2, label: t("Binario"), re: /^-?[01]*$/ },
+  { base: 8, label: t("Octal"), re: /^-?[0-7]*$/ },
+  { base: 10, label: t("Decimal"), re: /^-?\d*$/ },
+  { base: 16, label: t("Hexadecimal"), re: /^-?[0-9a-f]*$/i },
 ];
 
 function parseIn(text: string, base: number): bigint | null {
@@ -64,7 +65,7 @@ export function BasesTool() {
       {BASES.map((b) => (
         <label key={b.base} className="field">
           <span>
-            {b.label} <span className="text-faint">(base {b.base})</span>
+            {b.label} <span className="text-faint">{t("(base {base})", { base: b.base })}</span>
           </span>
           <input
             className="input num"
@@ -78,7 +79,7 @@ export function BasesTool() {
       ))}
       <label className="field">
         <span className="flex items-center gap-2">
-          Base
+          {t("Base")}
           <input
             className="input num h-7 w-16 py-0"
             type="number"
@@ -94,11 +95,11 @@ export function BasesTool() {
       {value !== null && (
         <div className="rounded-md border border-border bg-surface p-2 t-small">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-            <span className="whitespace-nowrap text-muted">Complemento a 2</span>
+            <span className="whitespace-nowrap text-muted">{t("Complemento a 2")}</span>
             <span className="flex gap-1">
               {[8, 16, 32].map((n) => (
                 <button key={n} type="button" className={n === bits ? "badge badge-primary" : "badge cursor-pointer"} onClick={() => setBits(n)}>
-                  {n} bits
+                  {t("{n} bits", { n })}
                 </button>
               ))}
             </span>
@@ -106,13 +107,13 @@ export function BasesTool() {
           <div className="num mt-1 break-all">{twos(value, bits)}</div>
           {ascii && (
             <div className="mt-2 flex justify-between">
-              <span className="text-muted">Como texto ASCII</span>
+              <span className="text-muted">{t("Como texto ASCII")}</span>
               <span className="num">«{ascii}»</span>
             </div>
           )}
         </div>
       )}
-      {value === null && edit?.text && <div className="t-small text-rose">Ese número no es válido en esa base.</div>}
+      {value === null && edit?.text && <div className="t-small text-rose">{t("Ese número no es válido en esa base.")}</div>}
     </div>
   );
 }

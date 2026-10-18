@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Plus, SlidersHorizontal } from "lucide-react";
+import { t } from "@/lib/i18n";
 import { GENERAL, PROFILES, useProfiles } from "@/lib/profiles";
 import { useWorkspace } from "@/lib/workspace";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
@@ -13,12 +14,12 @@ export function ProfileSwitcher() {
   const { open, menu } = useContextMenu();
 
   const def = activeProfile ? PROFILES[activeProfile.kind] : GENERAL;
-  const name = activeProfile?.name ?? (profiles.length > 1 ? "Todos los perfiles" : (profiles[0]?.name ?? "Mi espacio"));
-  const sub = activeProfile ? def.label : profiles.length > 1 ? `${profiles.length} perfiles` : "Perfil";
+  const name = activeProfile?.name ?? (profiles.length > 1 ? t("Todos los perfiles") : (profiles[0]?.name ?? t("Mi espacio")));
+  const sub = activeProfile ? def.label : profiles.length > 1 ? t("{n} perfiles", { n: profiles.length }) : t("Perfil");
 
   const items: MenuItem[] = [
     ...(profiles.length > 1
-      ? [{ label: "Todos los perfiles", icon: activeProfile ? GENERAL.icon : Check, onSelect: () => setActive("todos") }]
+      ? [{ label: t("Todos los perfiles"), icon: activeProfile ? GENERAL.icon : Check, onSelect: () => setActive("todos") }]
       : []),
     ...profiles.map((p) => ({
       label: p.name,
@@ -27,15 +28,15 @@ export function ProfileSwitcher() {
       onSelect: () => setActive(p.id),
     })),
     { type: "separator" },
-    { label: "Nuevo perfil…", icon: Plus, onSelect: () => openOnboarding("agregar") },
-    { label: "Administrar perfiles", icon: SlidersHorizontal, onSelect: () => openView({ type: "ajustes", section: "perfiles" }) },
+    { label: t("Nuevo perfil…"), icon: Plus, onSelect: () => openOnboarding("agregar") },
+    { label: t("Administrar perfiles"), icon: SlidersHorizontal, onSelect: () => openView({ type: "ajustes", section: "perfiles" }) },
   ];
 
   return (
     <>
       <button
         type="button"
-        aria-label={`Perfil: ${name}. Cambiar de perfil`}
+        aria-label={t("Perfil: {name}. Cambiar de perfil", { name })}
         title={`${name} · ${sub}`}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();

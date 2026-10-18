@@ -7,6 +7,7 @@
 import { db } from "../db";
 import { scheduleNote } from "../cronograma";
 import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "../types";
+import { t, intlLocale } from "@/lib/i18n";
 
 export type ExportTarget =
   | { kind: "note"; id: string }
@@ -15,9 +16,9 @@ export type ExportTarget =
   | { kind: "folder"; folder: typeof DAILY_FOLDER | typeof LOOSE_FOLDER | typeof TEMPLATES_FOLDER };
 
 const FOLDER_NAMES: Record<string, string> = {
-  [DAILY_FOLDER]: "Diario",
-  [LOOSE_FOLDER]: "Notas",
-  [TEMPLATES_FOLDER]: "Plantillas",
+  [DAILY_FOLDER]: t("Diario"),
+  [LOOSE_FOLDER]: t("Notas"),
+  [TEMPLATES_FOLDER]: t("Plantillas"),
 };
 
 // ---------- Bloques de BlockNote → HTML ----------
@@ -135,12 +136,12 @@ async function blocksToHtml(blocks: unknown[]): Promise<string> {
         break;
       }
       case "callout":
-        html += `<div class="callout"><div class="callout-type">${esc(String(props.type ?? props.kind ?? "Nota"))}</div>${text}${children}</div>`;
+        html += `<div class="callout"><div class="callout-type">${esc(String(props.type ?? props.kind ?? t("Nota")))}</div>${text}${children}</div>`;
         break;
       case "audio":
       case "video":
       case "file":
-        html += `<p class="muted">[${esc(String(props.name || (type === "audio" ? "Audio" : "Archivo")))}]</p>`;
+        html += `<p class="muted">[${esc(String(props.name || (type === "audio" ? t("Audio") : t("Archivo"))))}]</p>`;
         break;
       default:
         if (text || children) html += `<p>${text}</p>${children}`;
@@ -157,7 +158,7 @@ function propsTable(note: Note): string {
   const rows: [string, string][] = [];
   for (const [k, v] of Object.entries(note.properties ?? {})) rows.push([k, Array.isArray(v) ? v.join(", ") : String(v)]);
   if (note.aliases?.length) rows.push(["alias", note.aliases.join(", ")]);
-  if (note.tags?.length) rows.push(["etiquetas", note.tags.map((t) => `#${t}`).join(" ")]);
+  if (note.tags?.length) rows.push([t("etiquetas"), note.tags.map((t) => `#${t}`).join(" ")]);
   if (!rows.length) return "";
   return `<table class="props">${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table>`;
 }
@@ -177,19 +178,19 @@ function byUnit(notes: Note[], prefix = ""): Section[] {
   const units = new Map<number, Note[]>();
   for (const n of sortNotes(notes)) units.set(n.unitNumber, [...(units.get(n.unitNumber) ?? []), n]);
   if (units.size <= 1) return [{ title: prefix, notes: sortNotes(notes) }];
-  return [...units.entries()].map(([u, ns]) => ({ title: `${prefix ? `${prefix} · ` : ""}Unidad ${u}`, notes: ns }));
+  return [...units.entries()].map(([u, ns]) => ({ title: `${prefix ? `${prefix} · ` : ""}${t("Unidad {n}", { n: u })}`, notes: ns }));
 }
 
 export async function collect(target: ExportTarget): Promise<{ title: string; subtitle?: string; sections: Section[] }> {
   if (target.kind === "note") {
     const note = await db.notes.get(target.id);
-    if (!note) throw new Error("No encontramos la nota.");
+    if (!note) throw new Error(t("No encontramos la nota."));
     const subject = await db.subjects.get(note.subjectId);
-    return { title: note.title || "Sin título", subtitle: subject?.name ?? FOLDER_NAMES[note.subjectId], sections: [{ title: "", notes: [note] }] };
+    return { title: note.title || t("Sin título"), subtitle: subject?.name ?? FOLDER_NAMES[note.subjectId], sections: [{ title: "", notes: [note] }] };
   }
   if (target.kind === "subject") {
     const subject = await db.subjects.get(target.id);
-    if (!subject) throw new Error("No encontramos la materia.");
+    if (!subject) throw new Error(t("No encontramos la materia."));
     const degree = await db.degrees.get(subject.degreeId);
     const notes = await db.notes.where("subjectId").equals(subject.id).toArray();
     const crono = scheduleNote(subject);
@@ -197,7 +198,7 @@ export async function collect(target: ExportTarget): Promise<{ title: string; su
   }
   if (target.kind === "degree") {
     const degree = await db.degrees.get(target.id);
-    if (!degree) throw new Error("No encontramos la carrera.");
+    if (!degree) throw new Error(t("No encontramos la carrera."));
     const subjects = (await db.subjects.where("degreeId").equals(degree.id).toArray()).sort(
       (a, b) => a.year - b.year || a.semester - b.semester || a.name.localeCompare(b.name),
     );
@@ -215,7 +216,7 @@ export async function collect(target: ExportTarget): Promise<{ title: string; su
     target.folder === DAILY_FOLDER
       ? notes.sort((a, b) => (a.dailyDate ?? a.createdAt).localeCompare(b.dailyDate ?? b.createdAt))
       : sortNotes(notes);
-  return { title: FOLDER_NAMES[target.folder] ?? "Notas", sections: [{ title: "", notes: sorted }] };
+  return { title: FOLDER_NAMES[target.folder] ?? t("Notas"), sections: [{ title: "", notes: sorted }] };
 }
 
 const CSS = `
@@ -264,16 +265,16 @@ export async function buildExportHtml(target: ExportTarget): Promise<{ html: str
   const { title, subtitle, sections } = await collect(target);
   const notes = sections.flatMap((s) => s.notes);
   const single = target.kind === "note";
-  const today = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString(intlLocale(), { day: "numeric", month: "long", year: "numeric" });
 
   let body = "";
   if (!single) {
-    body += `<section class="cover">${MARK}<h1>${esc(title)}</h1>${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}<div class="date">${notes.length} ${notes.length === 1 ? "nota" : "notas"} · ${today}</div></section>`;
+    body += `<section class="cover">${MARK}<h1>${esc(title)}</h1>${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}<div class="date">${notes.length === 1 ? t("{n} nota", { n: notes.length }) : t("{n} notas", { n: notes.length })} · ${today}</div></section>`;
     if (notes.length > 1) {
-      body += `<section class="toc"><h2>Índice</h2>`;
+      body += `<section class="toc"><h2>${t("Índice")}</h2>`;
       for (const s of sections) {
         if (s.title) body += `<div class="sec">${esc(s.title)}</div>`;
-        for (const n of s.notes) body += `<div class="item"><span>${esc(n.title || "Sin título")}</span></div>`;
+        for (const n of s.notes) body += `<div class="item"><span>${esc(n.title || t("Sin título"))}</span></div>`;
       }
       body += `</section>`;
     }
@@ -281,10 +282,10 @@ export async function buildExportHtml(target: ExportTarget): Promise<{ html: str
 
   for (const s of sections) {
     for (const [i, n] of s.notes.entries()) {
-      const updated = new Date(n.updatedAt).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+      const updated = new Date(n.updatedAt).toLocaleDateString(intlLocale(), { day: "numeric", month: "short", year: "numeric" });
       body += `<article class="note">`;
       if (s.title && i === 0) body += `<div class="section-title">${esc(s.title)}</div>`;
-      body += `<h1>${esc(n.title || "Sin título")}</h1>`;
+      body += `<h1>${esc(n.title || t("Sin título"))}</h1>`;
       body += `<div class="meta">${single && subtitle ? `${esc(subtitle)} · ` : ""}${updated}</div>`;
       body += propsTable(n);
       body += await blocksToHtml(Array.isArray(n.content) ? n.content : []);
@@ -292,9 +293,9 @@ export async function buildExportHtml(target: ExportTarget): Promise<{ html: str
     }
   }
 
-  if (!notes.length) body += `<p class="muted">Sin notas para exportar.</p>`;
+  if (!notes.length) body += `<p class="muted">${t("Sin notas para exportar.")}</p>`;
 
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body>${body}</body></html>`;
+  const html = `<!doctype html><html lang="${intlLocale()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body>${body}</body></html>`;
   return { html, title, noteCount: notes.length };
 }
 

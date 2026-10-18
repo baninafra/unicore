@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLiveQuery } from "dexie-react-hooks";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { db } from "@/lib/db";
+import { t } from "@/lib/i18n";
 import type { PdfHighlight } from "@/lib/types";
 import { PdfPage } from "@/components/pdf-reader/pdf-page";
 import { PdfToolbar } from "@/components/pdf-reader/pdf-toolbar";
@@ -153,8 +154,8 @@ export function PdfView({ id, page }: { id: string; page?: number }) {
   // Abre en la página pedida (al entrar, o cuando la vista cambia de página).
   useEffect(() => {
     if (!pdf || !scroller || !page) return;
-    const t = window.setTimeout(() => goTo(Math.min(page, pdf.numPages)), 60);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => goTo(Math.min(page, pdf.numPages)), 60);
+    return () => window.clearTimeout(timer);
   }, [pdf, scroller, page, goTo]);
 
   const onScroll = () => {
@@ -285,10 +286,10 @@ export function PdfView({ id, page }: { id: string; page?: number }) {
     for (const p of menu.pieces) {
       // BlockNote tiene el bloque "quote" en su esquema por defecto.
       blocks.push({ type: "quote", content: p.text });
-      blocks.push({ type: "paragraph", content: `— ${record.fileName}, pág. ${p.page}` });
+      blocks.push({ type: "paragraph", content: t("— {name}, pág. {page}", { name: record.fileName, page: p.page }) });
     }
     window.dispatchEvent(new CustomEvent("uc:insert-blocks", { detail: { blocks } }));
-    const plain = menu.pieces.map((p) => `"${p.text}" (${record.fileName}, pág. ${p.page})`).join("\n");
+    const plain = menu.pieces.map((p) => `"${p.text}" (${t("{name}, pág. {page}", { name: record.fileName, page: p.page })})`).join("\n");
     void navigator.clipboard?.writeText(plain).catch(() => {});
     clearSelection();
   };
@@ -313,10 +314,10 @@ export function PdfView({ id, page }: { id: string; page?: number }) {
 
   // ----- render -----
   if (record === undefined) return null;
-  if (record === null) return <Message>No encontramos este PDF.</Message>;
-  if (!record.fileId || openState === "sin-archivo") return <Message>No encontramos el archivo de este PDF.</Message>;
-  if (openState === "error") return <Message>No pudimos abrir este PDF. Probá de nuevo.</Message>;
-  if (!pdf) return <Message>Abriendo PDF…</Message>;
+  if (record === null) return <Message>{t("No encontramos este PDF.")}</Message>;
+  if (!record.fileId || openState === "sin-archivo") return <Message>{t("No encontramos el archivo de este PDF.")}</Message>;
+  if (openState === "error") return <Message>{t("No pudimos abrir este PDF. Probá de nuevo.")}</Message>;
+  if (!pdf) return <Message>{t("Abriendo PDF…")}</Message>;
 
   return (
     <div className="flex h-full min-h-0 flex-col">

@@ -2,6 +2,7 @@
 
 import { Lock } from "lucide-react";
 import { grade } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import type { Degree, Subject } from "@/lib/types";
 import { useOpen } from "@/components/workspace/use-open";
 import { periodLabel, degreeYears, sortSubjects } from "./plan";
@@ -13,19 +14,19 @@ function StatusText({ state }: { state: SubjectState }) {
     case "aprobada": {
       const n = state.finalGrade;
       const shown = n === undefined ? "" : grade(n, Number.isInteger(n) ? 0 : 2);
-      return <span className="text-mint">Aprobada {shown}</span>;
+      return <span className="text-mint">{t("Aprobada {grade}", { grade: shown })}</span>;
     }
     case "habilitada":
-      return <span className="text-primary-soft/70">Habilitada</span>;
+      return <span className="text-primary-soft/70">{t("Habilitada")}</span>;
     case "cursando":
-      return <span className="text-primary-soft">Cursando</span>;
+      return <span className="text-primary-soft">{t("Cursando")}</span>;
     case "regular":
-      return <span className="text-muted">Regular</span>;
+      return <span className="text-muted">{t("Regular")}</span>;
     case "bloqueada":
       return (
         <span className="flex items-center justify-end gap-1 text-faint">
           <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
-          Bloqueada
+          {t("Bloqueada")}
         </span>
       );
   }

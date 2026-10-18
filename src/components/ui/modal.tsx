@@ -1,5 +1,6 @@
 "use client";
 
+import { t } from "@/lib/i18n";
 import { X } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -46,7 +47,7 @@ export function Modal({
         {title !== undefined && (
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div className="t-h2">{title}</div>
-            <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} aria-label="Cerrar">
+            <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} aria-label={t("Cerrar")}>
               <X />
             </button>
           </div>

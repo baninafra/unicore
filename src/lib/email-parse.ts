@@ -2,6 +2,7 @@
 
 import * as chrono from "chrono-node";
 import type { Subject, TaskType } from "./types";
+import { t } from "@/lib/i18n";
 
 // Parser sin IA para mails pegados a mano: fecha, tipo y materia por reglas.
 // La IA (analyzeEmail) queda como segunda pasada opcional desde la tarjeta del mail.
@@ -81,7 +82,7 @@ export function parseEmail(input: {
   if (date && !hasHour) date.setHours(23, 59, 0, 0);
 
   const type = detectType(normalize(subject)) ?? detectType(normalize(body)) ?? "TAREA";
-  const title = (subject || body.split("\n").find((line) => line.trim()) || "Mail sin asunto").trim().slice(0, 120);
+  const title = (subject || body.split("\n").find((line) => line.trim()) || t("Mail sin asunto")).trim().slice(0, 120);
 
   return {
     title,

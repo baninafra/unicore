@@ -3,6 +3,7 @@ import { db, newId, nowIso } from "@/lib/db";
 import { indexNote, plainTextOf } from "@/lib/notes/index-note";
 import { syncInlineCards } from "@/lib/notes/cards";
 import type { Note } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export { plainTextOf };
 
@@ -38,7 +39,7 @@ export async function createNote(input: {
   await db.notes.add({
     id,
     subjectId: input.subjectId,
-    title: input.title.trim() || "Sin título",
+    title: input.title.trim() || t("Sin título"),
     unitNumber: input.unitNumber,
     content,
     plainTextCache: input.plainTextCache ?? index.plainText,

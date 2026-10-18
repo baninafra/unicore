@@ -4,6 +4,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { Timer } from "lucide-react";
 import clsx from "clsx";
 import { PomodoroPopover } from "./pomodoro-popover";
+import { t } from "@/lib/i18n";
 import { formatClock, initPomodoro, remainingAt, usePomodoro } from "./pomodoro-store";
 
 // Reloj Pomodoro en la barra de estado: ícono + tiempo. Clic abre el panel hacia arriba.
@@ -57,8 +58,8 @@ export function PomodoroChip() {
         type="button"
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label="Reloj Pomodoro"
-        title="Reloj Pomodoro"
+        aria-label={t("Reloj Pomodoro")}
+        title={t("Reloj Pomodoro")}
         onClick={() => setOpen((o) => !o)}
         className={clsx(
           "flex h-6 items-center gap-1.5 rounded-sm px-1.5 hover:bg-surface-raised hover:text-text",

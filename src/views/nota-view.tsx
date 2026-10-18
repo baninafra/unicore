@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { t } from "@/lib/i18n";
 import type { PartialBlock } from "@blocknote/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -99,7 +100,7 @@ function TitleField({ noteId, title, onEnter }: { noteId: string; title: string;
 
   // Nota recién creada: el título queda seleccionado para escribir encima (como en Obsidian).
   useEffect(() => {
-    if (title === "Sin título" || title === "") {
+    if (title === t("Sin título") || title === "") {
       ref.current?.focus();
       ref.current?.select();
     }
@@ -130,9 +131,9 @@ function TitleField({ noteId, title, onEnter }: { noteId: string; title: string;
   return (
     <input
       ref={ref}
-      aria-label="Título de la nota"
+      aria-label={t("Título de la nota")}
       className="w-full bg-transparent text-[28px] font-semibold leading-tight text-text outline-none placeholder:text-faint"
-      placeholder="Sin título"
+      placeholder={t("Sin título")}
       value={value}
       onChange={(e) => {
         setValue(e.target.value);
@@ -140,8 +141,8 @@ function TitleField({ noteId, title, onEnter }: { noteId: string; title: string;
       }}
       onBlur={() => {
         if (!value.trim()) {
-          setValue("Sin título");
-          schedule("Sin título");
+          setValue(t("Sin título"));
+          schedule(t("Sin título"));
         }
       }}
       onKeyDown={(e) => {
@@ -234,28 +235,28 @@ export function NotaView({ id }: { id: string }) {
       const url = await saveFile(file);
       insertAtCursor([{ type: "image", props: { url } }]);
     } catch {
-      setNotice("No pudimos guardar la foto. Probá con otra imagen.");
+      setNotice(t("No pudimos guardar la foto. Probá con otra imagen."));
     }
   };
 
   const importPdf = async (file: File) => {
-    setBusy("Leyendo PDF…");
+    setBusy(t("Leyendo PDF…"));
     try {
       const { extractPdf, pdfToBlocks } = await import("@/lib/pdf/import-pdf");
       const extraction = await extractPdf(file, (p) =>
-        setBusy(p.stage === "ocr" ? `Reconociendo texto de la página ${p.page} de ${p.total}…` : `Leyendo página ${p.page} de ${p.total}…`),
+        setBusy(p.stage === "ocr" ? t("Reconociendo texto de la página {page} de {total}…", { page: p.page, total: p.total }) : t("Leyendo página {page} de {total}…", { page: p.page, total: p.total })),
       );
       const blocks = pdfToBlocks(extraction) as PartialBlock[];
       if (!blocks.length) {
-        setNotice("No encontramos texto en el PDF.");
+        setNotice(t("No encontramos texto en el PDF."));
         return;
       }
       // Sólo las materias tienen bibliografía; en carpetas el texto queda sólo en la nota.
       if (subject && note) await savePdfDocument(file, extraction, note.subjectId);
       appendBlocks(blocks);
-      setNotice(`Importamos "${extraction.fileName}" al final de la nota.`);
+      setNotice(t("Importamos \"{fileName}\" al final de la nota.", { fileName: extraction.fileName }));
     } catch {
-      setNotice("No pudimos leer el PDF. Probá con otro archivo.");
+      setNotice(t("No pudimos leer el PDF. Probá con otro archivo."));
     } finally {
       setBusy(null);
     }
@@ -271,7 +272,7 @@ export function NotaView({ id }: { id: string }) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setNotice("No pudimos usar el micrófono. Revisá los permisos.");
+      setNotice(t("No pudimos usar el micrófono. Revisá los permisos."));
       return;
     }
     const chunks: Blob[] = [];
@@ -284,11 +285,11 @@ export function NotaView({ id }: { id: string }) {
       recorderRef.current = null;
       setRecording(false);
       const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-      void saveFile(blob, `Grabación ${new Date().toISOString()}.webm`)
+      void saveFile(blob, t("Grabación {date}.webm", { date: new Date().toISOString() }))
         .then((url) => {
           if (mounted.current) insertAtCursor([{ type: "audio", props: { url } }]);
         })
-        .catch(() => setNotice("No pudimos guardar la grabación. Probá de nuevo."));
+        .catch(() => setNotice(t("No pudimos guardar la grabación. Probá de nuevo.")));
     };
     recorder.start();
     recorderRef.current = recorder;
@@ -300,16 +301,16 @@ export function NotaView({ id }: { id: string }) {
   const runAI = async (kind: "cards" | "quiz") => {
     const text = plainTextOf((editor?.document ?? []) as BlockLike[]);
     if (text.trim().length < MIN_CHARS_FOR_AI) {
-      setNotice(kind === "cards" ? "Escribí un poco más en la nota para generar tarjetas." : "Escribí un poco más en la nota para tomar un examen.");
+      setNotice(kind === "cards" ? t("Escribí un poco más en la nota para generar tarjetas.") : t("Escribí un poco más en la nota para tomar un examen."));
       return;
     }
     setNotice(undefined);
-    setBusy(kind === "cards" ? "Generando flashcards…" : "Armando el examen…");
+    setBusy(kind === "cards" ? t("Generando flashcards…") : t("Armando el examen…"));
     try {
       if (kind === "cards") {
         const result = await generateFlashcards(ai, text);
         if (result.length) setDrafts(result);
-        else setNotice("No pudimos sacar tarjetas de esta nota. Probá agregar más texto.");
+        else setNotice(t("No pudimos sacar tarjetas de esta nota. Probá agregar más texto."));
       } else {
         // Se guarda en la materia como página, enlazado a esta clase o nota.
         const current = await db.notes.get(id);
@@ -318,7 +319,7 @@ export function NotaView({ id }: { id: string }) {
         openView({ type: "nota", id: quizId }, "tab");
       }
     } catch {
-      setNotice("No pudimos usar la IA para esta nota. Probá de nuevo.");
+      setNotice(t("No pudimos usar la IA para esta nota. Probá de nuevo."));
     } finally {
       setBusy(null);
     }
@@ -347,7 +348,7 @@ export function NotaView({ id }: { id: string }) {
     );
     await db.notes.update(id, { title: snap.title, updatedAt: nowIso() });
     setHistoryOpen(false);
-    setNotice("Versión restaurada.");
+    setNotice(t("Versión restaurada."));
   };
 
   const combineWith = async (target: PickItem) => {
@@ -362,7 +363,7 @@ export function NotaView({ id }: { id: string }) {
   const moveTo = async (target: PickItem) => {
     setPicker(null);
     await moveNote(id, target.id);
-    setNotice("Nota movida.");
+    setNotice(t("Nota movida."));
   };
 
   const startExtract = () => {
@@ -376,7 +377,7 @@ export function NotaView({ id }: { id: string }) {
     const blocks = pendingExtract.current;
     pendingExtract.current = null;
     if (!editor || !note || !blocks?.length) return;
-    const name = title.trim() || "Sin título";
+    const name = title.trim() || t("Sin título");
     const newNoteId = await createNote({
       subjectId: note.subjectId,
       title: name,
@@ -386,12 +387,12 @@ export function NotaView({ id }: { id: string }) {
     editor.replaceBlocks(blocks.map((b) => b.id), [
       { type: "paragraph", content: [{ type: "wikilink", props: { noteId: newNoteId, title: name, alias: "" } }] },
     ]);
-    setNotice(`Creamos la nota «${name}».`);
+    setNotice(t("Creamos la nota «{name}».", { name }));
   };
 
   const copyLink = () => {
     if (!note) return;
-    void navigator.clipboard?.writeText(`[[${note.title}]]`).then(() => setNotice("Enlace copiado."));
+    void navigator.clipboard?.writeText(`[[${note.title}]]`).then(() => setNotice(t("Enlace copiado.")));
   };
 
   const remove = async () => {
@@ -405,37 +406,37 @@ export function NotaView({ id }: { id: string }) {
   const cid = (k: string) => `nota-${id}:${k}`;
   const actions: Act[] = note
     ? [
-        { id: cid("editar"), name: reading ? "Editar nota" : "Modo lectura", hotkey: "Mod+E", icon: reading ? Pencil : BookOpen, run: () => setReading((v) => !v) },
-        { id: cid("buscar"), name: "Buscar en la nota", hotkey: "Mod+F", icon: Search, run: () => setFindMode("find") },
-        { id: cid("reemplazar"), name: "Reemplazar en la nota", hotkey: "Mod+H", icon: Replace, run: () => setFindMode("replace") },
-        { id: cid("historial"), name: "Historial de versiones", hotkey: "Mod+Shift+H", icon: History, run: () => setHistoryOpen(true) },
+        { id: cid("editar"), name: reading ? t("Editar nota") : t("Modo lectura"), hotkey: "Mod+E", icon: reading ? Pencil : BookOpen, run: () => setReading((v) => !v) },
+        { id: cid("buscar"), name: t("Buscar en la nota"), hotkey: "Mod+F", icon: Search, run: () => setFindMode("find") },
+        { id: cid("reemplazar"), name: t("Reemplazar en la nota"), hotkey: "Mod+H", icon: Replace, run: () => setFindMode("replace") },
+        { id: cid("historial"), name: t("Historial de versiones"), hotkey: "Mod+Shift+H", icon: History, run: () => setHistoryOpen(true) },
         { sep: true },
-        { id: cid("foto"), name: "Agregar foto", icon: ImagePlus, run: () => photoInput.current?.click() },
-        { id: cid("pdf"), name: "Importar PDF", icon: FileUp, run: () => pdfInput.current?.click() },
-        { id: cid("audio"), name: recording ? "Detener grabación" : "Grabar audio", icon: recording ? Square : Mic, run: () => void toggleRecording() },
-        { id: cid("flashcards"), name: "Generar flashcards", icon: Sparkles, run: () => void runAI("cards") },
-        { id: cid("tarea"), name: "Crear tarea desde esta nota", icon: ListPlus, run: () => void taskFromNote(note).then(openTaskDialog) },
-        { id: cid("examen"), name: "Cuestionario de esta nota", icon: ClipboardCheck, run: () => void runAI("quiz") },
+        { id: cid("foto"), name: t("Agregar foto"), icon: ImagePlus, run: () => photoInput.current?.click() },
+        { id: cid("pdf"), name: t("Importar PDF"), icon: FileUp, run: () => pdfInput.current?.click() },
+        { id: cid("audio"), name: recording ? t("Detener grabación") : t("Grabar audio"), icon: recording ? Square : Mic, run: () => void toggleRecording() },
+        { id: cid("flashcards"), name: t("Generar flashcards"), icon: Sparkles, run: () => void runAI("cards") },
+        { id: cid("tarea"), name: t("Crear tarea desde esta nota"), icon: ListPlus, run: () => void taskFromNote(note).then(openTaskDialog) },
+        { id: cid("examen"), name: t("Cuestionario de esta nota"), icon: ClipboardCheck, run: () => void runAI("quiz") },
         { sep: true },
-        { id: cid("presentacion"), name: "Presentación", icon: Presentation, run: () => openView({ type: "slides", id }) },
-        { id: cid("grafo"), name: "Grafo local", icon: Network, run: () => openView({ type: "grafo", noteId: id }, "split") },
-        { id: cid("combinar"), name: "Combinar con otra nota…", icon: Merge, run: () => setPicker("combinar") },
-        { id: cid("extraer"), name: "Extraer selección a nota nueva", icon: Scissors, run: startExtract },
+        { id: cid("presentacion"), name: t("Presentación"), icon: Presentation, run: () => openView({ type: "slides", id }) },
+        { id: cid("grafo"), name: t("Grafo local"), icon: Network, run: () => openView({ type: "grafo", noteId: id }, "split") },
+        { id: cid("combinar"), name: t("Combinar con otra nota…"), icon: Merge, run: () => setPicker("combinar") },
+        { id: cid("extraer"), name: t("Extraer selección a nota nueva"), icon: Scissors, run: startExtract },
         {
           id: cid("subnota"),
-          name: "Nueva subnota",
+          name: t("Nueva subnota"),
           icon: FilePlus,
           run: () =>
             void createSubnote(id)
               .then((sub) => openView({ type: "nota", id: sub }))
-              .catch((err: unknown) => toast(err instanceof Error ? err.message : "No se pudo crear.", { tone: "error" })),
+              .catch((err: unknown) => toast(err instanceof Error ? err.message : t("No se pudo crear."), { tone: "error" })),
         },
-        { id: cid("copiar"), name: "Copiar enlace [[Título]]", icon: Link, run: copyLink },
-        { id: cid("pestana"), name: "Abrir en pestaña nueva", icon: ExternalLink, run: () => openView(view, "tab") },
-        { id: cid("derecha"), name: "Abrir a la derecha", icon: PanelRight, run: () => openView(view, "split") },
-        { id: cid("mover"), name: "Mover a…", icon: FolderInput, run: () => setPicker("mover") },
+        { id: cid("copiar"), name: t("Copiar enlace [[Título]]"), icon: Link, run: copyLink },
+        { id: cid("pestana"), name: t("Abrir en pestaña nueva"), icon: ExternalLink, run: () => openView(view, "tab") },
+        { id: cid("derecha"), name: t("Abrir a la derecha"), icon: PanelRight, run: () => openView(view, "split") },
+        { id: cid("mover"), name: t("Mover a…"), icon: FolderInput, run: () => setPicker("mover") },
         { sep: true },
-        { id: cid("eliminar"), name: "Eliminar nota", icon: Trash2, danger: true, run: () => setConfirmDelete(true) },
+        { id: cid("eliminar"), name: t("Eliminar nota"), icon: Trash2, danger: true, run: () => setConfirmDelete(true) },
       ]
     : [];
 
@@ -453,18 +454,18 @@ export function NotaView({ id }: { id: string }) {
   const saveTitleFromBar = () => editor?.focus();
 
   // Barra de estado: grabación en curso.
-  const recNode = useMemo(() => <span>Grabando…</span>, []);
+  const recNode = useMemo(() => <span>{t("Grabando…")}</span>, []);
   useStatusItem("nota-grabando", recording ? recNode : null);
 
   const moveItems: PickItem[] = useMemo(
     () => [
-      { id: DAILY_FOLDER, label: "Diario", group: "Carpetas" },
-      { id: LOOSE_FOLDER, label: "Notas", group: "Carpetas" },
-      { id: TEMPLATES_FOLDER, label: "Plantillas", group: "Carpetas" },
+      { id: DAILY_FOLDER, label: t("Diario"), group: t("Carpetas") },
+      { id: LOOSE_FOLDER, label: t("Notas"), group: t("Carpetas") },
+      { id: TEMPLATES_FOLDER, label: t("Plantillas"), group: t("Carpetas") },
       ...subjects.map((s) => ({
         id: s.id,
         label: s.name,
-        group: degrees.find((d) => d.id === s.degreeId)?.name ?? "Materias",
+        group: degrees.find((d) => d.id === s.degreeId)?.name ?? t("Materias"),
       })),
     ].filter((i) => i.id !== note?.subjectId),
     [subjects, degrees, note?.subjectId],
@@ -477,7 +478,7 @@ export function NotaView({ id }: { id: string }) {
         .sort((a, b) => a.title.localeCompare(b.title))
         .map((n) => ({
           id: n.id,
-          label: n.title || "Sin título",
+          label: n.title || t("Sin título"),
           hint: subjects.find((s) => s.id === n.subjectId)?.name ?? noteLocationLabel(n),
         })),
     [allNotes, subjects, id],
@@ -485,8 +486,8 @@ export function NotaView({ id }: { id: string }) {
 
   // ----- render -----
 
-  if (note === undefined) return <div className="p-6 t-small text-faint">Cargando…</div>;
-  if (note === null) return <div className="p-6 t-small text-faint">Esta nota ya no existe.</div>;
+  if (note === undefined) return <div className="p-6 t-small text-faint">{t("Cargando…")}</div>;
+  if (note === null) return <div className="p-6 t-small text-faint">{t("Esta nota ya no existe.")}</div>;
 
   const crumbs = special ? (
     <span>{special}</span>
@@ -499,7 +500,7 @@ export function NotaView({ id }: { id: string }) {
       </button>
     </>
   ) : (
-    <span>Sin materia</span>
+    <span>{t("Sin materia")}</span>
   );
 
   return (
@@ -513,21 +514,27 @@ export function NotaView({ id }: { id: string }) {
           type="button"
           className="icon-btn relative"
           aria-pressed={!!share}
-          aria-label={share ? "Nota compartida" : "Compartir"}
-          title={share ? `Compartida · ${share.peers.length ? `${share.peers.length} conectado${share.peers.length === 1 ? "" : "s"}` : "esperando"}` : "Compartir y editar con otros en vivo"}
+          aria-label={share ? t("Nota compartida") : t("Compartir")}
+          title={
+            share
+              ? share.peers.length
+                ? t("Compartida · {n} conectado{s}", { n: share.peers.length, s: share.peers.length === 1 ? "" : "s" })
+                : t("Compartida · esperando")
+              : t("Compartir y editar con otros en vivo")
+          }
           onClick={() => setShareOpen(true)}
         >
           <Users />
           {share && <span className={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${share.peers.length ? "bg-mint" : "bg-amber"}`} />}
         </button>
-        <button type="button" className="icon-btn" aria-pressed={!!bookmark} aria-label="Marcador" onClick={() => void toggleBookmark()}>
+        <button type="button" className="icon-btn" aria-pressed={!!bookmark} aria-label={t("Marcador")} onClick={() => void toggleBookmark()}>
           {bookmark ? <BookmarkCheck /> : <Bookmark />}
         </button>
         <button
           type="button"
           className="icon-btn"
           aria-pressed={reading}
-          aria-label={reading ? "Volver a editar" : "Modo lectura"}
+          aria-label={reading ? t("Volver a editar") : t("Modo lectura")}
           onClick={() => setReading((v) => !v)}
         >
           {reading ? <Pencil /> : <BookOpen />}
@@ -535,7 +542,7 @@ export function NotaView({ id }: { id: string }) {
         <button
           type="button"
           className="icon-btn"
-          aria-label="Más opciones"
+          aria-label={t("Más opciones")}
           onClick={(e) => menu.open(e, menuItems)}
         >
           <MoreHorizontal />
@@ -609,16 +616,16 @@ export function NotaView({ id }: { id: string }) {
 
       <ListPicker
         open={picker === "combinar"}
-        title="Combinar con otra nota"
-        placeholder="Buscar nota"
+        title={t("Combinar con otra nota")}
+        placeholder={t("Buscar nota")}
         items={combineItems}
         onPick={(item) => void combineWith(item)}
         onClose={() => setPicker(null)}
       />
       <ListPicker
         open={picker === "mover"}
-        title="Mover a"
-        placeholder="Buscar materia o carpeta"
+        title={t("Mover a")}
+        placeholder={t("Buscar materia o carpeta")}
         items={moveItems}
         onPick={(item) => void moveTo(item)}
         onClose={() => setPicker(null)}
@@ -626,9 +633,9 @@ export function NotaView({ id }: { id: string }) {
 
       <PromptModal
         open={extracting}
-        title="Nombre de la nota nueva"
-        placeholder="Nombre"
-        confirmLabel="Crear nota"
+        title={t("Nombre de la nota nueva")}
+        placeholder={t("Nombre")}
+        confirmLabel={t("Crear nota")}
         onConfirm={(name) => void confirmExtract(name)}
         onClose={() => {
           setExtracting(false);
@@ -638,9 +645,9 @@ export function NotaView({ id }: { id: string }) {
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Eliminar nota"
-        text="La nota y sus versiones se borran. No se puede deshacer."
-        confirmLabel="Eliminar"
+        title={t("Eliminar nota")}
+        text={t("La nota y sus versiones se borran. No se puede deshacer.")}
+        confirmLabel={t("Eliminar")}
         onConfirm={() => void remove()}
         onClose={() => setConfirmDelete(false)}
       />
@@ -653,7 +660,7 @@ export function NotaView({ id }: { id: string }) {
           onClose={() => setDrafts(null)}
           onSaved={(count) => {
             setDrafts(null);
-            setNotice(count === 1 ? "Se guardó 1 tarjeta." : `Se guardaron ${count} tarjetas.`);
+            setNotice(count === 1 ? t("Se guardó 1 tarjeta.") : t("Se guardaron {count} tarjetas.", { count }));
           }}
         />
       )}

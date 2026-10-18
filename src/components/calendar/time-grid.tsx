@@ -7,8 +7,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { addDays, differenceInCalendarDays, format, isSameDay, isToday, startOfDay } from "date-fns";
-import { es } from "date-fns/locale";
 import type { CalItem } from "@/lib/calendars/events";
+import { t, dateLocale } from "@/lib/i18n";
 import { BORDER_L, editable, ItemChip, ItemIcons, itemTooltip, TASK_MIME, TINT } from "./calendar-parts";
 
 const HOUR = 48; // px por hora
@@ -90,8 +90,8 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
   const [dropAt, setDropAt] = useState<{ day: number; min: number } | null>(null);
 
   useEffect(() => {
-    const t = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // Arranca mostrando desde las 7 (o una hora antes de ahora si es más tarde).
@@ -209,10 +209,10 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
               key={d.toISOString()}
               type="button"
               onClick={() => h.onPickDay(d)}
-              title="Ver este día"
+              title={t("Ver este día")}
               className="flex items-baseline justify-center gap-1.5 border-l border-border py-1.5 hover:bg-surface-raised"
             >
-              <span className="t-label">{format(d, "EEE", { locale: es })}</span>
+              <span className="t-label">{format(d, "EEE", { locale: dateLocale() })}</span>
               <span className={clsx("num flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[length:calc(13px*var(--ui-scale,1))]", isToday(d) ? "bg-primary-fill font-semibold text-on-primary" : "text-text")}>{format(d, "d")}</span>
             </button>
           ))}
@@ -221,7 +221,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
 
       {/* Todo el día */}
       <div className="flex flex-none border-b border-border pr-[10px]">
-        <div className="t-label flex w-14 flex-none items-start justify-end px-1.5 pt-1.5 text-[length:calc(10px*var(--ui-scale,1))]">todo el día</div>
+        <div className="t-label flex w-14 flex-none items-start justify-end px-1.5 pt-1.5 text-[length:calc(10px*var(--ui-scale,1))]">{t("todo el día")}</div>
         <div className="relative grid flex-1" style={{ ...gridCols, minHeight: Math.max(28, count * 22 + 6) }}>
           {days.map((d, i) => (
             <div

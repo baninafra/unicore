@@ -23,6 +23,7 @@ import { defaultCalendarId, deleteOccurrence, duplicateEvent, eventToTask, saveE
 import { buildRRule, DAY_CODES, DAY_SHORT, describeRecurrence, parseRecurrence, REMINDER_OPTIONS, reminderLabel, type Freq, type Recurrence } from "@/lib/calendars/recurrence";
 import { EVENT_CATEGORY_LABEL, type CalEvent, type EventCategory, type EventStatus } from "@/lib/types";
 import { toast } from "@/lib/undo";
+import { t } from "@/lib/i18n";
 
 const EVENT = "uc:event-dialog";
 const SCOPE_EVENT = "uc:event-scope";
@@ -40,7 +41,7 @@ export function askScope(action: "cambiar" | "borrar"): Promise<Scope | null> {
 }
 
 const CONTROL = "input h-7 min-w-0 border-transparent bg-transparent px-2 hover:bg-surface-raised";
-const STATUS_LABEL: Record<EventStatus, string> = { CONFIRMED: "Confirmado", TENTATIVE: "Provisional", CANCELLED: "Cancelado" };
+const STATUS_LABEL: Record<EventStatus, string> = { CONFIRMED: t("Confirmado"), TENTATIVE: t("Provisional"), CANCELLED: t("Cancelado") };
 
 function Prop({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -85,19 +86,19 @@ export function EventDialogHost() {
       <Modal
         open={!!scope}
         onClose={() => answer(null)}
-        title={scope?.action === "borrar" ? "Borrar un evento que se repite" : "Cambiar un evento que se repite"}
+        title={scope?.action === "borrar" ? t("Borrar un evento que se repite") : t("Cambiar un evento que se repite")}
         width={420}
       >
         <div className="flex flex-col gap-2">
-          <p className="t-small mb-1 text-muted">¿{scope?.action === "borrar" ? "Qué repeticiones borrás" : "A qué repeticiones se aplica el cambio"}?</p>
+          <p className="t-small mb-1 text-muted">{scope?.action === "borrar" ? t("¿Qué repeticiones borrás?") : t("¿A qué repeticiones se aplica el cambio?")}</p>
           <button className="btn justify-start" onClick={() => answer("one")}>
-            Sólo esta
+            {t("Sólo esta")}
           </button>
           <button className="btn justify-start" onClick={() => answer("following")}>
-            Esta y las siguientes
+            {t("Esta y las siguientes")}
           </button>
           <button className="btn justify-start" onClick={() => answer("all")}>
-            Todas
+            {t("Todas")}
           </button>
         </div>
       </Modal>
@@ -128,29 +129,29 @@ function ReadOnlyEvent({ item, onClose }: { item: CalItem; onClose: () => void }
                 location: item.location,
                 description: item.description,
               });
-              toast("Copiado a tu calendario.");
+              toast(t("Copiado a tu calendario."));
               onClose();
             }}
           >
             <CalendarPlus />
-            Copiar a mi calendario
+            {t("Copiar a mi calendario")}
           </button>
           <button className="btn btn-sm" onClick={onClose}>
-            Cerrar
+            {t("Cerrar")}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-2 text-[length:calc(13px*var(--ui-scale,1))]">
         <div className={clsx("border-l-2 pl-2 text-muted", CALENDAR_BORDER_L[item.color])}>{item.calendarName}</div>
-        <div>{item.allDay ? `Todo el día · ${format(item.start, "dd/MM/yyyy")}` : when}</div>
+        <div>{item.allDay ? t("Todo el día · {date}", { date: format(item.start, "dd/MM/yyyy") }) : when}</div>
         {item.location && (
           <div className="flex items-center gap-1.5 text-muted">
             <MapPin className="h-3.5 w-3.5" /> {item.location}
           </div>
         )}
         {item.description && <p className="whitespace-pre-wrap text-muted">{item.description}</p>}
-        <p className="t-small text-faint">Este evento viene de un calendario suscrito: se cambia en su calendario de origen.</p>
+        <p className="t-small text-faint">{t("Este evento viene de un calendario suscrito: se cambia en su calendario de origen.")}</p>
       </div>
     </Modal>
   );
@@ -170,7 +171,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
   // Sólo lo del perfil que se está viendo (y la que ya tenía el evento).
   const subjects = useAllSubjects().filter((s) => inScope(s.degreeId) || s.id === ("defaults" in req ? req.defaults.subjectId : undefined));
   const { openTaskDialog } = useAppState();
-  const tasks = useLiveQuery(() => db.tasks.filter((t) => t.status !== "DONE" && t.status !== "INBOX_EMAIL").toArray(), []) ?? [];
+  const tasks = useLiveQuery(() => db.tasks.filter((tk) => tk.status !== "DONE" && tk.status !== "INBOX_EMAIL").toArray(), []) ?? [];
   const linkedTask = useLiveQuery(async () => (base.taskId ? ((await db.tasks.get(base.taskId)) ?? null) : null), [base.taskId]);
 
   const [title, setTitle] = useState(base.title ?? "");
@@ -220,8 +221,8 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
 
   async function onSave() {
     const clean = title.trim();
-    if (!clean) return setError("Escribí un título para el evento.");
-    if (end.getTime() < start.getTime()) return setError("El evento termina antes de empezar.");
+    if (!clean) return setError(t("Escribí un título para el evento."));
+    if (end.getTime() < start.getTime()) return setError(t("El evento termina antes de empezar."));
     setError("");
     setSaving(true);
     try {
@@ -257,7 +258,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
       }
       onClose();
     } catch {
-      setError("No pudimos guardar el evento.");
+      setError(t("No pudimos guardar el evento."));
       setSaving(false);
     }
   }
@@ -271,7 +272,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
       scope = picked;
     }
     await deleteOccurrence(ev, occurrence, scope);
-    toast("Evento borrado.");
+    toast(t("Evento borrado."));
     onClose();
   }
 
@@ -281,36 +282,36 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
         <>
           <button className="btn btn-ghost btn-sm" onClick={() => void onDelete()}>
             <Trash2 />
-            Borrar
+            {t("Borrar")}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => void duplicateEvent(ev, occurrence).then(() => (toast("Evento duplicado."), onClose()))}>
+          <button className="btn btn-ghost btn-sm" onClick={() => void duplicateEvent(ev, occurrence).then(() => (toast(t("Evento duplicado.")), onClose()))}>
             <Copy />
-            Duplicar
+            {t("Duplicar")}
           </button>
           {!ev.taskId && (
             <button
               className="btn btn-ghost btn-sm"
-              title="Crea una tarea con este evento y las deja vinculadas"
-              onClick={() => void eventToTask(ev, occurrence).then(() => (toast("Tarea creada."), onClose()))}
+              title={t("Crea una tarea con este evento y las deja vinculadas")}
+              onClick={() => void eventToTask(ev, occurrence).then(() => (toast(t("Tarea creada.")), onClose()))}
             >
               <ListTodo />
-              Convertir en tarea
+              {t("Convertir en tarea")}
             </button>
           )}
         </>
       )}
       <span className="flex-1" />
       <button className="btn btn-sm" onClick={onClose}>
-        Cancelar
+        {t("Cancelar")}
       </button>
       <button className="btn btn-primary btn-sm" disabled={saving} onClick={() => void onSave()}>
-        Guardar
+        {t("Guardar")}
       </button>
     </>
   );
 
   return (
-    <Modal open onClose={onClose} title={ev ? "Editar evento" : "Nuevo evento"} footer={footer} width={640} className="max-h-[90vh]">
+    <Modal open onClose={onClose} title={ev ? t("Editar evento") : t("Nuevo evento")} footer={footer} width={640} className="max-h-[90vh]">
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -322,17 +323,17 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
           className={clsx("w-full bg-transparent t-h2 outline-none placeholder:text-faint", error && !title.trim() && "text-rose")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Título del evento"
-          aria-label="Título"
+          placeholder={t("Título del evento")}
+          aria-label={t("Título")}
           autoFocus
         />
         {error && <p className="t-small text-rose">{error}</p>}
 
         <div className="flex flex-col">
-          <Prop label="Lugar">
-            <input className={clsx(CONTROL, "flex-1")} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Aula, link de la videollamada…" />
+          <Prop label={t("Lugar")}>
+            <input className={clsx(CONTROL, "flex-1")} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("Aula, link de la videollamada…")} />
           </Prop>
-          <Prop label="Calendario">
+          <Prop label={t("Calendario")}>
             <Select className={CONTROL} value={calendarId} onChange={(e) => setCalendarId(e.target.value)}>
               {calendars.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -341,9 +342,9 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
               ))}
             </Select>
           </Prop>
-          <Prop label="Categoría">
+          <Prop label={t("Categoría")}>
             <Select className={CONTROL} value={category} onChange={(e) => setCategory(e.target.value as EventCategory | "")}>
-              <option value="">Sin categoría</option>
+              <option value="">{t("Sin categoría")}</option>
               {(Object.keys(EVENT_CATEGORY_LABEL) as EventCategory[]).map((c) => (
                 <option key={c} value={c}>
                   {EVENT_CATEGORY_LABEL[c]}
@@ -351,49 +352,49 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
               ))}
             </Select>
           </Prop>
-          <Prop label="Todo el día">
+          <Prop label={t("Todo el día")}>
             <label className="flex h-7 items-center gap-2 px-2 text-[length:calc(13px*var(--ui-scale,1))]">
               <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="accent-[var(--primary)]" />
-              Dura el día entero
+              {t("Dura el día entero")}
             </label>
           </Prop>
-          <Prop label="Empieza">
-            <input type="date" className={CONTROL} value={startDate} onChange={(e) => e.target.value && moveStart(e.target.value, startTime)} aria-label="Fecha de inicio" />
-            {!allDay && <input type="time" className={clsx(CONTROL, "w-28")} value={startTime} onChange={(e) => e.target.value && moveStart(startDate, e.target.value)} aria-label="Hora de inicio" />}
+          <Prop label={t("Empieza")}>
+            <input type="date" className={CONTROL} value={startDate} onChange={(e) => e.target.value && moveStart(e.target.value, startTime)} aria-label={t("Fecha de inicio")} />
+            {!allDay && <input type="time" className={clsx(CONTROL, "w-28")} value={startTime} onChange={(e) => e.target.value && moveStart(startDate, e.target.value)} aria-label={t("Hora de inicio")} />}
           </Prop>
-          <Prop label="Termina">
-            <input type="date" className={CONTROL} value={endDate} onChange={(e) => e.target.value && setEndDate(e.target.value)} aria-label="Fecha de fin" />
-            {!allDay && <input type="time" className={clsx(CONTROL, "w-28")} value={endTime} onChange={(e) => e.target.value && setEndTime(e.target.value)} aria-label="Hora de fin" />}
+          <Prop label={t("Termina")}>
+            <input type="date" className={CONTROL} value={endDate} onChange={(e) => e.target.value && setEndDate(e.target.value)} aria-label={t("Fecha de fin")} />
+            {!allDay && <input type="time" className={clsx(CONTROL, "w-28")} value={endTime} onChange={(e) => e.target.value && setEndTime(e.target.value)} aria-label={t("Hora de fin")} />}
             {!allDay && end > start && (
               <span className="t-small text-faint">
                 {(() => {
                   const min = Math.round((end.getTime() - start.getTime()) / 60000);
-                  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`;
+                  return min < 60 ? t("{min} min", { min }) : min % 60 ? t("{h} h {min} min", { h: Math.floor(min / 60), min: min % 60 }) : t("{h} h", { h: Math.floor(min / 60) });
                 })()}
               </span>
             )}
           </Prop>
-          <Prop label="Repetir">
+          <Prop label={t("Repetir")}>
             <Select
               className={CONTROL}
               value={rec.freq === "WEEKLY" && rec.interval === 1 && rec.byDay.length === 5 && !rec.byDay.includes("SA") && !rec.byDay.includes("SU") ? "WORKDAYS" : rec.freq}
               onChange={(e) => setFreq(e.target.value as Freq | "WORKDAYS")}
             >
-              <option value="NONE">No se repite</option>
-              <option value="DAILY">Cada día</option>
-              <option value="WORKDAYS">De lunes a viernes</option>
-              <option value="WEEKLY">Cada semana</option>
-              <option value="MONTHLY">Cada mes</option>
-              <option value="YEARLY">Cada año</option>
+              <option value="NONE">{t("No se repite")}</option>
+              <option value="DAILY">{t("Cada día")}</option>
+              <option value="WORKDAYS">{t("De lunes a viernes")}</option>
+              <option value="WEEKLY">{t("Cada semana")}</option>
+              <option value="MONTHLY">{t("Cada mes")}</option>
+              <option value="YEARLY">{t("Cada año")}</option>
             </Select>
             {rec.freq !== "NONE" && <Repeat className="h-3.5 w-3.5 text-faint" />}
           </Prop>
           {rec.freq !== "NONE" && (
             <div className="ml-[148px] flex flex-col gap-2 rounded-md border border-border p-2.5 text-[length:calc(13px*var(--ui-scale,1))]">
               <div className="flex flex-wrap items-center gap-2">
-                Cada
+                {t("Cada")}
                 <input type="number" min={1} max={99} className="input h-7 w-16" value={rec.interval} onChange={(e) => setRec({ ...rec, interval: Math.max(1, Number(e.target.value) || 1) })} />
-                {{ DAILY: "día(s)", WEEKLY: "semana(s)", MONTHLY: "mes(es)", YEARLY: "año(s)", NONE: "" }[rec.freq]}
+                {{ DAILY: t("día(s)"), WEEKLY: t("semana(s)"), MONTHLY: t("mes(es)"), YEARLY: t("año(s)"), NONE: "" }[rec.freq]}
               </div>
               {rec.freq === "WEEKLY" && (
                 <div className="flex gap-1">
@@ -414,38 +415,38 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
                 <div className="flex flex-wrap gap-3">
                   <label className="flex items-center gap-1.5">
                     <input type="radio" checked={rec.monthMode === "day"} onChange={() => setRec({ ...rec, monthMode: "day" })} className="accent-[var(--primary)]" />
-                    El día {start.getDate()}
+                    {t("El día {n}", { n: start.getDate() })}
                   </label>
                   <label className="flex items-center gap-1.5">
                     <input type="radio" checked={rec.monthMode === "nth"} onChange={() => setRec({ ...rec, monthMode: "nth" })} className="accent-[var(--primary)]" />
-                    {describeRecurrence(buildRRule({ ...rec, monthMode: "nth", interval: 1, end: "never" }, start), start).replace(/^Cada mes, /, "")}
+                    {describeRecurrence(buildRRule({ ...rec, monthMode: "nth", interval: 1, end: "never" }, start), start).replace(`${t("Cada mes")}, `, "")}
                   </label>
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
-                Termina
+                {t("Termina")}
                 <Select className="input h-7 w-auto" value={rec.end} onChange={(e) => setRec({ ...rec, end: e.target.value as Recurrence["end"] })}>
-                  <option value="never">Nunca</option>
-                  <option value="until">El día…</option>
-                  <option value="count">Después de…</option>
+                  <option value="never">{t("Nunca")}</option>
+                  <option value="until">{t("El día…")}</option>
+                  <option value="count">{t("Después de…")}</option>
                 </Select>
                 {rec.end === "until" && <input type="date" className="input h-7 w-auto" value={rec.until} onChange={(e) => setRec({ ...rec, until: e.target.value })} />}
                 {rec.end === "count" && (
                   <>
                     <input type="number" min={1} className="input h-7 w-16" value={rec.count} onChange={(e) => setRec({ ...rec, count: Math.max(1, Number(e.target.value) || 1) })} />
-                    veces
+                    {t("veces")}
                   </>
                 )}
               </div>
               <div className="t-small text-faint">{describeRecurrence(buildRRule(rec, start), start)}</div>
             </div>
           )}
-          <Prop label="Recordatorios">
+          <Prop label={t("Recordatorios")}>
             {reminders.map((m) => (
               <span key={m} className="badge gap-1">
                 <Bell className="h-3 w-3" />
                 {reminderLabel(m)}
-                <button type="button" aria-label="Quitar recordatorio" className="text-faint hover:text-text" onClick={() => setReminders(reminders.filter((x) => x !== m))}>
+                <button type="button" aria-label={t("Quitar recordatorio")} className="text-faint hover:text-text" onClick={() => setReminders(reminders.filter((x) => x !== m))}>
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -456,7 +457,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
                 // Para que el aviso también salga como notificación del sistema.
                 if (typeof Notification !== "undefined" && Notification.permission === "default") void Notification.requestPermission().catch(() => {});
               }}>
-              <option value="">{reminders.length ? "Agregar otro…" : "Agregar recordatorio…"}</option>
+              <option value="">{reminders.length ? t("Agregar otro…") : t("Agregar recordatorio…")}</option>
               {REMINDER_OPTIONS.filter((o) => !reminders.includes(o.value)).map((o) => (
                 <option key={o.value} value={String(o.value)}>
                   {o.label}
@@ -464,7 +465,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
               ))}
             </Select>
           </Prop>
-          <Prop label="Estado">
+          <Prop label={t("Estado")}>
             <Select className={CONTROL} value={status} onChange={(e) => setStatus(e.target.value as EventStatus)}>
               {(Object.keys(STATUS_LABEL) as EventStatus[]).map((s) => (
                 <option key={s} value={s}>
@@ -475,7 +476,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
           </Prop>
           <Prop label={cap(terms.item.one)}>
             <Select className={CONTROL} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-              <option value="">Sin {terms.item.one}</option>
+              <option value="">{t("Sin {item}", { item: terms.item.one })}</option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -483,13 +484,13 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
               ))}
             </Select>
           </Prop>
-          <Prop label="Tarea">
+          <Prop label={t("Tarea")}>
             <Select className={clsx(CONTROL, "max-w-[280px]")} value={taskId} onChange={(e) => setTaskId(e.target.value)}>
-              <option value="">Sin tarea vinculada</option>
-              {linkedTask && linkedTask.status === "DONE" && <option value={linkedTask.id}>{linkedTask.title} (hecha)</option>}
-              {tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
+              <option value="">{t("Sin tarea vinculada")}</option>
+              {linkedTask && linkedTask.status === "DONE" && <option value={linkedTask.id}>{t("{title} (hecha)", { title: linkedTask.title })}</option>}
+              {tasks.map((tk) => (
+                <option key={tk.id} value={tk.id}>
+                  {tk.title}
                 </option>
               ))}
             </Select>
@@ -498,17 +499,17 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
                 type="button"
                 className="text-[length:calc(12px*var(--ui-scale,1))] text-primary-soft hover:underline"
                 onClick={async () => {
-                  const t = await db.tasks.get(taskId);
-                  if (t) openTaskDialog(t);
+                  const task = await db.tasks.get(taskId);
+                  if (task) openTaskDialog(task);
                 }}
               >
-                Abrir
+                {t("Abrir")}
               </button>
             )}
           </Prop>
         </div>
 
-        <textarea className="input min-h-[90px]" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción, temas, qué llevar…" aria-label="Descripción" />
+        <textarea className="input min-h-[90px]" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("Descripción, temas, qué llevar…")} aria-label={t("Descripción")} />
         <button type="submit" hidden />
       </form>
     </Modal>

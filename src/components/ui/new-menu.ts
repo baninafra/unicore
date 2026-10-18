@@ -12,6 +12,7 @@ import { pickFolder } from "@/components/shell/folder-picker";
 import { addIdea } from "@/views/ideas-view";
 import type { ViewState } from "@/lib/workspace";
 import { LOOSE_FOLDER, type Task } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export interface NewMenuOpts {
   open: (view: ViewState) => void;
@@ -28,22 +29,22 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
   const folder = async () => o.subjectId ?? (o.activeView ? await folderForView(o.activeView) : LOOSE_FOLDER);
   const go = (fn: () => Promise<ViewState>) => () => runSafe(async () => o.open(await fn()));
   return {
-    label: "Nuevo",
+    label: t("Nuevo"),
     icon: Plus,
     submenu: [
-      { label: "Carpeta", icon: FolderPlus, onSelect: () => openFolderDialog({ degreeId: o.degreeId }) },
-      { label: "Nota", icon: FilePlus, onSelect: go(async () => ({ type: "nota", id: await addNote(await folder(), o.unitNumber ? { unitNumber: o.unitNumber } : undefined) })) },
-      { label: "Nota del día", icon: CalendarDays, onSelect: go(async () => ({ type: "nota", id: await openDailyNote(new Date()) })) },
-      { label: "Idea", icon: Lightbulb, onSelect: go(async () => ({ type: "nota", id: await addIdea("") })) },
-      { label: "Tarea", icon: ListPlus, onSelect: () => o.openTask(o.taskDefaults ?? (o.subjectId ? { subjectId: o.subjectId } : undefined)) },
-      { label: "Lienzo", icon: Shapes, onSelect: go(async () => ({ type: "canvas", id: await addCanvas(await folder()) })) },
+      { label: t("Carpeta"), icon: FolderPlus, onSelect: () => openFolderDialog({ degreeId: o.degreeId }) },
+      { label: t("Nota"), icon: FilePlus, onSelect: go(async () => ({ type: "nota", id: await addNote(await folder(), o.unitNumber ? { unitNumber: o.unitNumber } : undefined) })) },
+      { label: t("Nota del día"), icon: CalendarDays, onSelect: go(async () => ({ type: "nota", id: await openDailyNote(new Date()) })) },
+      { label: t("Idea"), icon: Lightbulb, onSelect: go(async () => ({ type: "nota", id: await addIdea("") })) },
+      { label: t("Tarea"), icon: ListPlus, onSelect: () => o.openTask(o.taskDefaults ?? (o.subjectId ? { subjectId: o.subjectId } : undefined)) },
+      { label: t("Lienzo"), icon: Shapes, onSelect: go(async () => ({ type: "canvas", id: await addCanvas(await folder()) })) },
       { type: "separator" },
       ...(
         [
-          ["doc", "Documento de Word"],
-          ["sheet", "Planilla de Excel"],
-          ["deck", "Presentación"],
-          ["geo", "Construcción de geometría"],
+          ["doc", t("Documento de Word")],
+          ["sheet", t("Planilla de Excel")],
+          ["deck", t("Presentación")],
+          ["geo", t("Construcción de geometría")],
         ] as const
       ).map(([kind, label]) => ({
         label,
@@ -51,8 +52,8 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
         // Sin una carpeta clara (clic derecho en un espacio vacío), se pregunta dónde guardarlo.
         onSelect: () =>
           runSafe(async () => {
-            const what = kind === "deck" ? "la presentación" : kind === "geo" ? "la construcción" : `el ${label.split(" ")[0].toLowerCase()}`;
-            const subjectId = o.subjectId ?? (await pickFolder(`¿Dónde guardo ${what}?`));
+            const what = kind === "deck" ? t("la presentación") : kind === "geo" ? t("la construcción") : t("el {what}", { what: label.split(" ")[0].toLowerCase() });
+            const subjectId = o.subjectId ?? (await pickFolder(t("¿Dónde guardo {what}?", { what })));
             if (subjectId) o.open({ type: "editor", id: await createOfficeDoc({ kind, subjectId }) });
           }),
       })),

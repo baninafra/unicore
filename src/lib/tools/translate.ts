@@ -4,6 +4,8 @@
 // una vez y quedan guardados en el navegador. Cada idioma se traduce desde y hacia el español;
 // si no hay un modelo directo, se pasa por el inglés.
 
+import { t } from "@/lib/i18n";
+
 export interface Lang {
   code: string;
   name: string;
@@ -11,29 +13,29 @@ export interface Lang {
 }
 
 export const LANGS: Lang[] = [
-  { code: "es", name: "Español", main: true },
-  { code: "en", name: "Inglés", main: true },
-  { code: "pt", name: "Portugués", main: true },
-  { code: "fr", name: "Francés", main: true },
-  { code: "de", name: "Alemán", main: true },
-  { code: "it", name: "Italiano", main: true },
-  { code: "ru", name: "Ruso" },
-  { code: "zh", name: "Chino" },
-  { code: "ja", name: "Japonés" },
-  { code: "ar", name: "Árabe" },
-  { code: "hi", name: "Hindi" },
-  { code: "nl", name: "Neerlandés" },
-  { code: "uk", name: "Ucraniano" },
-  { code: "sv", name: "Sueco" },
-  { code: "da", name: "Danés" },
-  { code: "fi", name: "Finés" },
-  { code: "cs", name: "Checo" },
-  { code: "hu", name: "Húngaro" },
-  { code: "id", name: "Indonesio" },
-  { code: "vi", name: "Vietnamita" },
-  { code: "ko", name: "Coreano" },
-  { code: "pl", name: "Polaco" },
-  { code: "tr", name: "Turco" },
+  { code: "es", name: t("Español"), main: true },
+  { code: "en", name: t("Inglés"), main: true },
+  { code: "pt", name: t("Portugués"), main: true },
+  { code: "fr", name: t("Francés"), main: true },
+  { code: "de", name: t("Alemán"), main: true },
+  { code: "it", name: t("Italiano"), main: true },
+  { code: "ru", name: t("Ruso") },
+  { code: "zh", name: t("Chino") },
+  { code: "ja", name: t("Japonés") },
+  { code: "ar", name: t("Árabe") },
+  { code: "hi", name: t("Hindi") },
+  { code: "nl", name: t("Neerlandés") },
+  { code: "uk", name: t("Ucraniano") },
+  { code: "sv", name: t("Sueco") },
+  { code: "da", name: t("Danés") },
+  { code: "fi", name: t("Finés") },
+  { code: "cs", name: t("Checo") },
+  { code: "hu", name: t("Húngaro") },
+  { code: "id", name: t("Indonesio") },
+  { code: "vi", name: t("Vietnamita") },
+  { code: "ko", name: t("Coreano") },
+  { code: "pl", name: t("Polaco") },
+  { code: "tr", name: t("Turco") },
 ];
 
 // Modelos publicados en Hugging Face (Xenova/opus-mt-*), por dirección.
@@ -166,7 +168,7 @@ export async function downloadModels(models: string[], progress?: Progress): Pro
 
 export async function translate(text: string, from: string, to: string, progress?: Progress): Promise<string> {
   const steps = route(from, to);
-  if (!steps) throw new Error("No hay un modelo para esa combinación de idiomas.");
+  if (!steps) throw new Error(t("No hay un modelo para esa combinación de idiomas."));
   if (!steps.length) return text;
   const out = await call({ type: "translate", text, steps }, progress);
   rememberModels(steps.map((s) => s.model));

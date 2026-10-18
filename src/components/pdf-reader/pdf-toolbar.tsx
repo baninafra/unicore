@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import { t } from "@/lib/i18n";
 import clsx from "clsx";
 import { ChevronDown, ChevronUp, Maximize2, PanelRight, PanelRightClose, ZoomIn, ZoomOut } from "lucide-react";
 
@@ -68,7 +69,7 @@ export function PdfToolbar({
             if (e.key === "Enter") e.currentTarget.blur();
             if (e.key === "Escape") setPageDraft(null);
           }}
-          aria-label="Página"
+          aria-label={t("Página")}
           inputMode="numeric"
         />
         <span className="num text-faint">/ {pages}</span>
@@ -77,21 +78,21 @@ export function PdfToolbar({
       <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
         <input
           className="input h-6 w-full max-w-[260px] text-[length:calc(13px*var(--ui-scale,1))]"
-          placeholder="Buscar en el PDF"
+          placeholder={t("Buscar en el PDF")}
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           onKeyDown={onSearchKey}
-          aria-label="Buscar en el PDF"
+          aria-label={t("Buscar en el PDF")}
         />
         {query.trim() && (
           <>
             <span className="num min-w-[56px] text-center text-[length:calc(12px*var(--ui-scale,1))] text-faint">
-              {searching ? "Buscando…" : hitCount > 0 ? `${hitIndex + 1} de ${hitCount}` : searched ? "Sin resultados" : ""}
+              {searching ? t("Buscando…") : hitCount > 0 ? t("{n} de {total}", { n: hitIndex + 1, total: hitCount }) : searched ? t("Sin resultados") : ""}
             </span>
-            <button type="button" className="icon-btn h-6 w-6" onClick={() => onSearch("prev")} disabled={hitCount === 0} aria-label="Coincidencia anterior">
+            <button type="button" className="icon-btn h-6 w-6" onClick={() => onSearch("prev")} disabled={hitCount === 0} aria-label={t("Coincidencia anterior")}>
               <ChevronUp strokeWidth={1.75} />
             </button>
-            <button type="button" className="icon-btn h-6 w-6" onClick={() => onSearch("next")} disabled={hitCount === 0} aria-label="Coincidencia siguiente">
+            <button type="button" className="icon-btn h-6 w-6" onClick={() => onSearch("next")} disabled={hitCount === 0} aria-label={t("Coincidencia siguiente")}>
               <ChevronDown strokeWidth={1.75} />
             </button>
           </>
@@ -99,14 +100,14 @@ export function PdfToolbar({
       </div>
 
       <div className="flex items-center gap-0.5">
-        <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("out")} aria-label="Alejar">
+        <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("out")} aria-label={t("Alejar")}>
           <ZoomOut strokeWidth={1.75} />
         </button>
         <span className="num w-11 text-center text-[length:calc(12px*var(--ui-scale,1))] text-muted">{Math.round(scale * 100)}%</span>
-        <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("in")} aria-label="Acercar">
+        <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("in")} aria-label={t("Acercar")}>
           <ZoomIn strokeWidth={1.75} />
         </button>
-        <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("fit")} aria-label="Ajustar al ancho" title="Ajustar al ancho">
+        <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("fit")} aria-label={t("Ajustar al ancho")} title={t("Ajustar al ancho")}>
           <Maximize2 strokeWidth={1.75} />
         </button>
         <span className="mx-1 h-4 w-px bg-border" aria-hidden />
@@ -115,8 +116,8 @@ export function PdfToolbar({
           className={clsx("icon-btn h-6 w-6", panelOpen && "text-primary-soft")}
           onClick={onTogglePanel}
           aria-pressed={panelOpen}
-          aria-label="Resaltados"
-          title="Resaltados"
+          aria-label={t("Resaltados")}
+          title={t("Resaltados")}
         >
           {panelOpen ? <PanelRightClose strokeWidth={1.75} /> : <PanelRight strokeWidth={1.75} />}
         </button>

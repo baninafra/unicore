@@ -2,6 +2,7 @@
 
 import { FileDown, Sheet } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { t } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import { type ExportTarget } from "@/lib/export/export-pdf";
 import { exportAgendaXlsx, exportAs, FORMAT_LABEL, type ExportFormat } from "@/lib/export/export-formats";
@@ -21,29 +22,29 @@ export function ExportCommands() {
     [JSON.stringify(activeView)],
   );
 
-  const run = (f: ExportFormat, t: ExportTarget) => () =>
-    void exportAs(f, t).catch((e) => {
+  const run = (f: ExportFormat, target: ExportTarget) => () =>
+    void exportAs(f, target).catch((e) => {
       console.error("[UniCore] exportar", e);
-      toast("No pudimos exportar. Probá de nuevo.", { tone: "error" });
+      toast(t("No pudimos exportar. Probá de nuevo."), { tone: "error" });
     });
 
   const cmds: Command[] = [];
-  const add = (id: string, what: string, t: ExportTarget) => {
-    for (const f of FORMATS) cmds.push({ id: `exportar:${f}:${id}`, name: `Exportar ${what} a ${FORMAT_LABEL[f]}`, icon: FileDown, run: run(f, t) });
+  const add = (id: string, what: string, target: ExportTarget) => {
+    for (const f of FORMATS) cmds.push({ id: `exportar:${f}:${id}`, name: t("Exportar {what} a {format}", { what, format: FORMAT_LABEL[f] }), icon: FileDown, run: run(f, target) });
   };
   if (activeView.type === "nota") {
-    add("nota", "nota", { kind: "note", id: activeView.id });
-    if (activeNote && !activeNote.subjectId.startsWith("__")) add("materia-de-nota", "materia de esta nota", { kind: "subject", id: activeNote.subjectId });
+    add("nota", t("nota"), { kind: "note", id: activeView.id });
+    if (activeNote && !activeNote.subjectId.startsWith("__")) add("materia-de-nota", t("materia de esta nota"), { kind: "subject", id: activeNote.subjectId });
   }
-  if (activeView.type === "materia") add("materia", "materia", { kind: "subject", id: activeView.id });
-  for (const d of degrees) add(`carrera:${d.id}`, `carrera ${d.name}`, { kind: "degree", id: d.id });
-  add("diario", "Diario", { kind: "folder", folder: DAILY_FOLDER });
-  add("notas", "Notas sueltas", { kind: "folder", folder: LOOSE_FOLDER });
+  if (activeView.type === "materia") add("materia", t("materia"), { kind: "subject", id: activeView.id });
+  for (const d of degrees) add(`carrera:${d.id}`, t("carrera {name}", { name: d.name }), { kind: "degree", id: d.id });
+  add("diario", t("Diario"), { kind: "folder", folder: DAILY_FOLDER });
+  add("notas", t("Notas sueltas"), { kind: "folder", folder: LOOSE_FOLDER });
   cmds.push({
     id: "exportar:agenda",
-    name: "Exportar agenda y plan de estudios a Excel",
+    name: t("Exportar agenda y plan de estudios a Excel"),
     icon: Sheet,
-    run: () => void exportAgendaXlsx().catch(() => toast("No pudimos exportar. Probá de nuevo.", { tone: "error" })),
+    run: () => void exportAgendaXlsx().catch(() => toast(t("No pudimos exportar. Probá de nuevo."), { tone: "error" })),
   });
 
   useRegisterCommands("exportar", cmds);

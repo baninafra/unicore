@@ -24,6 +24,7 @@ import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { importFileAsNote } from "@/lib/import/import-file";
 import { toast } from "@/lib/undo";
+import { t } from "@/lib/i18n";
 import { LOOSE_FOLDER } from "@/lib/types";
 import { CanvasActionsCtx, canvasNodeTypes, type CanvasActions } from "./canvas-nodes";
 import { CanvasToolbar } from "./canvas-toolbar";
@@ -231,19 +232,19 @@ function Board({ doc }: { doc: CanvasDoc }) {
       const items: MenuItem[] = [];
       if (node.type === "nota" && node.data.noteId) {
         const noteId = node.data.noteId;
-        items.push({ label: "Abrir nota", icon: FileText, onSelect: () => openView({ type: "nota", id: noteId }) });
+        items.push({ label: t("Abrir nota"), icon: FileText, onSelect: () => openView({ type: "nota", id: noteId }) });
       }
       if (node.type === "pdf" && node.data.documentId) {
         const documentId = node.data.documentId;
-        items.push({ label: "Abrir PDF", icon: BookOpen, onSelect: () => openView({ type: "pdf", id: documentId }) });
+        items.push({ label: t("Abrir PDF"), icon: BookOpen, onSelect: () => openView({ type: "pdf", id: documentId }) });
       }
       if (node.type === "web" && node.data.url) {
         const url = node.data.url;
         items.push(
-          { label: "Abrir web", icon: Globe, onSelect: () => openView({ type: "web", url }) },
-          { label: "Cambiar dirección", icon: Link, onSelect: () => setPrompt({ kind: "url", id, initial: url }) },
+          { label: t("Abrir web"), icon: Globe, onSelect: () => openView({ type: "web", url }) },
+          { label: t("Cambiar dirección"), icon: Link, onSelect: () => setPrompt({ kind: "url", id, initial: url }) },
           {
-            label: "Cambiar título",
+            label: t("Cambiar título"),
             icon: Pencil,
             onSelect: () => setPrompt({ kind: "titulo", id, initial: node.data.title ?? hostOf(url) }),
           },
@@ -252,26 +253,26 @@ function Board({ doc }: { doc: CanvasDoc }) {
       if (node.type === "archivo" && node.data.fileRef) {
         const ref = node.data.fileRef;
         items.push({
-          label: "Abrir archivo",
+          label: t("Abrir archivo"),
           icon: ExternalLink,
           onSelect: () => void resolveFileUrl(ref).then((u) => window.open(u, "_blank")),
         });
       }
-      if (node.type === "texto") items.push({ label: "Editar texto", icon: Pencil, onSelect: () => setEditingId(id) });
-      if (node.type === "grupo") items.push({ label: "Cambiar nombre", icon: Pencil, onSelect: () => setEditingId(id) });
+      if (node.type === "texto") items.push({ label: t("Editar texto"), icon: Pencil, onSelect: () => setEditingId(id) });
+      if (node.type === "grupo") items.push({ label: t("Cambiar nombre"), icon: Pencil, onSelect: () => setEditingId(id) });
       if (node.type !== "grupo") {
         items.push({
-          label: "Color",
+          label: t("Color"),
           icon: Frame,
           onSelect: () => setColorAt({ id, x: e.clientX, y: e.clientY, value: node.data.color }),
         });
       }
       if (items.length) items.push({ type: "separator" });
       items.push({
-        label: "Eliminar",
+        label: t("Eliminar"),
         icon: Trash2,
         danger: true,
-        hint: "Supr",
+        hint: t("Supr"),
         onSelect: () => void rf.deleteElements({ nodes: [node] }),
       });
       openMenu(e, items);
@@ -283,18 +284,18 @@ function Board({ doc }: { doc: CanvasDoc }) {
     (e: MenuPos, edge: CanvasEdge) => {
       const label = typeof edge.label === "string" ? edge.label : "";
       const items: MenuItem[] = [
-        { label: "Editar etiqueta", icon: Pencil, onSelect: () => setPrompt({ kind: "arista", id: edge.id, initial: label }) },
+        { label: t("Editar etiqueta"), icon: Pencil, onSelect: () => setPrompt({ kind: "arista", id: edge.id, initial: label }) },
       ];
       if (label) {
         items.push({
-          label: "Quitar etiqueta",
+          label: t("Quitar etiqueta"),
           onSelect: () => setEdges((es) => es.map((x) => (x.id === edge.id ? { ...x, label: undefined } : x))),
         });
       }
       items.push(
         { type: "separator" },
         {
-          label: "Eliminar",
+          label: t("Eliminar"),
           icon: Trash2,
           danger: true,
           onSelect: () => setEdges((es) => es.filter((x) => x.id !== edge.id)),
@@ -308,20 +309,20 @@ function Board({ doc }: { doc: CanvasDoc }) {
   const onPaneContextMenu = useCallback(
     (e: MenuPos) => {
       openMenu(e, [
-        { label: "Tarjeta de texto", icon: Plus, onSelect: () => addAt("texto", e.clientX, e.clientY) },
-        { label: "Agregar nota o PDF", icon: FileText, onSelect: () => setPicker(true) },
+        { label: t("Tarjeta de texto"), icon: Plus, onSelect: () => addAt("texto", e.clientX, e.clientY) },
+        { label: t("Agregar nota o PDF"), icon: FileText, onSelect: () => setPicker(true) },
         {
-          label: "Imagen",
+          label: t("Imagen"),
           icon: ImagePlus,
           onSelect: () => {
             setImageAt({ x: e.clientX, y: e.clientY });
             fileRef.current?.click();
           },
         },
-        { label: "Web", icon: Globe, onSelect: () => setPrompt({ kind: "nueva-web", at: { x: e.clientX, y: e.clientY } }) },
-        { label: "Grupo", icon: Frame, onSelect: () => addAt("grupo", e.clientX, e.clientY) },
+        { label: t("Web"), icon: Globe, onSelect: () => setPrompt({ kind: "nueva-web", at: { x: e.clientX, y: e.clientY } }) },
+        { label: t("Grupo"), icon: Frame, onSelect: () => addAt("grupo", e.clientX, e.clientY) },
         { type: "separator" },
-        { label: "Renombrar lienzo", icon: Pencil, onSelect: () => setPrompt({ kind: "renombrar", initial: doc.name }) },
+        { label: t("Renombrar lienzo"), icon: Pencil, onSelect: () => setPrompt({ kind: "renombrar", initial: doc.name }) },
       ]);
     },
     [addAt, doc.name, openMenu],
@@ -351,13 +352,13 @@ function Board({ doc }: { doc: CanvasDoc }) {
         const x = clientX !== undefined ? clientX + dx : undefined;
         if (file.type.startsWith("image/")) {
           const ref = await saveFile(file);
-          addAt("archivo", x, clientY, { fileRef: ref, fileName: file.name || "imagen", mime: file.type });
+          addAt("archivo", x, clientY, { fileRef: ref, fileName: file.name || t("imagen"), mime: file.type });
         } else {
           try {
             const noteId = await importFileAsNote(file, doc.subjectId ?? LOOSE_FOLDER);
             addAt("nota", x, clientY, { noteId });
           } catch (err) {
-            toast(err instanceof Error ? err.message : "No pudimos importar el archivo.", { tone: "error" });
+            toast(err instanceof Error ? err.message : t("No pudimos importar el archivo."), { tone: "error" });
           }
         }
         dx += 40;
@@ -395,21 +396,21 @@ function Board({ doc }: { doc: CanvasDoc }) {
     if (p.kind === "url") patchNode(p.id, { url: normalizeUrl(value) });
     if (p.kind === "titulo") patchNode(p.id, { title: value });
     if (p.kind === "nueva-web") addAt("web", p.at?.x, p.at?.y, { url: normalizeUrl(value), title: hostOf(normalizeUrl(value)) });
-    if (p.kind === "renombrar") void db.canvases.update(doc.id, { name: value.trim() || "Lienzo sin título" });
+    if (p.kind === "renombrar") void db.canvases.update(doc.id, { name: value.trim() || t("Lienzo sin título") });
   };
 
   const promptConfig = (() => {
     switch (prompt?.kind) {
       case "arista":
-        return { title: "Etiqueta de la flecha", initial: prompt.initial, placeholder: "Ej: depende de", confirm: "Guardar" };
+        return { title: t("Etiqueta de la flecha"), initial: prompt.initial, placeholder: t("Ej: depende de"), confirm: t("Guardar") };
       case "url":
-        return { title: "Dirección de la web", initial: prompt.initial, placeholder: "https://", confirm: "Guardar" };
+        return { title: t("Dirección de la web"), initial: prompt.initial, placeholder: "https://", confirm: t("Guardar") };
       case "titulo":
-        return { title: "Título de la web", initial: prompt.initial, placeholder: "Título", confirm: "Guardar" };
+        return { title: t("Título de la web"), initial: prompt.initial, placeholder: t("Título"), confirm: t("Guardar") };
       case "nueva-web":
-        return { title: "Agregar web", initial: "", placeholder: "https://", confirm: "Agregar" };
+        return { title: t("Agregar web"), initial: "", placeholder: "https://", confirm: t("Agregar") };
       case "renombrar":
-        return { title: "Nombre del lienzo", initial: prompt.initial, placeholder: "Lienzo sin título", confirm: "Guardar" };
+        return { title: t("Nombre del lienzo"), initial: prompt.initial, placeholder: t("Lienzo sin título"), confirm: t("Guardar") };
       default:
         return null;
     }

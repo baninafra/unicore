@@ -4,6 +4,7 @@ import { useState, type DragEvent } from "react";
 import clsx from "clsx";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BookOpen, FileText, NotebookPen, Search, Shapes, type LucideIcon } from "lucide-react";
+import { t } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import { type Bookmark, type BookmarkKind } from "@/lib/types";
 import { viewForBookmark, runSafe } from "@/lib/nav/actions";
@@ -45,7 +46,7 @@ export function BookmarksPane() {
   };
 
   if (items === undefined) return null;
-  if (!items.length) return <p className="px-3 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin marcadores</p>;
+  if (!items.length) return <p className="px-3 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Sin marcadores")}</p>;
 
   return (
     <div className="flex flex-col gap-px p-1">
@@ -70,8 +71,8 @@ export function BookmarksPane() {
             }}
             onContextMenu={(e) =>
               menu.open(e, [
-                { label: "Renombrar", onSelect: () => setRenaming(b) },
-                { label: "Quitar", danger: true, onSelect: () => runSafe(() => db.bookmarks.delete(b.id)) },
+                { label: t("Renombrar"), onSelect: () => setRenaming(b) },
+                { label: t("Quitar"), danger: true, onSelect: () => runSafe(() => db.bookmarks.delete(b.id)) },
               ])
             }
             onDragStart={(e: DragEvent<HTMLButtonElement>) => {
@@ -98,9 +99,9 @@ export function BookmarksPane() {
       })}
       <PromptModal
         open={renaming !== null}
-        title="Renombrar marcador"
+        title={t("Renombrar marcador")}
         initial={renaming?.title ?? ""}
-        confirmLabel="Renombrar"
+        confirmLabel={t("Renombrar")}
         onConfirm={(value) => {
           if (renaming) runSafe(() => db.bookmarks.update(renaming.id, { title: value }));
         }}

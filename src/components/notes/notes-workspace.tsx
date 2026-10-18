@@ -6,13 +6,14 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { FileText } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { db } from "@/lib/db";
+import { t } from "@/lib/i18n";
 import { NoteList } from "./note-list";
 import { sortNotes } from "./note-utils";
 
 // BlockNote pesa bastante y necesita el navegador: se carga sólo cuando hace falta.
 const NoteEditor = dynamic(() => import("./note-editor").then((m) => m.NoteEditor), {
   ssr: false,
-  loading: () => <div className="t-small p-4 text-muted">Cargando el editor…</div>,
+  loading: () => <div className="t-small p-4 text-muted">{t("Cargando el editor…")}</div>,
 });
 
 // Pestaña Apuntes: lista agrupada por unidad a la izquierda y el editor a la derecha.
@@ -47,8 +48,8 @@ export function NotesWorkspace({
           notes !== undefined && (
             <EmptyState
               icon={FileText}
-              title="Todavía no hay apuntes"
-              text="Creá tu primer apunte con el botón de la izquierda."
+              title={t("Todavía no hay apuntes")}
+              text={t("Creá tu primer apunte con el botón de la izquierda.")}
             />
           )
         )}

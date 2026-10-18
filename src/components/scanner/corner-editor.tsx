@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Pt } from "@/lib/scanner/scanner";
+import { t } from "@/lib/i18n";
 
 const LOUPE = 120; // tamaño de la lupa en pantalla
 const ZOOM = 2.5;
@@ -56,7 +57,7 @@ export function CornerEditor({ url, width, height, corners, onChange }: { url: s
           <div
             key={i}
             role="slider"
-            aria-label={["Esquina de arriba a la izquierda", "Esquina de arriba a la derecha", "Esquina de abajo a la derecha", "Esquina de abajo a la izquierda"][i]}
+            aria-label={[t("Esquina de arriba a la izquierda"), t("Esquina de arriba a la derecha"), t("Esquina de abajo a la derecha"), t("Esquina de abajo a la izquierda")][i]}
             aria-valuenow={Math.round(corners[i].x)}
             tabIndex={0}
             onKeyDown={(e) => {

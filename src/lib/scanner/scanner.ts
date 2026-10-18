@@ -4,15 +4,16 @@
 // El trabajo de imagen corre en scanner.worker.ts (OpenCV); el texto, con el OCR de la app (Tesseract).
 
 import type { Worker as OcrWorker } from "tesseract.js";
+import { t } from "@/lib/i18n";
 
 export type Pt = { x: number; y: number };
 export type ScanFilter = "color" | "mejorado" | "gris" | "byn";
 
 export const FILTER_LABEL: Record<ScanFilter, string> = {
-  mejorado: "Mejorado",
-  color: "Original",
-  gris: "Grises",
-  byn: "Blanco y negro",
+  mejorado: t("Mejorado"),
+  color: t("Original"),
+  gris: t("Grises"),
+  byn: t("Blanco y negro"),
 };
 
 // ---------- Worker ----------
@@ -30,10 +31,10 @@ function call(type: "init" | "detect" | "warp", payload: Record<string, unknown>
       if (!p) return;
       pending.delete(d.id);
       if (d.ok) p.resolve(d as unknown as Record<string, unknown>);
-      else p.reject(new Error(d.error ?? "El escáner falló."));
+      else p.reject(new Error(d.error ?? t("El escáner falló.")));
     };
     worker.onerror = () => {
-      for (const p of pending.values()) p.reject(new Error("No se pudo iniciar el escáner."));
+      for (const p of pending.values()) p.reject(new Error(t("No se pudo iniciar el escáner.")));
       pending.clear();
       worker?.terminate();
       worker = null;
@@ -75,7 +76,7 @@ export function imageDataOf(src: CanvasImageSource, w: number, h: number, maxSid
 }
 
 export function toBlob(canvas: HTMLCanvasElement, type = "image/jpeg", quality = 0.88): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("No se pudo crear la imagen."))), type, quality));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t("No se pudo crear la imagen.")))), type, quality));
 }
 
 // Achica la foto si es enorme y la deja como JPEG (es la "original" de la página).
@@ -195,7 +196,7 @@ function pdfText(s: string): string {
 const n2 = (n: number) => (Math.round(n * 100) / 100).toString();
 
 // Arma un PDF con una imagen por página y, encima, el texto del OCR invisible (se puede buscar y copiar).
-export async function buildPdf(pages: PdfPageInput[], size: PageSize = "original", title = "Escaneo"): Promise<Blob> {
+export async function buildPdf(pages: PdfPageInput[], size: PageSize = "original", title = t("Escaneo")): Promise<Blob> {
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
   const offsets: number[] = [];

@@ -6,6 +6,7 @@
 import * as chrono from "chrono-node";
 import { db, newId, nowIso } from "../db";
 import { kindOf, PROFILES, profileText } from "../profiles";
+import { getLang, langName } from "../i18n";
 import type { Degree, Subject, SubjectStatus, Task, TaskPriority, TaskStatus, TaskType } from "../types";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, SUBJECT_STATUS_LABEL, TASK_TYPE_LABEL, TEMPLATES_FOLDER } from "../types";
 import { createNote } from "@/components/notes/note-utils";
@@ -1224,7 +1225,10 @@ export async function situationText(): Promise<string> {
         .join(", ") || "nada en curso"),
   );
   const about = profileText();
+  const lang = getLang();
   return [
+    // La interfaz puede estar en otro idioma: la IA contesta en ese.
+    ...(lang !== "es" ? [`IDIOMA: el usuario usa la app en ${langName(lang)}. Respondé SIEMPRE en ${langName(lang)} (no en español), aunque estas instrucciones estén en español.`] : []),
     ...(about ? [`Sobre el usuario: ${about}`] : []),
     `Fecha y hora actual: ${fmtDate(now)} (zona horaria del usuario). El año actual es ${now.getFullYear()}.`,
     `Próximos días (usá esta tabla para "el jueves", "mañana", etc.):\n${days.join("\n")}`,

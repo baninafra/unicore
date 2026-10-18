@@ -8,6 +8,7 @@ import { db } from "../db";
 import { SUBJECT_STATUS_LABEL, TASK_TYPE_LABEL, type Note, type Task } from "../types";
 import { buildExportHtml, collect, type ExportTarget } from "./export-pdf";
 import { safeFileName, saveBlob } from "./save";
+import { intlLocale, t } from "@/lib/i18n";
 
 export type ExportFormat = "pdf" | "docx" | "xlsx" | "md" | "html";
 
@@ -16,7 +17,7 @@ export const FORMAT_LABEL: Record<ExportFormat, string> = {
   docx: "Word",
   xlsx: "Excel",
   md: "Markdown",
-  html: "página web",
+  html: t("página web"),
 };
 
 // ---------- ZIP (sin compresión) ----------
@@ -122,7 +123,7 @@ function colName(i: number): string {
 export function xlsxBlob(sheets: Sheet[]): Blob {
   const used = new Set<string>();
   const names = sheets.map((s, i) => {
-    let n = s.name.replace(/[\\/?*[\]:]/g, " ").slice(0, 31).trim() || `Hoja ${i + 1}`;
+    let n = s.name.replace(/[\\/?*[\]:]/g, " ").slice(0, 31).trim() || t("Hoja {n}", { n: i + 1 });
     while (used.has(n.toLowerCase())) n = `${n.slice(0, 28)} ${i + 1}`;
     used.add(n.toLowerCase());
     return n;
@@ -182,7 +183,7 @@ function notesToSheets(notes: Note[]): Sheet[] {
   const sheets: Sheet[] = [];
   for (const n of notes) {
     const tables: Cell[][][] = [];
-    const lines: Cell[][] = [["Bloque", "Texto"]];
+    const lines: Cell[][] = [[t("Bloque"), t("Texto")]];
     const walk = (blocks: unknown[]) => {
       for (const b of blocks as Record<string, unknown>[]) {
         if (b.type === "table") {
@@ -203,9 +204,9 @@ function notesToSheets(notes: Note[]): Sheet[] {
     };
     walk(Array.isArray(n.content) ? n.content : []);
     if (tables.length) tables.forEach((t, i) => sheets.push({ name: tables.length > 1 ? `${n.title} ${i + 1}` : n.title, rows: t }));
-    else if (lines.length > 1) sheets.push({ name: n.title || "Nota", rows: lines });
+    else if (lines.length > 1) sheets.push({ name: n.title || t("Nota"), rows: lines });
   }
-  return sheets.length ? sheets : [{ name: "Notas", rows: [["Sin contenido"]] }];
+  return sheets.length ? sheets : [{ name: t("Notas"), rows: [[t("Sin contenido")]] }];
 }
 
 export async function exportXlsx(target: ExportTarget): Promise<void> {
@@ -225,22 +226,22 @@ export async function exportXlsx(target: ExportTarget): Promise<void> {
 
 async function tasksSheet(tasks: Task[]): Promise<Sheet> {
   const subjects = new Map((await db.subjects.toArray()).map((s) => [s.id, s.name]));
-  const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "");
-  const status = { INBOX_EMAIL: "Bandeja", TODO: "Pendiente", IN_PROGRESS: "En curso", DONE: "Hecha" } as const;
+  const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString(intlLocale(), { dateStyle: "short", timeStyle: "short" }) : "");
+  const status = { INBOX_EMAIL: t("Bandeja"), TODO: t("Pendiente"), IN_PROGRESS: t("En curso"), DONE: t("Hecha") } as const;
   return {
-    name: "Agenda",
+    name: t("Agenda"),
     rows: [
-      ["Fecha", "Tipo", "Título", "Materia", "Estado", "Prioridad", "Descripción"],
+      [t("Fecha"), t("Tipo"), t("Título"), t("Materia"), t("Estado"), t("Prioridad"), t("Descripción")],
       ...[...tasks]
         .sort((a, b) => (a.dueDate ?? "9").localeCompare(b.dueDate ?? "9"))
-        .map((t) => [
-          fmt(t.dueDate),
-          TASK_TYPE_LABEL[t.type],
-          t.title,
-          t.subjectId ? (subjects.get(t.subjectId) ?? "") : "",
-          status[t.status],
-          t.priority === "HIGH" ? "Alta" : t.priority === "LOW" ? "Baja" : "Media",
-          t.description ?? "",
+        .map((task) => [
+          fmt(task.dueDate),
+          TASK_TYPE_LABEL[task.type],
+          task.title,
+          task.subjectId ? (subjects.get(task.subjectId) ?? "") : "",
+          status[task.status],
+          task.priority === "HIGH" ? t("Alta") : task.priority === "LOW" ? t("Baja") : t("Media"),
+          task.description ?? "",
         ]),
     ],
   };
@@ -254,7 +255,7 @@ export async function exportAgendaXlsx(): Promise<void> {
     sheets.push({
       name: d.shortName || d.name,
       rows: [
-        ["Año", "Cuatrimestre", "Materia", "Código", "Estado", "Nota"],
+        [t("Año"), t("Cuatrimestre"), t("Materia"), t("Código"), t("Estado"), t("Nota")],
         ...subjects
           .filter((s) => s.degreeId === d.id)
           .sort((a, b) => a.year - b.year || a.semester - b.semester)
@@ -262,7 +263,7 @@ export async function exportAgendaXlsx(): Promise<void> {
       ],
     });
   }
-  await saveBlob("UniCore - agenda y plan de estudios.xlsx", xlsxBlob(sheets));
+  await saveBlob(t("UniCore - agenda y plan de estudios.xlsx"), xlsxBlob(sheets));
 }
 
 // ---------- Markdown ----------
@@ -339,7 +340,7 @@ export async function exportMarkdown(target: ExportTarget): Promise<void> {
   const parts: string[] = [];
   for (const s of sections) {
     if (s.title) parts.push(`# ${s.title}`, "");
-    for (const n of s.notes) parts.push(`## ${n.title || "Sin título"}`, "", blocksToMd(Array.isArray(n.content) ? n.content : []), "");
+    for (const n of s.notes) parts.push(`## ${n.title || t("Sin título")}`, "", blocksToMd(Array.isArray(n.content) ? n.content : []), "");
   }
   await saveBlob(`${safeFileName(title)}.md`, new Blob([parts.join("\n")], { type: "text/markdown;charset=utf-8" }));
 }

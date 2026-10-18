@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { t } from "@/lib/i18n";
 import { useSubjectMap } from "@/lib/hooks";
 import { folderLabel, wikilinksOf } from "@/lib/panes/note-data";
 import { useActiveNoteId, useAllNotes, useNote } from "@/lib/panes/hooks";
@@ -34,12 +35,12 @@ export function OutgoingPane() {
     return { resolved, unresolved };
   }, [note, notes]);
 
-  if (!note) return <PaneBlank>Abrí una nota para ver sus enlaces</PaneBlank>;
+  if (!note) return <PaneBlank>{t("Abrí una nota para ver sus enlaces")}</PaneBlank>;
 
   return (
     <div className="p-2">
-      <PaneSection title="Enlaces" count={resolved.length}>
-        {resolved.length === 0 && <PaneEmpty>Sin enlaces salientes</PaneEmpty>}
+      <PaneSection title={t("Enlaces")} count={resolved.length}>
+        {resolved.length === 0 && <PaneEmpty>{t("Sin enlaces salientes")}</PaneEmpty>}
         {resolved.map((n) => (
           <NoteRow
             key={n.id}
@@ -50,8 +51,8 @@ export function OutgoingPane() {
           />
         ))}
       </PaneSection>
-      <PaneSection title="Sin resolver" count={unresolved.length}>
-        {unresolved.length === 0 && <PaneEmpty>Sin enlaces sin resolver</PaneEmpty>}
+      <PaneSection title={t("Sin resolver")} count={unresolved.length}>
+        {unresolved.length === 0 && <PaneEmpty>{t("Sin enlaces sin resolver")}</PaneEmpty>}
         {unresolved.map((text) => (
           <p key={text} className="truncate px-2 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] wikilink-unresolved">
             [[{text}]]

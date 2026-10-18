@@ -7,8 +7,8 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { addDays, format, startOfDay } from "date-fns";
-import { es } from "date-fns/locale";
 import { CalendarPlus, FilePlus, FolderPlus, Layers, Lightbulb, ListPlus, NotebookPen, Target, type LucideIcon } from "lucide-react";
+import { t, dateLocale } from "@/lib/i18n";
 import { useAppState } from "@/lib/app-state";
 import { db } from "@/lib/db";
 import { useWorkspace } from "@/lib/workspace";
@@ -50,9 +50,9 @@ export function QuickActions() {
     case "colegio":
       actions = (
         <>
-          <Action primary icon={ListPlus} label={`Nuevo ${terms.taskTypes.PARCIAL.toLowerCase()} o entrega`} onClick={() => task({ type: "PARCIAL" })} />
-          <Action icon={NotebookPen} label="Nuevo apunte" onClick={() => runCommand("nota:nueva")} />
-          <Action icon={Layers} label="Repasar" onClick={() => openView({ type: "repaso" })} />
+          <Action primary icon={ListPlus} label={t("Nuevo {kind} o entrega", { kind: terms.taskTypes.PARCIAL.toLowerCase() })} onClick={() => task({ type: "PARCIAL" })} />
+          <Action icon={NotebookPen} label={t("Nuevo apunte")} onClick={() => runCommand("nota:nueva")} />
+          <Action icon={Layers} label={t("Repasar")} onClick={() => openView({ type: "repaso" })} />
         </>
       );
       break;
@@ -62,13 +62,13 @@ export function QuickActions() {
           <Action
             primary
             icon={CalendarPlus}
-            label="Nueva reunión"
+            label={t("Nueva reunión")}
             onClick={() => {
               const start = nextHour();
               openEventDialog({ defaults: { title: "", category: "REUNION", allDay: false, start: start.toISOString(), end: new Date(start.getTime() + 3600_000).toISOString() } });
             }}
           />
-          <Action icon={ListPlus} label="Nueva tarea" onClick={() => task({ type: "TAREA" })} />
+          <Action icon={ListPlus} label={t("Nueva tarea")} onClick={() => task({ type: "TAREA" })} />
           <Action icon={FolderPlus} label={nuevo(terms.item)} onClick={() => setNewItem(true)} />
         </>
       );
@@ -77,28 +77,28 @@ export function QuickActions() {
       actions = (
         <>
           <Action primary icon={FolderPlus} label={nuevo(terms.item)} onClick={() => setNewItem(true)} />
-          <Action icon={Target} label="Nuevo hito" onClick={() => task({ type: "PARCIAL" })} />
-          <Action icon={Lightbulb} label="Anotar una idea" onClick={() => openView({ type: "ideas" })} />
+          <Action icon={Target} label={t("Nuevo hito")} onClick={() => task({ type: "PARCIAL" })} />
+          <Action icon={Lightbulb} label={t("Anotar una idea")} onClick={() => openView({ type: "ideas" })} />
         </>
       );
       break;
     case "personal":
       actions = (
         <>
-          <Action primary icon={ListPlus} label="Nuevo pendiente" onClick={() => task({ type: "TAREA" })} />
-          <Action icon={Target} label="Nueva meta" onClick={() => task({ type: "FINAL" })} />
-          <Action icon={NotebookPen} label="Nota del día" onClick={() => runCommand("diario:hoy")} />
+          <Action primary icon={ListPlus} label={t("Nuevo pendiente")} onClick={() => task({ type: "TAREA" })} />
+          <Action icon={Target} label={t("Nueva meta")} onClick={() => task({ type: "FINAL" })} />
+          <Action icon={NotebookPen} label={t("Nota del día")} onClick={() => runCommand("diario:hoy")} />
         </>
       );
       break;
     default:
       actions = (
         <>
-          <Action primary icon={ListPlus} label="Nueva tarea" onClick={() => task({})} />
-          <Action icon={FilePlus} label="Nueva nota" onClick={() => runCommand("nota:nueva")} />
+          <Action primary icon={ListPlus} label={t("Nueva tarea")} onClick={() => task({})} />
+          <Action icon={FilePlus} label={t("Nueva nota")} onClick={() => runCommand("nota:nueva")} />
           <Action
             icon={CalendarPlus}
-            label="Nuevo evento"
+            label={t("Nuevo evento")}
             onClick={() => {
               const start = nextHour();
               openEventDialog({ defaults: { title: "", allDay: false, start: start.toISOString(), end: new Date(start.getTime() + 3600_000).toISOString() } });
@@ -125,24 +125,24 @@ function Panel({ title, children, empty }: { title: string; children?: React.Rea
   );
 }
 
-const open = (t: Task) => t.status !== "DONE" && t.status !== "INBOX_EMAIL";
+const open = (task: Task) => task.status !== "DONE" && task.status !== "INBOX_EMAIL";
 
 // Lista de proyectos o áreas con sus tareas: abiertas, o avance (hechas / total).
 function ItemsPanel({ title, terms, subjects, tasks, progress }: { title: string; terms: ProfileDef; subjects: Subject[]; tasks: Task[]; progress?: boolean }) {
   const { openView } = useWorkspace();
   const list = subjects.filter((s) => s.status === "CURSANDO" || s.status === "PENDIENTE");
-  if (!list.length) return <Panel title={title} empty={`Sin ${terms.item.many} en curso`} />;
+  if (!list.length) return <Panel title={title} empty={t("Sin {items} en curso", { items: terms.item.many })} />;
   return (
     <Panel title={title}>
       {list.map((s) => {
-        const own = tasks.filter((t) => t.subjectId === s.id && t.status !== "INBOX_EMAIL");
-        const done = own.filter((t) => t.status === "DONE").length;
+        const own = tasks.filter((tk) => tk.subjectId === s.id && tk.status !== "INBOX_EMAIL");
+        const done = own.filter((tk) => tk.status === "DONE").length;
         const pending = own.length - done;
         return (
           <button key={s.id} type="button" className="row flex-col !items-stretch gap-1 py-1.5 text-left" onClick={() => openView({ type: "materia", id: s.id })}>
             <span className="flex items-center gap-2">
               <span className="min-w-0 flex-1 truncate text-text">{s.name}</span>
-              <span className="t-small num flex-none text-faint">{progress ? `${done}/${own.length}` : pending ? `${pending} pendiente${pending === 1 ? "" : "s"}` : "al día"}</span>
+              <span className="t-small num flex-none text-faint">{progress ? `${done}/${own.length}` : pending ? (pending === 1 ? t("1 pendiente") : t("{n} pendientes", { n: pending })) : t("al día")}</span>
             </span>
             {progress && (
               <span className="progress" style={{ height: 3 }}>
@@ -167,13 +167,13 @@ function TodayEvents() {
       .flatMap((ev) => (ev.status === "CANCELLED" ? [] : occurrences(ev, from, to).map((at) => ({ ev, at }))))
       .sort((a, b) => a.at.getTime() - b.at.getTime());
   }, []);
-  if (!items?.length) return <Panel title="Hoy en el calendario" empty="Nada agendado para hoy" />;
+  if (!items?.length) return <Panel title={t("Hoy en el calendario")} empty={t("Nada agendado para hoy")} />;
   return (
-    <Panel title="Hoy en el calendario">
+    <Panel title={t("Hoy en el calendario")}>
       {items.map(({ ev, at }) => (
         <button key={`${ev.id}-${at.getTime()}`} type="button" className="row text-left" onClick={() => openView({ type: "calendario" })}>
-          <span className="t-small num w-11 flex-none text-faint">{ev.allDay ? "Todo el día" : format(at, "HH:mm", { locale: es })}</span>
-          <span className="min-w-0 flex-1 truncate text-text">{ev.title || "Sin título"}</span>
+          <span className="t-small num w-11 flex-none text-faint">{ev.allDay ? t("Todo el día") : format(at, "HH:mm", { locale: dateLocale() })}</span>
+          <span className="min-w-0 flex-1 truncate text-text">{ev.title || t("Sin título")}</span>
         </button>
       ))}
     </Panel>
@@ -186,17 +186,17 @@ function UpcomingExams({ tasks, terms }: { tasks: Task[]; terms: ProfileDef }) {
   const limit = addDays(new Date(), 30).toISOString();
   const now = new Date().toISOString();
   const list = tasks
-    .filter((t) => open(t) && (t.type === "PARCIAL" || t.type === "FINAL" || t.type === "TP") && t.dueDate && t.dueDate >= now && t.dueDate <= limit)
+    .filter((tk) => open(tk) && (tk.type === "PARCIAL" || tk.type === "FINAL" || tk.type === "TP") && tk.dueDate && tk.dueDate >= now && tk.dueDate <= limit)
     .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))
     .slice(0, 6);
-  if (!list.length) return <Panel title="Lo que se viene" empty="Sin exámenes ni entregas en el próximo mes" />;
+  if (!list.length) return <Panel title={t("Lo que se viene")} empty={t("Sin exámenes ni entregas en el próximo mes")} />;
   return (
-    <Panel title="Lo que se viene">
-      {list.map((t) => (
-        <button key={t.id} type="button" className="row text-left" onClick={() => openTaskDialog(t)}>
-          <span className="t-small num w-14 flex-none text-faint">{format(new Date(t.dueDate!), "EEE d/M", { locale: es })}</span>
-          <span className="min-w-0 flex-1 truncate text-text">{t.title}</span>
-          <span className="t-small flex-none text-faint">{terms.taskTypes[t.type]}</span>
+    <Panel title={t("Lo que se viene")}>
+      {list.map((tk) => (
+        <button key={tk.id} type="button" className="row text-left" onClick={() => openTaskDialog(tk)}>
+          <span className="t-small num w-14 flex-none text-faint">{format(new Date(tk.dueDate!), "EEE d/M", { locale: dateLocale() })}</span>
+          <span className="min-w-0 flex-1 truncate text-text">{tk.title}</span>
+          <span className="t-small flex-none text-faint">{terms.taskTypes[tk.type]}</span>
         </button>
       ))}
     </Panel>
@@ -205,15 +205,15 @@ function UpcomingExams({ tasks, terms }: { tasks: Task[]; terms: ProfileDef }) {
 
 function Goals({ tasks }: { tasks: Task[] }) {
   const { openTaskDialog } = useAppState();
-  const list = tasks.filter((t) => open(t) && t.type === "FINAL");
-  if (!list.length) return <Panel title="Metas" empty="Todavía no anotaste metas" />;
+  const list = tasks.filter((tk) => open(tk) && tk.type === "FINAL");
+  if (!list.length) return <Panel title={t("Metas")} empty={t("Todavía no anotaste metas")} />;
   return (
-    <Panel title="Metas">
-      {list.map((t) => (
-        <button key={t.id} type="button" className="row text-left" onClick={() => openTaskDialog(t)}>
+    <Panel title={t("Metas")}>
+      {list.map((tk) => (
+        <button key={tk.id} type="button" className="row text-left" onClick={() => openTaskDialog(tk)}>
           <Target strokeWidth={1.75} />
-          <span className="min-w-0 flex-1 truncate text-text">{t.title}</span>
-          {t.dueDate && <span className="t-small num flex-none text-faint">{format(new Date(t.dueDate), "d/M")}</span>}
+          <span className="min-w-0 flex-1 truncate text-text">{tk.title}</span>
+          {tk.dueDate && <span className="t-small num flex-none text-faint">{format(new Date(tk.dueDate), "d/M")}</span>}
         </button>
       ))}
     </Panel>
@@ -230,11 +230,11 @@ export function ProfileSide({ now, tasks, subjects }: { now?: Date; tasks: Task[
       return (
         <>
           <TodayEvents />
-          <ItemsPanel title={`${terms.item.many} en curso`} terms={terms} subjects={subjects} tasks={tasks} />
+          <ItemsPanel title={t("{items} en curso", { items: terms.item.many })} terms={terms} subjects={subjects} tasks={tasks} />
         </>
       );
     case "proyectos":
-      return <ItemsPanel title="Avance" terms={terms} subjects={subjects} tasks={tasks} progress />;
+      return <ItemsPanel title={t("Avance")} terms={terms} subjects={subjects} tasks={tasks} progress />;
     case "personal":
       return (
         <>

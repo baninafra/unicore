@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type OfficeDoc, type OfficeKind, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
 import { kindOf, PROFILES, type ProfileDef } from "@/lib/profiles";
+import { intlLocale, t } from "@/lib/i18n";
 
 export type SortMode = "nombre" | "modificacion" | "creacion";
 
@@ -75,7 +76,7 @@ function sortItems<T extends { createdAt: string; updatedAt?: string }>(items: T
   return [...items].sort((a, b) => {
     if (mode === "modificacion") return (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt);
     if (mode === "creacion") return b.createdAt.localeCompare(a.createdAt);
-    return name(a).localeCompare(name(b), "es", { numeric: true, sensitivity: "base" });
+    return name(a).localeCompare(name(b), intlLocale(), { numeric: true, sensitivity: "base" });
   });
 }
 
@@ -83,7 +84,7 @@ function sortItems<T extends { createdAt: string; updatedAt?: string }>(items: T
 function canvasNode(c: CanvasDoc, subjectId: string): TreeNode {
   return {
     key: `c:${c.id}`,
-    label: c.name || "Sin título",
+    label: c.name || t("Sin título"),
     icon: Shapes,
     view: { type: "canvas", id: c.id },
     item: { kind: "canvas", id: c.id, subjectId },
@@ -130,7 +131,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     const kids = depth < 6 ? sortItems(kidsBy[n.id] ?? [], (k) => k.title, sort) : [];
     return {
       key: `n:${n.id}`,
-      label: n.title || "Sin título",
+      label: n.title || t("Sin título"),
       icon: NotebookPen,
       view: { type: "nota", id: n.id },
       item: { kind: "note", id: n.id, subjectId: n.subjectId },
@@ -165,7 +166,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
   const allFolders: TreeNode[] = [
     {
       key: "f:diario",
-      label: folderName(DAILY_FOLDER) ?? "Diario",
+      label: folderName(DAILY_FOLDER) ?? t("Diario"),
       icon: CalendarDays,
       item: { kind: "folder", folder: DAILY_FOLDER },
       drop: { subjectId: DAILY_FOLDER },
@@ -173,7 +174,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     },
     {
       key: "f:notas",
-      label: folderName(LOOSE_FOLDER) ?? "Notas",
+      label: folderName(LOOSE_FOLDER) ?? t("Notas"),
       icon: Folder,
       item: { kind: "folder", folder: LOOSE_FOLDER },
       drop: { subjectId: LOOSE_FOLDER },
@@ -227,7 +228,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       const subjects = data.subjects.filter((s) => s.degreeId === d.id);
       const node = (s: Subject) => subjectNode(s, def);
       // Las carpetas libres van arriba (no tienen año ni cuatrimestre).
-      const folderNodes = subjects.filter((s) => s.folder).sort((a, b) => a.name.localeCompare(b.name, "es")).map(node);
+      const folderNodes = subjects.filter((s) => s.folder).sort((a, b) => a.name.localeCompare(b.name, intlLocale())).map(node);
       const years = [...new Set(subjects.filter((s) => !s.folder).map((s) => s.year))].sort((a, b) => a - b);
       // Trabajo, proyectos y personal no tienen años: van directo, ordenados por nombre.
       if (!def.study) {
@@ -236,7 +237,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
           label: d.name,
           icon: def.spaceIcon,
           item: { kind: "degree", id: d.id },
-          children: [...folderNodes, ...subjects.filter((s) => !s.folder).sort((a, b) => a.name.localeCompare(b.name, "es")).map(node)],
+          children: [...folderNodes, ...subjects.filter((s) => !s.folder).sort((a, b) => a.name.localeCompare(b.name, intlLocale())).map(node)],
         };
       }
       return {
@@ -246,11 +247,11 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         item: { kind: "degree", id: d.id },
         children: [...folderNodes, ...years.map((y): TreeNode => ({
           key: `y:${d.id}:${y}`,
-          label: `${y}.º año`,
+          label: t("{año}.º año", { año: y }),
           item: { kind: "year", degreeId: d.id, year: y },
           children: subjects
             .filter((s) => s.year === y && !s.folder)
-            .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, "es"))
+            .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, intlLocale()))
             .map(node),
         }))],
       };

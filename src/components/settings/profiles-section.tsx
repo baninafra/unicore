@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { t } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import { useDegrees } from "@/lib/hooks";
 import { PROFILE_KINDS, PROFILES, profileOfDegree, useProfiles, type Profile, type ProfileKind } from "@/lib/profiles";
@@ -23,12 +24,12 @@ function ProfileRow({ p, spaces, onRename, onKind, onDelete }: { p: Profile; spa
       <input
         className="input min-w-0 flex-1"
         value={name}
-        aria-label="Nombre del perfil"
+        aria-label={t("Nombre del perfil")}
         onChange={(e) => setName(e.target.value)}
         onBlur={() => name.trim() && name.trim() !== p.name ? onRename(name.trim()) : setName(p.name)}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       />
-      <Select className="input w-[140px] flex-none" value={p.kind} onChange={(e) => onKind(e.target.value as ProfileKind)} aria-label="Tipo de perfil">
+      <Select className="input w-[140px] flex-none" value={p.kind} onChange={(e) => onKind(e.target.value as ProfileKind)} aria-label={t("Tipo de perfil")}>
         {PROFILE_KINDS.map((k) => (
           <option key={k} value={k}>
             {PROFILES[k].label}
@@ -38,7 +39,7 @@ function ProfileRow({ p, spaces, onRename, onKind, onDelete }: { p: Profile; spa
       <span className="t-small w-[92px] flex-none text-right text-faint">
         {def.study ? `${spaces} ${spaces === 1 ? def.space.one : def.space.many}` : ""}
       </span>
-      <button type="button" className="icon-btn flex-none" aria-label={`Borrar el perfil ${p.name}`} title="Borrar perfil" onClick={onDelete}>
+      <button type="button" className="icon-btn flex-none" aria-label={t("Borrar el perfil {name}", { name: p.name })} title={t("Borrar perfil")} onClick={onDelete}>
         <Trash2 strokeWidth={1.75} />
       </button>
     </div>
@@ -82,19 +83,19 @@ export function ProfilesSection() {
 
   return (
     <>
-      <Row label="Tu nombre">
+      <Row label={t("Tu nombre")}>
         <input
           className="input w-[240px]"
           value={name}
-          placeholder="Cómo te llamás"
+          placeholder={t("Cómo te llamás")}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => name !== profile.name && update({ name: name.trim() })}
         />
       </Row>
 
-      <Row label="Perfil que se ve ahora">
+      <Row label={t("Perfil que se ve ahora")}>
         <Select className="input w-[240px]" value={profile.active} onChange={(e) => setActive(e.target.value)}>
-          <option value="todos">Todos los perfiles</option>
+          <option value="todos">{t("Todos los perfiles")}</option>
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -104,24 +105,24 @@ export function ProfilesSection() {
       </Row>
 
       <div className="mb-1 mt-6 flex items-center justify-between">
-        <span className="section-label px-0">Tus perfiles</span>
+        <span className="section-label px-0">{t("Tus perfiles")}</span>
         <button type="button" className="btn btn-sm" onClick={() => openOnboarding("agregar")}>
           <Plus strokeWidth={1.75} />
-          Nuevo perfil
+          {t("Nuevo perfil")}
         </button>
       </div>
-      {profiles.length === 0 && <Hint>Todavía no tenés perfiles. Creá uno para la facultad, tu trabajo o tus proyectos.</Hint>}
+      {profiles.length === 0 && <Hint>{t("Todavía no tenés perfiles. Creá uno para la facultad, tu trabajo o tus proyectos.")}</Hint>}
       {profiles.map((p) =>
         confirm?.id === p.id ? (
           <div key={p.id} className="flex min-h-11 items-center gap-2 border-b border-border py-1.5">
             <span className="t-small flex-1 text-text">
-              ¿Borrar «{p.name}»? Sus {PROFILES[p.kind].space.many} y todo lo que tienen adentro no se borran: quedan en «Todos los perfiles».
+              {t("¿Borrar «{name}»? Sus {spaces} y todo lo que tienen adentro no se borran: quedan en «Todos los perfiles».", { name: p.name, spaces: PROFILES[p.kind].space.many })}
             </span>
             <button type="button" className="btn btn-sm" onClick={() => setConfirm(null)}>
-              Cancelar
+              {t("Cancelar")}
             </button>
             <button type="button" className="btn btn-sm btn-danger" onClick={() => void remove(p)}>
-              Borrar perfil
+              {t("Borrar perfil")}
             </button>
           </div>
         ) : (
@@ -135,14 +136,14 @@ export function ProfilesSection() {
           />
         ),
       )}
-      <Hint>Podés tener todos los perfiles que quieras, incluso varios del mismo tipo (por ejemplo, dos trabajos). El tipo cambia los nombres, los tipos de tarea y las secciones.</Hint>
+      <Hint>{t("Podés tener todos los perfiles que quieras, incluso varios del mismo tipo (por ejemplo, dos trabajos). El tipo cambia los nombres, los tipos de tarea y las secciones.")}</Hint>
 
       <div className="mt-6 flex flex-col gap-1.5">
-        <span className="t-small text-text">Sobre vos (para la IA)</span>
+        <span className="t-small text-text">{t("Sobre vos (para la IA)")}</span>
         <textarea
           className="input min-h-[96px] py-2"
           value={about}
-          placeholder="Qué hacés, qué querés lograr, cómo te gusta que te expliquen."
+          placeholder={t("Qué hacés, qué querés lograr, cómo te gusta que te expliquen.")}
           onChange={(e) => setAbout(e.target.value)}
           onBlur={() => about !== profile.about && update({ about: about.trim() })}
         />
@@ -150,10 +151,10 @@ export function ProfilesSection() {
 
       <div className="mt-6 flex flex-wrap gap-2">
         <button type="button" className="btn btn-sm" onClick={() => openOnboarding("rehacer")}>
-          Volver a hacer las preguntas
+          {t("Volver a hacer las preguntas")}
         </button>
         <button type="button" className="btn btn-sm" onClick={(e) => open({ type: "carreras" }, e)}>
-          Abrir {terms.spacesView.toLowerCase()}
+          {t("Abrir {view}", { view: terms.spacesView.toLowerCase() })}
         </button>
       </div>
     </>

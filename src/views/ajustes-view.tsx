@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import clsx from "clsx";
+import { getLang, LANGS, setLang, t, intlLocale, type Lang } from "@/lib/i18n";
 import { useAppState } from "@/lib/app-state";
 import { isDesktop } from "@/lib/desktop";
 import { useWorkspace } from "@/lib/workspace";
@@ -14,15 +15,15 @@ import { DEFAULT_SETTINGS } from "@/components/settings/apply-settings";
 import { Hint, Row, Segmented, Slider, Toggle } from "@/components/settings/settings-ui";
 
 const SECTIONS = [
-  { key: "perfiles", label: "Perfiles" },
-  { key: "apariencia", label: "Apariencia" },
-  { key: "editor", label: "Editor" },
-  { key: "calendarios", label: "Calendarios" },
-  { key: "notificaciones", label: "Notificaciones" },
-  { key: "ia", label: "IA" },
-  { key: "atajos", label: "Atajos" },
-  { key: "datos", label: "Datos" },
-  { key: "acerca", label: "Acerca de" },
+  { key: "perfiles", label: t("Perfiles") },
+  { key: "apariencia", label: t("Apariencia") },
+  { key: "editor", label: t("Editor") },
+  { key: "calendarios", label: t("Calendarios") },
+  { key: "notificaciones", label: t("Notificaciones") },
+  { key: "ia", label: t("IA") },
+  { key: "atajos", label: t("Atajos") },
+  { key: "datos", label: t("Datos") },
+  { key: "acerca", label: t("Acerca de") },
 ] as const;
 type SectionKey = (typeof SECTIONS)[number]["key"];
 
@@ -38,28 +39,37 @@ function Apariencia() {
   const [settings, update] = useSettings();
   return (
     <>
-      <Row label="Tema">
+      <Row label={t("Idioma")}>
+        <select className="input w-[180px]" value={getLang()} onChange={(e) => setLang(e.target.value as Lang)} aria-label={t("Idioma")}>
+          {LANGS.map((l) => (
+            <option key={l.value} value={l.value}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+      </Row>
+      <Row label={t("Tema de colores")}>
         <Segmented
           value={theme}
           options={[
-            { value: "dark", label: "Oscuro" },
-            { value: "light", label: "Claro" },
+            { value: "dark", label: t("Oscuro") },
+            { value: "light", label: t("Claro") },
           ]}
           onChange={(next) => {
             if (next !== theme) toggleTheme();
           }}
         />
       </Row>
-      <Row label="Tamaño de texto de la interfaz">
+      <Row label={t("Tamaño de texto de la interfaz")}>
         <Slider value={settings.uiFont} min={12} max={20} onChange={(v) => update({ uiFont: v })} />
       </Row>
-      <Row label="Tamaño de texto del editor">
+      <Row label={t("Tamaño de texto del editor")}>
         <Slider value={settings.editorFont} min={14} max={24} onChange={(v) => update({ editorFont: v })} />
       </Row>
-      <Row label="Limitar ancho de lectura">
-        <Toggle checked={settings.readableWidth} onChange={(v) => update({ readableWidth: v })} label="Limitar ancho de lectura" />
+      <Row label={t("Limitar ancho de lectura")}>
+        <Toggle checked={settings.readableWidth} onChange={(v) => update({ readableWidth: v })} label={t("Limitar ancho de lectura")} />
       </Row>
-      <Row label="Restablecer apariencia">
+      <Row label={t("Restablecer apariencia")}>
         <button
           type="button"
           className="btn btn-sm"
@@ -67,7 +77,7 @@ function Apariencia() {
             update({ uiFont: DEFAULT_SETTINGS.uiFont, editorFont: DEFAULT_SETTINGS.editorFont, readableWidth: DEFAULT_SETTINGS.readableWidth })
           }
         >
-          Restablecer
+          {t("Restablecer")}
         </button>
       </Row>
     </>
@@ -78,33 +88,33 @@ function Editor() {
   const [settings, update] = useSettings();
   return (
     <>
-      <Row label="Tipografía">
+      <Row label={t("Tipografía")}>
         <Segmented
           value={settings.editorFamily}
           options={[
-            { value: "sans", label: "Sans" },
-            { value: "serif", label: "Serif" },
-            { value: "mono", label: "Monoespaciada" },
+            { value: "sans", label: t("Sans") },
+            { value: "serif", label: t("Serif") },
+            { value: "mono", label: t("Monoespaciada") },
           ]}
           onChange={(editorFamily) => update({ editorFamily })}
         />
       </Row>
-      <Row label="Espaciado entre líneas">
+      <Row label={t("Espaciado entre líneas")}>
         <Segmented
           value={settings.editorSpacing}
           options={[
-            { value: "compacto", label: "Compacto" },
-            { value: "normal", label: "Normal" },
-            { value: "amplio", label: "Amplio" },
+            { value: "compacto", label: t("Compacto") },
+            { value: "normal", label: t("Normal") },
+            { value: "amplio", label: t("Amplio") },
           ]}
           onChange={(editorSpacing) => update({ editorSpacing })}
         />
       </Row>
-      <Row label="Corrector ortográfico">
-        <Toggle checked={settings.spellcheck} onChange={(v) => update({ spellcheck: v })} label="Corrector ortográfico" />
+      <Row label={t("Corrector ortográfico")}>
+        <Toggle checked={settings.spellcheck} onChange={(v) => update({ spellcheck: v })} label={t("Corrector ortográfico")} />
       </Row>
-      <Row label="Mostrar conteo de palabras">
-        <Toggle checked={settings.wordCount} onChange={(v) => update({ wordCount: v })} label="Mostrar conteo de palabras" />
+      <Row label={t("Mostrar conteo de palabras")}>
+        <Toggle checked={settings.wordCount} onChange={(v) => update({ wordCount: v })} label={t("Mostrar conteo de palabras")} />
       </Row>
     </>
   );
@@ -124,13 +134,13 @@ function Atajos() {
     <div className="flex flex-col gap-2">
       <input
         className="input h-7 max-w-xs"
-        placeholder="Buscar comando"
+        placeholder={t("Buscar comando")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        aria-label="Buscar comando"
+        aria-label={t("Buscar comando")}
       />
       {list.length === 0 ? (
-        <p className="t-small text-faint py-2">Sin resultados</p>
+        <p className="t-small text-faint py-2">{t("Sin resultados")}</p>
       ) : (
         <div className="flex flex-col">
           {list.map((c) => (
@@ -156,16 +166,16 @@ function Atajos() {
 function Notificaciones() {
   const [settings, update] = useSettings();
   const rows: { key: keyof typeof settings; label: string }[] = [
-    { key: "notifOverdue", label: "Entregas vencidas" },
-    { key: "notifToday", label: "Lo que vence hoy" },
-    { key: "notifTomorrow", label: "Lo que vence mañana" },
-    { key: "notifUpcoming", label: "Parciales, finales y entregas de los próximos días" },
-    { key: "notifReview", label: "Flashcards para repasar" },
-    { key: "notifEvents", label: "Eventos de tus calendarios (hoy y mañana)" },
+    { key: "notifOverdue", label: t("Entregas vencidas") },
+    { key: "notifToday", label: t("Lo que vence hoy") },
+    { key: "notifTomorrow", label: t("Lo que vence mañana") },
+    { key: "notifUpcoming", label: t("Parciales, finales y entregas de los próximos días") },
+    { key: "notifReview", label: t("Flashcards para repasar") },
+    { key: "notifEvents", label: t("Eventos de tus calendarios (hoy y mañana)") },
   ];
   return (
     <>
-      <Hint>Elegí qué avisos aparecen en la campana y en Notificaciones.</Hint>
+      <Hint>{t("Elegí qué avisos aparecen en la campana y en Notificaciones.")}</Hint>
       {rows.map((r) => (
         <Row key={r.key} label={r.label}>
           <Toggle checked={settings[r.key] as boolean} onChange={(v) => update({ [r.key]: v })} label={r.label} />
@@ -182,24 +192,24 @@ function Acerca() {
       <Row label="UniCore">
         <span className="t-small num text-muted">0.1.0</span>
       </Row>
-      <Row label="Plataforma">
-        <span className="t-small text-muted">{isDesktop() ? "Aplicación de escritorio" : "Navegador"}</span>
+      <Row label={t("Plataforma")}>
+        <span className="t-small text-muted">{isDesktop() ? t("Aplicación de escritorio") : t("Navegador")}</span>
       </Row>
-      <Row label="Tus datos">
-        <span className="t-small text-muted">Se guardan en este equipo, sin cuenta</span>
+      <Row label={t("Tus datos")}>
+        <span className="t-small text-muted">{t("Se guardan en este equipo, sin cuenta")}</span>
       </Row>
       {counts && (
-        <Row label="Notas · tareas · flashcards">
+        <Row label={t("Notas · tareas · flashcards")}>
           <span className="t-small num text-muted">
-            {counts.notas.toLocaleString("es-AR")} · {counts.tareas.toLocaleString("es-AR")} · {counts.flashcards.toLocaleString("es-AR")}
+            {counts.notas.toLocaleString(intlLocale())} · {counts.tareas.toLocaleString(intlLocale())} · {counts.flashcards.toLocaleString(intlLocale())}
           </span>
         </Row>
       )}
-      <Row label="Paleta de comandos">
+      <Row label={t("Paleta de comandos")}>
         <span className="kbd">Ctrl</span>
         <span className="kbd">K</span>
       </Row>
-      <Row label="Asistente de IA">
+      <Row label={t("Asistente de IA")}>
         <span className="kbd">Ctrl</span>
         <span className="kbd">J</span>
       </Row>
@@ -227,7 +237,7 @@ export function AjustesView({ section }: { section?: string }) {
 
   return (
     <div className="flex min-h-full">
-      <nav className="w-[200px] flex-none border-r border-border bg-bg px-2 py-4" aria-label="Secciones de ajustes">
+      <nav className="w-[200px] flex-none border-r border-border bg-bg px-2 py-4" aria-label={t("Secciones de ajustes")}>
         {SECTIONS.map((s) => (
           <button
             key={s.key}

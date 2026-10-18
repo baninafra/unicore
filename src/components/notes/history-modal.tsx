@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { shortDateTime } from "@/lib/format";
 import { db } from "@/lib/db";
 import type { NoteSnapshot } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 // Copias de recuperación de una nota: lista de fechas a la izquierda, texto a la derecha.
 export function HistoryModal({
@@ -27,18 +28,18 @@ export function HistoryModal({
     <Modal
       open
       onClose={onClose}
-      title="Historial de versiones"
+      title={t("Historial de versiones")}
       width={860}
       footer={
         selected && (
           <button type="button" className="btn btn-primary" onClick={() => onRestore(selected)}>
-            Restaurar
+            {t("Restaurar")}
           </button>
         )
       }
     >
       {snaps === undefined ? null : !sorted.length ? (
-        <p className="t-small text-faint">Sin versiones todavía.</p>
+        <p className="t-small text-faint">{t("Sin versiones todavía.")}</p>
       ) : (
         <div className="flex min-h-[320px] gap-4">
           <div className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto">
@@ -59,7 +60,7 @@ export function HistoryModal({
               <>
                 <div className="t-h3 mb-2">{selected.title}</div>
                 <div className="whitespace-pre-wrap text-[length:calc(13px*var(--ui-scale,1))] leading-relaxed text-muted">
-                  {selected.plainText || "Vacía"}
+                  {selected.plainText || t("Vacía")}
                 </div>
               </>
             )}

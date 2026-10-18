@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import clsx from "clsx";
 import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban, FolderPlus, Palette } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
+import { t } from "@/lib/i18n";
 import { useProfiles } from "@/lib/profiles";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
@@ -144,7 +145,7 @@ type Dialog =
 
 const FILE_ICONS = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, geo: DraftingCompass } as const;
 
-const SORT_LABEL: Record<SortMode, string> = { nombre: "Nombre", modificacion: "Modificación", creacion: "Creación" };
+const SORT_LABEL: Record<SortMode, string> = { nombre: t("Nombre"), modificacion: t("Modificación"), creacion: t("Creación") };
 
 interface Ctx {
   activeView: ViewState;
@@ -248,14 +249,14 @@ export function FileExplorer() {
           try {
             await nestNote(note.id, target.parentId);
           } catch (err) {
-            toast(err instanceof Error ? err.message : "No se pudo mover.", { tone: "error" });
+            toast(err instanceof Error ? err.message : t("No se pudo mover."), { tone: "error" });
           }
           return;
         }
         if (!note.parentId && note.subjectId === target.subjectId && (target.unit === undefined || note.unitNumber === target.unit)) return;
       } else if (target.parentId) return;
       else if (target.subjectId === DAILY_FOLDER || target.subjectId === IDEAS_FOLDER) {
-        toast("En esa carpeta sólo van notas.", { tone: "error" });
+        toast(t("En esa carpeta sólo van notas."), { tone: "error" });
         return;
       }
       await moveItem(payload.kind, payload.id, target);
@@ -279,19 +280,19 @@ export function FileExplorer() {
 
   function menuFor(node: TreeNode): MenuItem[] {
     const bm = (kind: BookmarkKind, id: string) => ({
-      label: bookmarks?.has(`${kind}:${id}`) ? "Quitar marcador" : "Agregar a marcadores",
+      label: bookmarks?.has(`${kind}:${id}`) ? t("Quitar marcador") : t("Agregar a marcadores"),
       icon: Bookmark,
       onSelect: () => safe(() => toggleBookmark(kind, id, node.label)),
     });
-    const openTab = (view: ViewState): MenuItem => ({ label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => open(view, { ctrlKey: true }) });
-    const openSplit = (view: ViewState): MenuItem => ({ label: "Abrir a la derecha", icon: Columns2, onSelect: () => open(view, { ctrlKey: true, altKey: true }) });
+    const openTab = (view: ViewState): MenuItem => ({ label: t("Abrir en pestaña nueva"), icon: ExternalLink, onSelect: () => open(view, { ctrlKey: true }) });
+    const openSplit = (view: ViewState): MenuItem => ({ label: t("Abrir a la derecha"), icon: Columns2, onSelect: () => open(view, { ctrlKey: true, altKey: true }) });
     const rename = (kind: "note" | "canvas" | "subject" | "file", id: string, value: string): MenuItem => ({
-      label: kind === "subject" ? `Renombrar ${data?.subjects.find((x) => x.id === id)?.folder ? "carpeta" : termsForSubject(id).item.one}` : "Renombrar",
+      label: kind === "subject" ? t("Renombrar {nombre}", { nombre: data?.subjects.find((x) => x.id === id)?.folder ? t("carpeta") : termsForSubject(id).item.one }) : t("Renombrar"),
       icon: Pencil,
       onSelect: () => setDialog({ type: "rename", kind, id, value }),
     });
     const remove = (kind: "note" | "canvas" | "file", id: string): MenuItem => ({
-      label: "Eliminar",
+      label: t("Eliminar"),
       icon: Trash2,
       danger: true,
       onSelect: () => setDialog({ type: "delete", kind, id, title: node.label }),
@@ -304,13 +305,13 @@ export function FileExplorer() {
     switch (item.kind) {
       case "folder": {
         const renameFolderItem: MenuItem = {
-          label: "Renombrar",
+          label: t("Renombrar"),
           icon: Pencil,
           onSelect: () => setDialog({ type: "rename", kind: "folder", id: item.folder, value: node.label }),
         };
         if (item.folder === DAILY_FOLDER)
           return [
-            { label: "Nota del día", icon: CalendarDays, onSelect: () => safe(async () => openView({ type: "nota", id: await openDailyNote(new Date()) })) },
+            { label: t("Nota del día"), icon: CalendarDays, onSelect: () => safe(async () => openView({ type: "nota", id: await openDailyNote(new Date()) })) },
             nuevo(),
             renameFolderItem,
             sep,
@@ -318,15 +319,15 @@ export function FileExplorer() {
           ];
         if (item.folder === IDEAS_FOLDER)
           return [
-            { label: "Nueva idea", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addIdea("") })) },
+            { label: t("Nueva idea"), icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addIdea("") })) },
             nuevo(),
-            { label: "Ver ideas", icon: ExternalLink, onSelect: () => openView({ type: "ideas" }) },
+            { label: t("Ver ideas"), icon: ExternalLink, onSelect: () => openView({ type: "ideas" }) },
             renameFolderItem,
           ];
         if (item.folder === TEMPLATES_FOLDER)
           return [
-            { label: "Ver plantillas", icon: FilePlus, onSelect: () => openView({ type: "plantillas" }) },
-            { label: "Nueva plantilla", icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(TEMPLATES_FOLDER) })) },
+            { label: t("Ver plantillas"), icon: FilePlus, onSelect: () => openView({ type: "plantillas" }) },
+            { label: t("Nueva plantilla"), icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addNote(TEMPLATES_FOLDER) })) },
           ];
         return [
           nuevo({ subjectId: LOOSE_FOLDER }),
@@ -339,10 +340,10 @@ export function FileExplorer() {
         return [
           nuevo({ subjectId: item.id, degreeId: data?.subjects.find((x) => x.id === item.id)?.degreeId }),
           sep,
-          ...(node.view ? [{ label: "Abrir", onSelect: () => open(node.view!) }] : []),
+          ...(node.view ? [{ label: t("Abrir"), onSelect: () => open(node.view!) }] : []),
           rename("subject", item.id, node.label),
           {
-            label: "Cambiar nombre e ícono",
+            label: t("Cambiar nombre e ícono"),
             icon: Palette,
             onSelect: () => {
               const subject = data?.subjects.find((x) => x.id === item.id);
@@ -363,7 +364,7 @@ export function FileExplorer() {
           sep,
           rename("note", item.id, node.label),
           {
-            label: "Nueva subnota",
+            label: t("Nueva subnota"),
             icon: FilePlus,
             onSelect: () =>
               safe(async () => {
@@ -372,13 +373,13 @@ export function FileExplorer() {
                   setOpenMap((prev) => saveOpen({ ...prev, [node.key]: true }));
                   openView({ type: "nota", id });
                 } catch (err) {
-                  toast(err instanceof Error ? err.message : "No se pudo crear.", { tone: "error" });
+                  toast(err instanceof Error ? err.message : t("No se pudo crear."), { tone: "error" });
                 }
               }),
           },
-          { label: "Duplicar", icon: Copy, onSelect: () => safe(() => duplicateNote(item.id)) },
+          { label: t("Duplicar"), icon: Copy, onSelect: () => safe(() => duplicateNote(item.id)) },
           {
-            label: "Crear tarea desde esta nota",
+            label: t("Crear tarea desde esta nota"),
             icon: ListPlus,
             onSelect: () =>
               safe(async () => {
@@ -386,7 +387,7 @@ export function FileExplorer() {
                 if (n) openTaskDialog(await taskFromNote(n));
               }),
           },
-          { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "note", id: item.id }) },
+          { label: t("Mover a"), icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "note", id: item.id }) },
           bm("note", item.id),
           ...pdf({ kind: "note", id: item.id }),
           sep,
@@ -399,7 +400,7 @@ export function FileExplorer() {
           nuevo({ subjectId: item.subjectId }),
           sep,
           rename("canvas", item.id, node.label),
-          { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "canvas", id: item.id }) },
+          { label: t("Mover a"), icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "canvas", id: item.id }) },
           bm("canvas", item.id),
           sep,
           remove("canvas", item.id),
@@ -411,8 +412,8 @@ export function FileExplorer() {
           nuevo({ subjectId: item.subjectId }),
           sep,
           rename("file", item.id, node.label),
-          { label: "Mover a", icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "file", id: item.id }) },
-          { label: "Descargar copia", icon: Download, onSelect: () => safe(() => downloadOfficeDoc(item.id)) },
+          { label: t("Mover a"), icon: FolderInput, onSelect: () => setDialog({ type: "move", kind: "file", id: item.id }) },
+          { label: t("Descargar copia"), icon: Download, onSelect: () => safe(() => downloadOfficeDoc(item.id)) },
           sep,
           remove("file", item.id),
         ];
@@ -420,32 +421,32 @@ export function FileExplorer() {
         return [openTab(node.view!), sep, bm("document", item.id)];
       case "degree": {
         const degree = data?.degrees.find((d) => d.id === item.id);
-        const t = termsFor(item.id);
+        const term = termsFor(item.id);
         return [
           nuevo({
             taskDefaults: { degreeId: item.id },
             degreeId: item.id,
             extra: [
               {
-                label: t.item.one.charAt(0).toUpperCase() + t.item.one.slice(1),
-                icon: t.study ? GraduationCap : FolderKanban,
-                onSelect: () => (t.study ? setCareer({ type: "subject", degreeId: item.id }) : openFolderDialog({ degreeId: item.id, item: true })),
+                label: term.item.one.charAt(0).toUpperCase() + term.item.one.slice(1),
+                icon: term.study ? GraduationCap : FolderKanban,
+                onSelect: () => (term.study ? setCareer({ type: "subject", degreeId: item.id }) : openFolderDialog({ degreeId: item.id, item: true })),
               },
             ],
           }),
-          { label: t.study ? "Ver plan de estudios" : `Ver ${t.item.many}`, icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
+          { label: term.study ? t("Ver plan de estudios") : t("Ver {items}", { items: term.item.many }), icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
           sep,
-          { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
-          { label: "Colapsar todo", icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
+          { label: t("Expandir todo"), icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
+          { label: t("Colapsar todo"), icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
           sep,
-          { label: `Editar ${t.space.one}`, icon: Pencil, onSelect: () => degree && setCareer({ type: "degree", degree }) },
+          { label: t("Editar {espacio}", { espacio: term.space.one }), icon: Pencil, onSelect: () => degree && setCareer({ type: "degree", degree }) },
           ...pdf({ kind: "degree", id: item.id }),
           sep,
           {
-            label: `Eliminar ${t.space.one}`,
+            label: t("Eliminar {espacio}", { espacio: term.space.one }),
             icon: Trash2,
             danger: true,
-            onSelect: () => safe(() => deleteWithUndo(`Se eliminó «${node.label}»`, () => deleteDegreeCascade(item.id))),
+            onSelect: () => safe(() => deleteWithUndo(t("Se eliminó «{nombre}»", { nombre: node.label }), () => deleteDegreeCascade(item.id))),
           },
         ];
       }
@@ -454,11 +455,11 @@ export function FileExplorer() {
           nuevo({
             taskDefaults: { degreeId: item.degreeId },
             degreeId: item.degreeId,
-            extra: [{ label: `Materia en ${node.label}`, icon: GraduationCap, onSelect: () => setCareer({ type: "subject", degreeId: item.degreeId, year: item.year }) }],
+            extra: [{ label: t("Materia en {año}", { año: node.label }), icon: GraduationCap, onSelect: () => setCareer({ type: "subject", degreeId: item.degreeId, year: item.year }) }],
           }),
           sep,
-          { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
-          { label: "Colapsar todo", icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
+          { label: t("Expandir todo"), icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
+          { label: t("Colapsar todo"), icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
         ];
       default:
         return [];
@@ -478,41 +479,41 @@ export function FileExplorer() {
     onSelect: () => changeSort(mode),
   }));
 
-  const nuevoItem = `${terms.item.f ? "Nueva" : "Nuevo"} ${terms.item.one}`;
-  const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? `Renombrar ${termsForSubject(dialog.id).item.one}` : dialog.kind === "canvas" ? "Renombrar lienzo" : dialog.kind === "file" ? "Renombrar archivo" : dialog.kind === "folder" ? "Renombrar carpeta" : "Renombrar nota") : "";
+  const nuevoItem = terms.item.f ? t("Nueva {item}", { item: terms.item.one }) : t("Nuevo {item}", { item: terms.item.one });
+  const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? t("Renombrar {nombre}", { nombre: termsForSubject(dialog.id).item.one }) : dialog.kind === "canvas" ? t("Renombrar lienzo") : dialog.kind === "file" ? t("Renombrar archivo") : dialog.kind === "folder" ? t("Renombrar carpeta") : t("Renombrar nota")) : "";
   const deleteTitle = dialog?.type === "delete" ? dialog.title : "";
 
   return (
     <div className="flex flex-col">
       <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-0.5 bg-bg pl-3 pr-2">
-        <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? "Archivos"}</span>
+        <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? t("Archivos")}</span>
         {singleSpace && (
           <button type="button" className="icon-btn" aria-label={nuevoItem} title={nuevoItem} onClick={() => openFolderDialog({ degreeId: singleSpace.id, item: true })}>
             <FolderKanban strokeWidth={1.75} />
           </button>
         )}
-        <button type="button" className="icon-btn" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => openFolderDialog({})}>
+        <button type="button" className="icon-btn" aria-label={t("Nueva carpeta")} title={t("Nueva carpeta")} onClick={() => openFolderDialog({})}>
           <FolderPlus strokeWidth={1.75} />
         </button>
-        <button type="button" className="icon-btn" aria-label="Nueva nota" title="Nueva nota" onClick={headerNewNote}>
+        <button type="button" className="icon-btn" aria-label={t("Nueva nota")} title={t("Nueva nota")} onClick={headerNewNote}>
           <FilePlus strokeWidth={1.75} />
         </button>
-        <button type="button" className="icon-btn" aria-label="Nuevo lienzo" title="Nuevo lienzo" onClick={headerNewCanvas}>
+        <button type="button" className="icon-btn" aria-label={t("Nuevo lienzo")} title={t("Nuevo lienzo")} onClick={headerNewCanvas}>
           <Shapes strokeWidth={1.75} />
         </button>
-        <button type="button" className="icon-btn" aria-label="Nuevo archivo" title="Nuevo documento, planilla o presentación" onClick={(e) => menu.open(e, headerNewFile)}>
+        <button type="button" className="icon-btn" aria-label={t("Nuevo archivo")} title={t("Nuevo documento, planilla o presentación")} onClick={(e) => menu.open(e, headerNewFile)}>
           <FileSpreadsheet strokeWidth={1.75} />
         </button>
         <button
           type="button"
           className="icon-btn"
-          aria-label="Ordenar"
-          title="Ordenar"
+          aria-label={t("Ordenar")}
+          title={t("Ordenar")}
           onClick={(e) => menu.open(e, sortMenu)}
         >
           <ArrowDownUp strokeWidth={1.75} />
         </button>
-        <button type="button" className="icon-btn" aria-label="Colapsar todo" title="Colapsar todo" onClick={collapseAll}>
+        <button type="button" className="icon-btn" aria-label={t("Colapsar todo")} title={t("Colapsar todo")} onClick={collapseAll}>
           <ChevronsDownUp strokeWidth={1.75} />
         </button>
       </div>
@@ -522,7 +523,7 @@ export function FileExplorer() {
       </div>
       {hasData && tree.every((n) => !n.children?.length && !n.view) && (
         <div className="mx-3 mt-2 flex flex-col gap-2 rounded-lg border border-dashed border-border p-4 text-center">
-          <p className="t-small text-faint">Todavía no hay nada acá.</p>
+          <p className="t-small text-faint">{t("Todavía no hay nada acá.")}</p>
           {singleSpace && (
             <button type="button" className="btn btn-sm btn-primary" onClick={() => openFolderDialog({ degreeId: singleSpace.id, item: true })}>
               <FolderKanban strokeWidth={1.75} />
@@ -531,11 +532,11 @@ export function FileExplorer() {
           )}
           <button type="button" className="btn btn-sm" onClick={() => openFolderDialog({})}>
             <FolderPlus strokeWidth={1.75} />
-            Nueva carpeta
+            {t("Nueva carpeta")}
           </button>
           <button type="button" className="btn btn-sm" onClick={headerNewNote}>
             <FilePlus strokeWidth={1.75} />
-            Nueva nota
+            {t("Nueva nota")}
           </button>
         </div>
       )}
@@ -544,7 +545,7 @@ export function FileExplorer() {
         open={dialog?.type === "rename"}
         title={renameTitle}
         initial={dialog?.type === "rename" ? dialog.value : ""}
-        confirmLabel="Renombrar"
+        confirmLabel={t("Renombrar")}
         onConfirm={(value) => {
           if (dialog?.type !== "rename") return;
           if (dialog.kind === "folder") renameFolder(dialog.id, value);
@@ -557,7 +558,7 @@ export function FileExplorer() {
       />
       <MoveDialog
         open={dialog?.type === "move"}
-        title="Mover a"
+        title={t("Mover a")}
         subjects={data?.subjects ?? []}
         degrees={data?.degrees ?? []}
         onPick={(subjectId) => {
@@ -567,9 +568,9 @@ export function FileExplorer() {
       />
       <ConfirmDialog
         open={dialog?.type === "delete"}
-        title="Eliminar"
-        text={`¿Eliminar "${deleteTitle}"? No se puede deshacer.`}
-        confirmLabel="Eliminar"
+        title={t("Eliminar")}
+        text={t("¿Eliminar \"{nombre}\"? No se puede deshacer.", { nombre: deleteTitle })}
+        confirmLabel={t("Eliminar")}
         onConfirm={() => {
           if (dialog?.type === "delete") safe(() => (dialog.kind === "note" ? deleteNote(dialog.id) : dialog.kind === "file" ? deleteOfficeDoc(dialog.id) : deleteCanvas(dialog.id)));
           setDialog(null);

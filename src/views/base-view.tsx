@@ -33,6 +33,7 @@ import {
 } from "@/lib/panes/base-query";
 import type { Note } from "@/lib/types";
 import { Select } from "@/components/ui/select";
+import { t } from "@/lib/i18n";
 
 const FIELD_SELECT =
   "h-7 rounded-md border border-border bg-surface-raised px-2 text-[length:calc(13px*var(--ui-scale,1))] text-text outline-none hover:border-border-strong focus:border-primary";
@@ -169,17 +170,17 @@ export function BaseView() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm" aria-pressed={showFilters} onClick={() => setShowFilters((o) => !o)}>
           <Filter strokeWidth={1.75} />
-          Filtros{config.filters.length > 0 ? ` (${config.filters.length})` : ""}
+          {config.filters.length > 0 ? t("Filtros ({n})", { n: config.filters.length }) : t("Filtros")}
         </button>
 
         <div ref={columnsRef} className="relative">
           <button type="button" className="btn btn-sm" aria-expanded={showColumns} onClick={() => setShowColumns((o) => !o)}>
             <Columns3 strokeWidth={1.75} />
-            Columnas
+            {t("Columnas")}
           </button>
           {showColumns && (
             <div className="absolute left-0 top-full z-20 mt-1 max-h-72 w-60 overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-pop">
-              {props.length === 0 && <p className="px-2 py-1 t-small text-faint">Sin propiedades</p>}
+              {props.length === 0 && <p className="px-2 py-1 t-small text-faint">{t("Sin propiedades")}</p>}
               {props.map((p) => (
                 <label key={p.key} className="row cursor-pointer">
                   <input type="checkbox" checked={config.columns.includes(p.key)} onChange={() => toggleColumn(p.key)} />
@@ -192,13 +193,13 @@ export function BaseView() {
         </div>
 
         <Select
-          aria-label="Agrupar por"
+          aria-label={t("Agrupar por")}
           value={config.groupBy}
           onChange={(e) => setConfig((c) => ({ ...c, groupBy: e.target.value }))}
           className={FIELD_SELECT}
         >
-          <option value="">Sin agrupar</option>
-          <option value="subject">Materia</option>
+          <option value="">{t("Sin agrupar")}</option>
+          <option value="subject">{t("Materia")}</option>
           {props.map((p) => (
             <option key={p.key} value={p.key}>
               {p.key}
@@ -207,7 +208,7 @@ export function BaseView() {
         </Select>
 
         <span className="num ml-auto text-[length:calc(12px*var(--ui-scale,1))] text-faint">
-          {total} {total === 1 ? "nota" : "notas"}
+          {total === 1 ? t("{n} nota", { n: total }) : t("{n} notas", { n: total })}
         </span>
       </div>
 
@@ -215,7 +216,7 @@ export function BaseView() {
         <div className="mb-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Select
-              aria-label="Campo del filtro"
+              aria-label={t("Campo del filtro")}
               value={draft.field}
               onChange={(e) => setDraft({ ...draft, field: e.target.value })}
               className={FIELD_SELECT}
@@ -232,7 +233,7 @@ export function BaseView() {
               ))}
             </Select>
             <Select
-              aria-label="Operador"
+              aria-label={t("Operador")}
               value={draft.op}
               onChange={(e) => setDraft({ ...draft, op: e.target.value as FilterOp })}
               className={FIELD_SELECT}
@@ -245,18 +246,18 @@ export function BaseView() {
             </Select>
             {needsValue && (
               <input
-                aria-label="Valor del filtro"
+                aria-label={t("Valor del filtro")}
                 value={draft.value}
                 onChange={(e) => setDraft({ ...draft, value: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") addFilter();
                 }}
-                placeholder="Valor"
+                placeholder={t("Valor")}
                 className={clsx(FIELD_SELECT, "w-40 placeholder:text-faint")}
               />
             )}
             <button type="button" className="btn btn-sm" disabled={!canAdd} onClick={addFilter}>
-              Agregar filtro
+              {t("Agregar filtro")}
             </button>
           </div>
 
@@ -268,7 +269,7 @@ export function BaseView() {
                   {!NO_VALUE_OPS.includes(f.op) && ` ${f.value}`}
                   <button
                     type="button"
-                    aria-label="Quitar filtro"
+                    aria-label={t("Quitar filtro")}
                     onClick={() => setConfig((c) => ({ ...c, filters: c.filters.filter((_, j) => j !== i) }))}
                     className="flex-none text-primary-soft hover:text-text"
                   >
@@ -281,7 +282,7 @@ export function BaseView() {
                 className="text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-text"
                 onClick={() => setConfig((c) => ({ ...c, filters: [] }))}
               >
-                Quitar filtros
+                {t("Quitar filtros")}
               </button>
             </div>
           )}
@@ -289,18 +290,18 @@ export function BaseView() {
       )}
 
       {notes.length === 0 ? (
-        <p className="py-6 t-small text-faint">Sin notas</p>
+        <p className="py-6 t-small text-faint">{t("Sin notas")}</p>
       ) : total === 0 ? (
-        <p className="py-6 t-small text-faint">Sin resultados</p>
+        <p className="py-6 t-small text-faint">{t("Sin resultados")}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-[length:calc(13px*var(--ui-scale,1))]">
             <thead>
               <tr className="border-b border-border">
-                <HeaderCell label="Título" field="title" config={config} onSort={toggleSort} />
-                <HeaderCell label="Materia" field="subject" config={config} onSort={toggleSort} />
-                <HeaderCell label="Etiquetas" field="tags" config={config} onSort={toggleSort} />
-                <HeaderCell label="Modificación" field="updated" config={config} onSort={toggleSort} />
+                <HeaderCell label={t("Título")} field="title" config={config} onSort={toggleSort} />
+                <HeaderCell label={t("Materia")} field="subject" config={config} onSort={toggleSort} />
+                <HeaderCell label={t("Etiquetas")} field="tags" config={config} onSort={toggleSort} />
+                <HeaderCell label={t("Modificación")} field="updated" config={config} onSort={toggleSort} />
                 {columns.map((key) => (
                   <HeaderCell key={key} label={key} field={key} config={config} onSort={toggleSort} />
                 ))}
@@ -347,7 +348,7 @@ export function BaseView() {
                             {isEditing ? (
                               <input
                                 autoFocus
-                                aria-label={`Editar ${key}`}
+                                aria-label={t("Editar {key}", { key })}
                                 value={editing.text}
                                 onChange={(e) => {
                                   const next = { ...editing, text: e.target.value };

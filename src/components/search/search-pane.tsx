@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CaseSensitive, ExternalLink } from "lucide-react";
 import { useWorkspace } from "@/lib/workspace";
+import { t } from "@/lib/i18n";
 import { FOCUS_SEARCH_EVENT } from "@/lib/nav/palette-bus";
 import { useSearch, type SortMode } from "@/lib/nav/search";
 import { SearchResults, SortSelect, useOpenHit } from "./search-results";
@@ -30,8 +31,8 @@ export function SearchPane() {
         <input
           ref={inputRef}
           className="input"
-          placeholder="Buscar"
-          aria-label="Buscar"
+          placeholder={t("Buscar")}
+          aria-label={t("Buscar")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -41,9 +42,9 @@ export function SearchPane() {
         <button
           type="button"
           className="icon-btn"
-          aria-label="Distinguir mayúsculas"
+          aria-label={t("Distinguir mayúsculas")}
           aria-pressed={cs}
-          title="Distinguir mayúsculas"
+          title={t("Distinguir mayúsculas")}
           onClick={() => setCs((v) => !v)}
         >
           <CaseSensitive strokeWidth={1.75} />
@@ -51,8 +52,8 @@ export function SearchPane() {
         <button
           type="button"
           className="icon-btn"
-          aria-label="Abrir en pestaña"
-          title="Abrir en pestaña"
+          aria-label={t("Abrir en pestaña")}
+          title={t("Abrir en pestaña")}
           onClick={() => openView({ type: "busqueda", query: query.trim() || undefined }, "tab")}
         >
           <ExternalLink strokeWidth={1.75} />

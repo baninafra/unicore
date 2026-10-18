@@ -8,6 +8,7 @@
 import { db, newId, nowIso, saveFile } from "../db";
 import type { OfficeDoc, OfficeKind } from "../types";
 import { toast } from "../undo";
+import { t } from "@/lib/i18n";
 
 export interface EditorKindInfo {
   label: string; // "Documento"
@@ -19,11 +20,11 @@ export interface EditorKindInfo {
 }
 
 export const EDITOR_KINDS: Record<OfficeKind, EditorKindInfo> = {
-  doc: { label: "Documento", newLabel: "Nuevo documento", ext: "docx", accepts: ["docx", "odt", "rtf"], path: "/editors/doc/", saveCommand: "file.save" },
-  sheet: { label: "Planilla", newLabel: "Nueva planilla", ext: "xlsx", accepts: ["xlsx", "xlsm", "xls", "ods", "csv", "tsv"], path: "/editors/sheet/", saveCommand: "file.save" },
-  deck: { label: "Presentación", newLabel: "Nueva presentación", ext: "pptx", accepts: ["pptx", "odp"], path: "/editors/deck/", saveCommand: "file.save" },
-  pdf: { label: "PDF", newLabel: "Nuevo PDF", ext: "pdf", accepts: ["pdf"], path: "/editors/pdf/", saveCommand: "file.save" },
-  geo: { label: "Geometría", newLabel: "Nueva construcción", ext: "ggb", accepts: ["ggb"], path: "/editors/geo/", saveCommand: "file.save" },
+  doc: { label: t("Documento"), newLabel: t("Nuevo documento"), ext: "docx", accepts: ["docx", "odt", "rtf"], path: "/editors/doc/", saveCommand: "file.save" },
+  sheet: { label: t("Planilla"), newLabel: t("Nueva planilla"), ext: "xlsx", accepts: ["xlsx", "xlsm", "xls", "ods", "csv", "tsv"], path: "/editors/sheet/", saveCommand: "file.save" },
+  deck: { label: t("Presentación"), newLabel: t("Nueva presentación"), ext: "pptx", accepts: ["pptx", "odp"], path: "/editors/deck/", saveCommand: "file.save" },
+  pdf: { label: t("PDF"), newLabel: t("Nuevo PDF"), ext: "pdf", accepts: ["pdf"], path: "/editors/pdf/", saveCommand: "file.save" },
+  geo: { label: t("Geometría"), newLabel: t("Nueva construcción"), ext: "ggb", accepts: ["ggb"], path: "/editors/geo/", saveCommand: "file.save" },
 };
 
 export const OFFICE_KINDS = Object.keys(EDITOR_KINDS) as OfficeKind[];
@@ -45,7 +46,7 @@ export async function createOfficeDoc(opts: { kind: OfficeKind; subjectId: strin
   const id = newId();
   const now = nowIso();
   const info = EDITOR_KINDS[opts.kind];
-  let name = opts.name?.trim() || (opts.file instanceof File ? opts.file.name : "Sin título");
+  let name = opts.name?.trim() || (opts.file instanceof File ? opts.file.name : t("Sin título"));
   if (!officeKindOf(name)) name = `${name}.${info.ext}`;
   const fileId = opts.file ? (await saveFile(opts.file, name)).slice(6) : undefined;
   await db.officeDocs.add({ id, subjectId: opts.subjectId, name, kind: opts.kind, fileId, updatedAt: now, createdAt: now });
@@ -84,7 +85,7 @@ export async function downloadOfficeDoc(id: string): Promise<void> {
   const doc = await db.officeDocs.get(id);
   const bytes = doc ? await officeBytes(doc) : null;
   if (!doc || !bytes) {
-    toast("Ese archivo todavía está vacío: guardalo primero desde el editor.", { tone: "error" });
+    toast(t("Ese archivo todavía está vacío: guardalo primero desde el editor."), { tone: "error" });
     return;
   }
   const { saveBlob } = await import("../export/save");

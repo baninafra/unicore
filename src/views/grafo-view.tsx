@@ -17,6 +17,7 @@ import {
 } from "@/components/graph/graph-model";
 import { GraphCanvas, type MenuEvent, type OpenModifiers } from "@/components/graph/graph-canvas";
 import { GraphOptionsPanel } from "@/components/graph/graph-options";
+import { t } from "@/lib/i18n";
 
 const STORE_KEY = "uc-grafo-opciones";
 const NO_NOTES: Note[] = [];
@@ -83,16 +84,16 @@ export function GrafoView({ noteId }: { noteId?: string }) {
       if (node.kind === "nota" && node.noteId) {
         const id = node.noteId;
         items.push(
-          { label: "Abrir nota", icon: FileText, onSelect: () => openView({ type: "nota", id }) },
-          { label: "Abrir en pestaña nueva", icon: ArrowUpRight, onSelect: () => openView({ type: "nota", id }, "tab") },
-          { label: "Ver grafo local", icon: GitFork, onSelect: () => openView({ type: "grafo", noteId: id }) },
+          { label: t("Abrir nota"), icon: FileText, onSelect: () => openView({ type: "nota", id }) },
+          { label: t("Abrir en pestaña nueva"), icon: ArrowUpRight, onSelect: () => openView({ type: "nota", id }, "tab") },
+          { label: t("Ver grafo local"), icon: GitFork, onSelect: () => openView({ type: "grafo", noteId: id }) },
         );
       } else if (node.kind === "etiqueta" && node.tag) {
         const query = `#${node.tag}`;
-        items.push({ label: "Buscar etiqueta", icon: Search, onSelect: () => openView({ type: "busqueda", query }) });
+        items.push({ label: t("Buscar etiqueta"), icon: Search, onSelect: () => openView({ type: "busqueda", query }) });
       } else if (node.kind === "materia" && node.subjectId && subjects.some((s) => s.id === node.subjectId)) {
         const id = node.subjectId;
-        items.push({ label: "Abrir materia", icon: BookOpen, onSelect: () => openView({ type: "materia", id }) });
+        items.push({ label: t("Abrir materia"), icon: BookOpen, onSelect: () => openView({ type: "materia", id }) });
       }
       if (items.length) openMenu(e, items);
     },
@@ -104,14 +105,14 @@ export function GrafoView({ noteId }: { noteId?: string }) {
       {noteId && (
         <div className="absolute left-3 top-3 z-10 flex max-w-[60%] items-center gap-2">
           <button type="button" className="btn btn-sm" onClick={() => openView({ type: "grafo" })}>
-            Grafo global
+            {t("Grafo global")}
           </button>
           <span className="truncate text-[length:calc(13px*var(--ui-scale,1))] text-muted">{centerNote?.title?.trim() || ""}</span>
         </div>
       )}
 
       {graph.nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center t-small text-faint">Sin resultados</div>
+        <div className="absolute inset-0 flex items-center justify-center t-small text-faint">{t("Sin resultados")}</div>
       )}
 
       <GraphCanvas

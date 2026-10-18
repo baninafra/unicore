@@ -5,6 +5,7 @@
 
 import { get } from "./ai/web";
 import { isDesktop } from "./desktop";
+import { t } from "@/lib/i18n";
 
 export interface VideoLink {
   provider: "youtube" | "vimeo" | "drive";
@@ -144,7 +145,7 @@ async function youtubeCaptionsAndroid(id: string): Promise<string> {
 }
 
 async function youtubeInfo(v: VideoLink, maxChars: number): Promise<VideoInfo> {
-  const info: VideoInfo = { titulo: "Video de YouTube", url: v.url };
+  const info: VideoInfo = { titulo: t("Video de YouTube"), url: v.url };
   try {
     const o = JSON.parse(await get(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(v.url)}`)) as {
       title?: string;
@@ -185,15 +186,15 @@ async function vimeoInfo(v: VideoLink): Promise<VideoInfo> {
       author_name?: string;
       description?: string;
     };
-    return { titulo: o.title ?? "Video de Vimeo", canal: o.author_name, descripcion: o.description && clip(o.description, 1500), url: v.url };
+    return { titulo: o.title ?? t("Video de Vimeo"), canal: o.author_name, descripcion: o.description && clip(o.description, 1500), url: v.url };
   } catch {
-    return { titulo: "Video de Vimeo", url: v.url };
+    return { titulo: t("Video de Vimeo"), url: v.url };
   }
 }
 
 // Drive no expone subtítulos sin iniciar sesión: sólo el nombre del archivo (si es público).
 async function driveInfo(v: VideoLink): Promise<VideoInfo> {
-  const info: VideoInfo = { titulo: "Video de Google Drive", url: v.url };
+  const info: VideoInfo = { titulo: t("Video de Google Drive"), url: v.url };
   if (!isDesktop()) return info;
   try {
     const html = await get(v.url);
@@ -246,7 +247,7 @@ export async function videoFrames(file: Blob, count = 8): Promise<{ duration: nu
   try {
     await new Promise<void>((ok, bad) => {
       video.onloadedmetadata = () => ok();
-      video.onerror = () => bad(new Error("No pudimos abrir el video. Probá con MP4 o WebM."));
+      video.onerror = () => bad(new Error(t("No pudimos abrir el video. Probá con MP4 o WebM.")));
     });
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     const scale = Math.min(1, 768 / Math.max(video.videoWidth || 1, video.videoHeight || 1));

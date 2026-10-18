@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { t } from "@/lib/i18n";
 import { useAppState } from "@/lib/app-state";
 import { db } from "@/lib/db";
 import { useAllSubjects, useDegrees } from "@/lib/hooks";
 import type { Flashcard } from "@/lib/types";
 import { QuickCardForm } from "./quick-card-form";
-import { endOfToday, minutesFor, plural } from "./review-utils";
+import { endOfToday, minutesFor } from "./review-utils";
 import { Select } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 
@@ -46,7 +47,7 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
     <div className="flex flex-col items-center gap-8">
       <div className="t-small flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted">
         <Select
-          aria-label="Carrera"
+          aria-label={t("Carrera")}
           className={TEXT_SELECT}
           value={degreeId}
           onChange={(e) => {
@@ -54,7 +55,7 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
             setSubjectId("");
           }}
         >
-          <option value="all">Todas las carreras</option>
+          <option value="all">{t("Todas las carreras")}</option>
           {degrees.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
@@ -62,8 +63,8 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
           ))}
         </Select>
         <span className="text-faint">/</span>
-        <Select aria-label="Materia" className={TEXT_SELECT} value={selectedSubject} onChange={(e) => setSubjectId(e.target.value)}>
-          <option value="">Todas las materias</option>
+        <Select aria-label={t("Materia")} className={TEXT_SELECT} value={selectedSubject} onChange={(e) => setSubjectId(e.target.value)}>
+          <option value="">{t("Todas las materias")}</option>
           {degreeSubjects.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -73,18 +74,18 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
         <span className="text-faint">/</span>
         <label className="flex cursor-pointer items-center gap-1.5">
           <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={todayOnly} onChange={(e) => setTodayOnly(e.target.checked)} />
-          Hasta hoy
+          {t("Hasta hoy")}
         </label>
       </div>
 
       {due.length > 0 ? (
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="t-h2 num">
-            {plural(due.length, "tarjeta para hoy", "tarjetas para hoy")}
+            {due.length === 1 ? t("1 tarjeta para hoy") : t("{n} tarjetas para hoy", { n: due.length })}
           </p>
-          <p className="t-small num text-faint">unos {plural(minutesFor(due.length), "minuto", "minutos")}</p>
+          <p className="t-small num text-faint">{minutesFor(due.length) === 1 ? t("unos 1 minuto") : t("unos {n} minutos", { n: minutesFor(due.length) })}</p>
           <button type="button" className="btn btn-primary h-9 px-5" onClick={() => onStart({ cards: due, subjectIds: [...scopeIds] })}>
-            Empezar repaso
+            {t("Empezar repaso")}
           </button>
         </div>
       ) : (
@@ -93,11 +94,11 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
             <QuickCardForm defaultSubjectId={selectedSubject} onClose={() => setAdding(false)} />
           ) : (
             <>
-              <p className="t-h2">Sin tarjetas para hoy</p>
-              <p className="t-small text-faint">Podés crear una a mano o pedírselas a la IA desde una nota.</p>
+              <p className="t-h2">{t("Sin tarjetas para hoy")}</p>
+              <p className="t-small text-faint">{t("Podés crear una a mano o pedírselas a la IA desde una nota.")}</p>
               <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
                 <Plus />
-                Nueva tarjeta
+                {t("Nueva tarjeta")}
               </button>
             </>
           )}

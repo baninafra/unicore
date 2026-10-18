@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import type { Note } from "@/lib/types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { createNote } from "./note-utils";
+import { t } from "@/lib/i18n";
 
 // Lista de apuntes de la materia, agrupada por unidad (notes ya viene ordenada).
 export function NoteList({
@@ -44,16 +45,16 @@ export function NoteList({
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-2">
       <button type="button" className="btn btn-sm w-full" onClick={() => setCreating(true)}>
         <FilePlus />
-        Nuevo apunte
+        {t("Nuevo apunte")}
       </button>
 
       {notes.length === 0 && (
-        <p className="t-small px-2 py-3 text-muted">Todavía no hay apuntes en esta materia.</p>
+        <p className="t-small px-2 py-3 text-muted">{t("Todavía no hay apuntes en esta materia.")}</p>
       )}
 
       {groups.map(([unit, items]) => (
         <section key={unit} className="flex flex-col gap-0.5">
-          <h3 className="t-label px-2 pt-3 pb-1">Unidad {unit}</h3>
+          <h3 className="t-label px-2 pt-3 pb-1">{t("Unidad {unit}", { unit })}</h3>
           <ul className="flex flex-col gap-0.5">
             {items.map((note) => (
               <NoteRow
@@ -82,13 +83,13 @@ export function NoteList({
 
       <ConfirmDialog
         open={!!deleting}
-        title="Eliminar apunte"
+        title={t("Eliminar apunte")}
         text={
           deleting
-            ? `¿Eliminar "${deleting.title}"? Se borra el texto del apunte. Las flashcards que se generaron desde él se mantienen. Esta acción no se puede deshacer.`
+            ? t("¿Eliminar \"{title}\"? Se borra el texto del apunte. Las flashcards que se generaron desde él se mantienen. Esta acción no se puede deshacer.", { title: deleting.title })
             : ""
         }
-        confirmLabel="Eliminar apunte"
+        confirmLabel={t("Eliminar apunte")}
         onConfirm={() => void remove()}
         onClose={() => setDeleting(null)}
       />
@@ -122,7 +123,7 @@ function NoteRow({
     if (finished.current) return;
     finished.current = true;
     setEditing(false);
-    const title = draft.trim() || "Sin título";
+    const title = draft.trim() || t("Sin título");
     if (title !== note.title) await db.notes.update(note.id, { title });
   };
 
@@ -138,7 +139,7 @@ function NoteRow({
           className="input min-w-0 flex-1"
           value={draft}
           autoFocus
-          aria-label="Título del apunte"
+          aria-label={t("Título del apunte")}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => void commit()}
           onKeyDown={(e) => {
@@ -165,7 +166,7 @@ function NoteRow({
           <button
             type="button"
             className="btn btn-ghost btn-sm btn-icon"
-            aria-label="Renombrar apunte"
+            aria-label={t("Renombrar apunte")}
             onClick={startEdit}
           >
             <Pencil />
@@ -173,7 +174,7 @@ function NoteRow({
           <button
             type="button"
             className="btn btn-ghost btn-sm btn-icon"
-            aria-label="Eliminar apunte"
+            aria-label={t("Eliminar apunte")}
             onClick={onDelete}
           >
             <Trash2 />
@@ -210,7 +211,7 @@ function NewNoteModal({
       const id = await createNote({ subjectId, title, unitNumber });
       onCreated(id);
     } catch {
-      setError("No pudimos crear el apunte. Probá de nuevo.");
+      setError(t("No pudimos crear el apunte. Probá de nuevo."));
       setSaving(false);
     }
   };
@@ -219,32 +220,32 @@ function NewNoteModal({
     <Modal
       open
       onClose={onClose}
-      title="Nuevo apunte"
+      title={t("Nuevo apunte")}
       width={420}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="submit" form="new-note-form" className="btn btn-primary" disabled={saving}>
-            Crear apunte
+            {t("Crear apunte")}
           </button>
         </>
       }
     >
       <form id="new-note-form" onSubmit={submit} className="flex flex-col gap-4">
         <label className="field">
-          <span>Título</span>
+          <span>{t("Título")}</span>
           <input
             className="input"
             value={title}
             autoFocus
-            placeholder="Ej: Clase 3, Derivadas"
+            placeholder={t("Ej: Clase 3, Derivadas")}
             onChange={(e) => setTitle(e.target.value)}
           />
         </label>
         <label className="field">
-          <span>Unidad</span>
+          <span>{t("Unidad")}</span>
           <input
             type="number"
             min={1}
@@ -253,7 +254,7 @@ function NewNoteModal({
             onChange={(e) => setUnit(e.target.value)}
           />
         </label>
-        <p className="t-small text-muted">Si la unidad todavía no existe, se crea sola.</p>
+        <p className="t-small text-muted">{t("Si la unidad todavía no existe, se crea sola.")}</p>
         {error && <p className="t-small text-rose">{error}</p>}
       </form>
     </Modal>

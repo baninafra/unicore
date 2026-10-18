@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { startOfWeek } from "date-fns";
+import { t } from "@/lib/i18n";
 import { useAppState } from "@/lib/app-state";
 import { db } from "@/lib/db";
 import { useOpen } from "@/components/workspace/use-open";
@@ -12,9 +13,9 @@ import type { Flashcard, StudySession } from "@/lib/types";
 export function formatStudyTime(totalMinutes: number) {
   const h = Math.floor(totalMinutes / 60);
   const m = Math.round(totalMinutes % 60);
-  if (h === 0) return `${m} min`;
-  if (m === 0) return `${h} h`;
-  return `${h} h ${String(m).padStart(2, "0")}`;
+  if (h === 0) return t("{m} min", { m });
+  if (m === 0) return t("{h} h", { h });
+  return t("{h} h {m}", { h, m: String(m).padStart(2, "0") });
 }
 
 // Resumen de Inicio en una columna: tarjetas para repasar (clic abre Repaso) y tiempo de estudio de la semana.
@@ -47,10 +48,10 @@ export function SummaryLines({ now }: { now?: Date }) {
         className="row w-full"
         onClick={(e) => open({ type: "repaso" }, e)}
       >
-        <span className="num">Para repasar: {dueToday}</span>
+        <span className="num">{t("Para repasar: {n}", { n: dueToday })}</span>
       </button>
       <div className="row">
-        <span className="num">Estudiado esta semana: {formatStudyTime(studiedMinutes)}</span>
+        <span className="num">{t("Estudiado esta semana: {time}", { time: formatStudyTime(studiedMinutes) })}</span>
       </div>
     </div>
   );

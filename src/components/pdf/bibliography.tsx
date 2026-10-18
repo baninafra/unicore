@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { shortDate } from "@/lib/format";
 import type { SubjectDocument } from "@/lib/types";
 import { PdfImportButton } from "./pdf-import-button";
+import { t } from "@/lib/i18n";
 
 interface Props {
   subjectId: string;
@@ -46,7 +47,7 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("No pudimos copiar el texto. Seleccionalo a mano.");
+      setError(t("No pudimos copiar el texto. Seleccionalo a mano."));
     }
   }
 
@@ -55,7 +56,7 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
     try {
       const file = await db.files.get(doc.fileId);
       if (!file) {
-        setError("No encontramos el archivo original.");
+        setError(t("No encontramos el archivo original."));
         return;
       }
       const url = URL.createObjectURL(file.blob);
@@ -65,13 +66,13 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      setError("No pudimos descargar el archivo. Probá de nuevo.");
+      setError(t("No pudimos descargar el archivo. Probá de nuevo."));
     }
   }
 
   async function removeDocument(doc: SubjectDocument) {
     try {
-      await deleteWithUndo(`Se eliminó «${doc.fileName}»`, () =>
+      await deleteWithUndo(t("Se eliminó «{name}»", { name: doc.fileName }), () =>
         db.transaction("rw", db.documents, db.files, async () => {
           await db.documents.delete(doc.id);
           if (doc.fileId) await db.files.delete(doc.fileId);
@@ -79,7 +80,7 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
       );
       setConfirmingId(null);
     } catch {
-      setError("No pudimos eliminar el documento. Probá de nuevo.");
+      setError(t("No pudimos eliminar el documento. Probá de nuevo."));
     }
   }
 
@@ -87,7 +88,7 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="t-small text-muted">
-          {docs ? `${docs.length} ${docs.length === 1 ? "documento" : "documentos"}` : ""}
+          {docs ? (docs.length === 1 ? t("{n} documento", { n: docs.length }) : t("{n} documentos", { n: docs.length })) : ""}
         </div>
         <PdfImportButton
           subjectId={subjectId}
@@ -104,8 +105,8 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
       {docs && docs.length === 0 && (
         <EmptyState
           icon={BookOpen}
-          title="Subí la bibliografía de la materia"
-          text="Los PDFs se pasan a texto para que los puedas leer, buscar y preguntarle a la IA."
+          title={t("Subí la bibliografía de la materia")}
+          text={t("Los PDFs se pasan a texto para que los puedas leer, buscar y preguntarle a la IA.")}
         />
       )}
 
@@ -118,40 +119,40 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
                 <div className="min-w-0">
                   <div className="t-body truncate text-text">{doc.fileName}</div>
                   <div className="t-small num text-muted">
-                    {`${doc.pageCount} ${doc.pageCount === 1 ? "página" : "páginas"} · ${shortDate(doc.createdAt)}`}
+                    {doc.pageCount === 1 ? t("{n} página · {date}", { n: doc.pageCount, date: shortDate(doc.createdAt) }) : t("{n} páginas · {date}", { n: doc.pageCount, date: shortDate(doc.createdAt) })}
                   </div>
                 </div>
               </div>
 
               {confirmingId === doc.id ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="t-small text-muted">¿Eliminar este documento?</span>
+                  <span className="t-small text-muted">{t("¿Eliminar este documento?")}</span>
                   <button className="btn btn-danger btn-sm" onClick={() => void removeDocument(doc)}>
-                    Eliminar
+                    {t("Eliminar")}
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setConfirmingId(null)}>
-                    Cancelar
+                    {t("Cancelar")}
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-1">
                   <button className="btn btn-ghost btn-sm" onClick={() => setViewingId(doc.id)}>
                     <Eye strokeWidth={1.75} />
-                    Ver texto
+                    {t("Ver texto")}
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => void downloadOriginal(doc)} disabled={!doc.fileId}>
                     <Download strokeWidth={1.75} />
-                    Descargar original
+                    {t("Descargar original")}
                   </button>
                   {onOpenAsNote && (
                     <button className="btn btn-ghost btn-sm" onClick={() => onOpenAsNote(doc.id)}>
                       <NotebookPen strokeWidth={1.75} />
-                      Abrir como apunte
+                      {t("Abrir como apunte")}
                     </button>
                   )}
                   <button className="btn btn-ghost btn-sm" onClick={() => void removeDocument(doc)}>
                     <Trash strokeWidth={1.75} />
-                    Eliminar
+                    {t("Eliminar")}
                   </button>
                 </div>
               )}
@@ -169,14 +170,14 @@ export function Bibliography({ subjectId, onOpenAsNote }: Props) {
           viewing && (
             <button className="btn btn-primary" onClick={() => void copyText(viewing.extractedText)}>
               {copied ? <Check strokeWidth={1.75} /> : <Copy strokeWidth={1.75} />}
-              {copied ? "Copiado" : "Copiar"}
+              {copied ? t("Copiado") : t("Copiar")}
             </button>
           )
         }
       >
         {viewing && (
           <p className="whitespace-pre-wrap break-words t-body text-text">
-            {viewing.extractedText || "Este documento no tiene texto."}
+            {viewing.extractedText || t("Este documento no tiene texto.")}
           </p>
         )}
       </Modal>

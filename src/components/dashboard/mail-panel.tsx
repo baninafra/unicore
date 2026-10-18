@@ -1,5 +1,6 @@
 "use client";
 
+import { t } from "@/lib/i18n";
 import { MailItem } from "@/components/mails/mail-item";
 import type { Subject, Task } from "@/lib/types";
 
@@ -14,19 +15,19 @@ export function MailPanel({ tasks, subjects, onOpenAll }: { tasks: Task[]; subje
   return (
     <section className="flex flex-col gap-0.5">
       <h2 className="section-label mb-1 flex items-center justify-between pr-1">
-        <span>Mails</span>
+        <span>{t("Mails")}</span>
         {inbox.length > 0 && <span className="num">{inbox.length}</span>}
       </h2>
 
       {inbox.length === 0 ? (
-        <p className="t-small px-2 py-1 text-faint">Sin mails</p>
+        <p className="t-small px-2 py-1 text-faint">{t("Sin mails")}</p>
       ) : (
         inbox.slice(0, SHOWN).map((task) => <MailItem key={task.id} task={task} subjects={subjects} />)
       )}
 
       {inbox.length > SHOWN && (
         <button type="button" className="row justify-start text-primary-soft" onClick={onOpenAll}>
-          Ver todos ({inbox.length})
+          {t("Ver todos ({n})", { n: inbox.length })}
         </button>
       )}
     </section>

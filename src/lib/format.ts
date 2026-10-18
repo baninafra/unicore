@@ -1,13 +1,13 @@
 import { differenceInCalendarDays, format, isValid } from "date-fns";
-import { es } from "date-fns/locale";
 import type { Degree, Subject, TaskType } from "./types";
+import { t, dateLocale, intlLocale } from "./i18n";
 
 // "vie 17/10"
 export function shortDate(iso?: string) {
   if (!iso) return "";
   const d = new Date(iso);
   if (!isValid(d)) return "";
-  return format(d, "EEE d/M", { locale: es });
+  return format(d, "EEE d/M", { locale: dateLocale() });
 }
 
 // "vie 17/10 · 23:59"
@@ -15,18 +15,18 @@ export function shortDateTime(iso?: string) {
   if (!iso) return "";
   const d = new Date(iso);
   if (!isValid(d)) return "";
-  return format(d, "EEE d/M · HH:mm", { locale: es });
+  return format(d, "EEE d/M · HH:mm", { locale: dateLocale() });
 }
 
 // "hoy", "mañana", "en 3 días", "vencido hace 2 días"
 export function relativeDays(iso?: string) {
   if (!iso) return "";
   const diff = differenceInCalendarDays(new Date(iso), new Date());
-  if (diff === 0) return "hoy";
-  if (diff === 1) return "mañana";
-  if (diff > 1) return `en ${diff} días`;
-  if (diff === -1) return "vencido ayer";
-  return `vencido hace ${-diff} días`;
+  if (diff === 0) return t("hoy");
+  if (diff === 1) return t("mañana");
+  if (diff > 1) return t("en {diff} días", { diff });
+  if (diff === -1) return t("vencido ayer");
+  return t("vencido hace {n} días", { n: -diff });
 }
 
 export function daysUntil(iso?: string) {
@@ -44,7 +44,7 @@ export function isUrgent(type: TaskType, iso?: string) {
 // 8,42
 export function grade(n?: number, digits = 2) {
   if (n === undefined || Number.isNaN(n)) return "–";
-  return n.toLocaleString("es-AR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return n.toLocaleString(intlLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 export function degreeBadgeClass(degree?: Pick<Degree, "color">) {

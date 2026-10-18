@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import clsx from "clsx";
 import * as chrono from "chrono-node";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek } from "date-fns";
-import { es } from "date-fns/locale";
+import { t, dateLocale } from "@/lib/i18n";
 import { CalendarClock, ChevronLeft, ChevronRight, Download, FileUp, MoreHorizontal, Palette, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { db, newId, nowIso } from "@/lib/db";
 import { CALENDAR_COLORS, CALENDAR_COLOR_LABEL, syncAllCalendars, useCalendars } from "@/lib/calendars/sync";
@@ -34,16 +34,16 @@ export function MiniMonth({ cursor, from, to, marks, weekStart, onPick }: { curs
     if (!isSameMonth(month, cursor)) setMonth(startOfMonth(cursor));
   }
   const days = eachDayOfInterval({ start: startOfWeek(month, { weekStartsOn: weekStart }), end: endOfWeek(endOfMonth(month), { weekStartsOn: weekStart }) });
-  const names = weekStart === 1 ? ["L", "M", "X", "J", "V", "S", "D"] : ["D", "L", "M", "X", "J", "V", "S"];
-  const label = format(month, "LLLL yyyy", { locale: es });
+  const names = weekStart === 1 ? [t("L"), t("M"), t("X"), t("J"), t("V"), t("S"), t("D")] : [t("D"), t("L"), t("M"), t("X"), t("J"), t("V"), t("S")];
+  const label = format(month, "LLLL yyyy", { locale: dateLocale() });
   return (
     <div className="flex flex-col gap-1 px-3 pt-3">
       <div className="flex items-center">
         <span className="text-[length:calc(13px*var(--ui-scale,1))] font-semibold capitalize text-text">{label}</span>
-        <button type="button" className="icon-btn ml-auto" aria-label="Mes anterior" onClick={() => setMonth(addMonths(month, -1))}>
+        <button type="button" className="icon-btn ml-auto" aria-label={t("Mes anterior")} onClick={() => setMonth(addMonths(month, -1))}>
           <ChevronLeft />
         </button>
-        <button type="button" className="icon-btn" aria-label="Mes siguiente" onClick={() => setMonth(addMonths(month, 1))}>
+        <button type="button" className="icon-btn" aria-label={t("Mes siguiente")} onClick={() => setMonth(addMonths(month, 1))}>
           <ChevronRight />
         </button>
       </div>
@@ -101,7 +101,7 @@ function CalRow({ cal, menu }: { cal: CalendarSource; menu?: MenuItem[] }) {
         {cal.error && <span className="h-1.5 w-1.5 flex-none rounded-full bg-rose" title={cal.error} />}
       </label>
       {menu && (
-        <button type="button" className="icon-btn opacity-0 group-hover:opacity-100" aria-label={`Opciones de ${cal.name}`} onClick={(e) => open(e, menu)}>
+        <button type="button" className="icon-btn opacity-0 group-hover:opacity-100" aria-label={t("Opciones de {name}", { name: cal.name })} onClick={(e) => open(e, menu)}>
           <MoreHorizontal />
         </button>
       )}
@@ -142,24 +142,24 @@ export function CalendarList({
   const [syncing, setSyncing] = useState(false);
 
   const localMenu = (cal: CalendarSource): MenuItem[] => [
-    { label: "Renombrar", icon: Pencil, onSelect: () => setPrompt({ title: "Renombrar calendario", initial: cal.name, done: (v) => void db.calendars.update(cal.id, { name: v.trim() || cal.name }) }) },
+    { label: t("Renombrar"), icon: Pencil, onSelect: () => setPrompt({ title: t("Renombrar calendario"), initial: cal.name, done: (v) => void db.calendars.update(cal.id, { name: v.trim() || cal.name }) }) },
     {
-      label: "Color",
+      label: t("Color"),
       icon: Palette,
       submenu: CALENDAR_COLORS.map((c) => ({ label: CALENDAR_COLOR_LABEL[c], onSelect: () => void db.calendars.update(cal.id, { color: c }) })),
     },
     { type: "separator" },
     {
-      label: "Importar eventos (.ics)",
+      label: t("Importar eventos (.ics)"),
       icon: FileUp,
       onSelect: () =>
         pickIcs(async (text) => {
           const n = await importIcsInto(cal.id, text).catch(() => -1);
-          toast(n < 0 ? "Ese archivo no es un calendario válido." : `Se importaron ${n} ${n === 1 ? "evento" : "eventos"}.`, n < 0 ? { tone: "error" } : {});
+          toast(n < 0 ? t("Ese archivo no es un calendario válido.") : n === 1 ? t("Se importó {n} evento.", { n }) : t("Se importaron {n} eventos.", { n }), n < 0 ? { tone: "error" } : {});
         }),
     },
     {
-      label: "Exportar (.ics)",
+      label: t("Exportar (.ics)"),
       icon: Download,
       onSelect: async () => {
         const { name, ics } = await exportCalendarIcs(cal.id);
@@ -168,12 +168,12 @@ export function CalendarList({
     },
     { type: "separator" },
     {
-      label: "Borrar calendario",
+      label: t("Borrar calendario"),
       icon: Trash2,
       danger: true,
       onSelect: async () => {
         const count = await db.events.where("calendarId").equals(cal.id).count();
-        if (count && !window.confirm(`¿Borrar «${cal.name}» y sus ${count} eventos?`)) return;
+        if (count && !window.confirm(t("¿Borrar «{name}» y sus {count} eventos?", { name: cal.name, count }))) return;
         await deleteLocalCalendar(cal.id);
       },
     },
@@ -183,12 +183,12 @@ export function CalendarList({
     <div className="flex flex-col gap-3 px-1 py-3">
       <section className="flex flex-col">
         <div className="flex items-center pr-1">
-          <h3 className="section-label flex-1">Mis calendarios</h3>
-          <button type="button" className="icon-btn" aria-label="Nuevo calendario" title="Nuevo calendario" onClick={() => setPrompt({ title: "Nuevo calendario", initial: "", done: (v) => void createLocalCalendar(v) })}>
+          <h3 className="section-label flex-1">{t("Mis calendarios")}</h3>
+          <button type="button" className="icon-btn" aria-label={t("Nuevo calendario")} title={t("Nuevo calendario")} onClick={() => setPrompt({ title: t("Nuevo calendario"), initial: "", done: (v) => void createLocalCalendar(v) })}>
             <Plus />
           </button>
         </div>
-        {locals.length === 0 && <p className="t-small px-2 text-faint">Se crea «Personal» con tu primer evento.</p>}
+        {locals.length === 0 && <p className="t-small px-2 text-faint">{t("Se crea «Personal» con tu primer evento.")}</p>}
         {locals.map((c) => (
           <CalRow key={c.id} cal={c} menu={localMenu(c)} />
         ))}
@@ -196,13 +196,13 @@ export function CalendarList({
 
       <section className="flex flex-col">
         <div className="flex items-center pr-1">
-          <h3 className="section-label flex-1">Suscripciones</h3>
+          <h3 className="section-label flex-1">{t("Suscripciones")}</h3>
           {external.length > 0 && (
             <button
               type="button"
               className="icon-btn"
-              aria-label="Sincronizar"
-              title="Sincronizar ahora"
+              aria-label={t("Sincronizar")}
+              title={t("Sincronizar ahora")}
               disabled={syncing}
               onClick={async () => {
                 setSyncing(true);
@@ -213,28 +213,28 @@ export function CalendarList({
               <RefreshCw className={clsx(syncing && "animate-spin")} />
             </button>
           )}
-          <button type="button" className="icon-btn" aria-label="Conectar un calendario" title="Conectar Google Calendar, Outlook, el campus…" onClick={(e) => open({ type: "ajustes", section: "calendarios" }, e)}>
+          <button type="button" className="icon-btn" aria-label={t("Conectar un calendario")} title={t("Conectar Google Calendar, Outlook, el campus…")} onClick={(e) => open({ type: "ajustes", section: "calendarios" }, e)}>
             <Plus />
           </button>
         </div>
-        {external.length === 0 && <p className="t-small px-2 text-faint">Conectá Google Calendar, Outlook o el campus.</p>}
+        {external.length === 0 && <p className="t-small px-2 text-faint">{t("Conectá Google Calendar, Outlook o el campus.")}</p>}
         {external.map((c) => (
           <CalRow key={c.id} cal={c} />
         ))}
       </section>
 
       <section className="flex flex-col">
-        <h3 className="section-label">Mostrar</h3>
-        <Toggle label="Tareas" checked={showTasks} onChange={setShowTasks} color="bg-amber" />
-        <Toggle label="Tareas hechas" checked={showDone} onChange={setShowDone} color="bg-mint" />
-        <Toggle label="Cronogramas de materias" checked={showCronogramas} onChange={setShowCronogramas} color="bg-cyan" />
+        <h3 className="section-label">{t("Mostrar")}</h3>
+        <Toggle label={t("Tareas")} checked={showTasks} onChange={setShowTasks} color="bg-amber" />
+        <Toggle label={t("Tareas hechas")} checked={showDone} onChange={setShowDone} color="bg-mint" />
+        <Toggle label={t("Cronogramas de materias")} checked={showCronogramas} onChange={setShowCronogramas} color="bg-cyan" />
       </section>
 
       <PromptModal
         open={!!prompt}
         title={prompt?.title ?? ""}
         initial={prompt?.initial}
-        placeholder="Facultad, Trabajo, Gimnasio…"
+        placeholder={t("Facultad, Trabajo, Gimnasio…")}
         onConfirm={(v) => {
           prompt?.done(v);
           setPrompt(null);
@@ -249,12 +249,12 @@ export function CalendarList({
 
 type TaskFilter = "pendientes" | "sin-fecha" | "vencidas" | "hoy" | "semana" | "hechas";
 const FILTER_LABEL: Record<TaskFilter, string> = {
-  pendientes: "Pendientes",
-  "sin-fecha": "Sin fecha",
-  vencidas: "Vencidas",
-  hoy: "Hoy",
-  semana: "Próximos 7 días",
-  hechas: "Hechas",
+  pendientes: t("Pendientes"),
+  "sin-fecha": t("Sin fecha"),
+  vencidas: t("Vencidas"),
+  hoy: t("Hoy"),
+  semana: t("Próximos 7 días"),
+  hechas: t("Hechas"),
 };
 
 const LS_FILTER = "uc-cal-task-filter";
@@ -337,50 +337,50 @@ export function TasksPane({ tasks, subjects }: { tasks: Task[]; subjects: Subjec
           value={quick}
           onChange={(e) => setQuick(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void addQuick()}
-          placeholder="Nueva tarea… (ej: «Leer cap. 3 el jueves 18hs»)"
-          aria-label="Nueva tarea rápida"
+          placeholder={t("Nueva tarea… (ej: «Leer cap. 3 el jueves 18hs»)")}
+          aria-label={t("Nueva tarea rápida")}
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
-        {list.length === 0 && <p className="t-small px-2 py-3 text-faint">No hay tareas acá.</p>}
-        {list.map((t) => {
-          const done = t.status === "DONE";
-          const due = t.dueDate ? new Date(t.dueDate) : null;
+        {list.length === 0 && <p className="t-small px-2 py-3 text-faint">{t("No hay tareas acá.")}</p>}
+        {list.map((task) => {
+          const done = task.status === "DONE";
+          const due = task.dueDate ? new Date(task.dueDate) : null;
           const late = !done && due && due.getTime() < now;
           return (
             <div
-              key={t.id}
+              key={task.id}
               draggable
               onDragStart={(e) => {
-                e.dataTransfer.setData(TASK_MIME, t.id);
+                e.dataTransfer.setData(TASK_MIME, task.id);
                 e.dataTransfer.effectAllowed = "move";
               }}
-              onClick={() => openTaskDialog(t)}
+              onClick={() => openTaskDialog(task)}
               onContextMenu={(e) =>
                 open(e, [
-                  { label: "Editar tarea", icon: Pencil, onSelect: () => openTaskDialog(t) },
-                  { label: "Planificar un bloque en el calendario", icon: CalendarClock, onSelect: () => void planTask(t).then(() => toast("Bloque agregado al calendario.")) },
+                  { label: t("Editar tarea"), icon: Pencil, onSelect: () => openTaskDialog(task) },
+                  { label: t("Planificar un bloque en el calendario"), icon: CalendarClock, onSelect: () => void planTask(task).then(() => toast(t("Bloque agregado al calendario."))) },
                   { type: "separator" },
-                  { label: "Borrar tarea", icon: Trash2, danger: true, onSelect: () => void deleteWithUndo(`Se eliminó «${t.title}»`, () => db.tasks.delete(t.id)) },
+                  { label: t("Borrar tarea"), icon: Trash2, danger: true, onSelect: () => void deleteWithUndo(t("Se eliminó «{name}»", { name: task.title }), () => db.tasks.delete(task.id)) },
                 ])
               }
-              title="Arrastrala a un día o a una hora del calendario"
+              title={t("Arrastrala a un día o a una hora del calendario")}
               className="group flex cursor-grab items-start gap-2 rounded-md px-2 py-1.5 hover:bg-surface-raised active:cursor-grabbing"
             >
               <input
                 type="checkbox"
                 checked={done}
                 onClick={(e) => e.stopPropagation()}
-                onChange={(e) => void db.tasks.update(t.id, { status: e.target.checked ? "DONE" : "TODO" })}
+                onChange={(e) => void db.tasks.update(task.id, { status: e.target.checked ? "DONE" : "TODO" })}
                 className="mt-0.5 accent-[var(--primary)]"
-                aria-label={done ? "Marcar como pendiente" : "Marcar como hecha"}
+                aria-label={done ? t("Marcar como pendiente") : t("Marcar como hecha")}
               />
               <div className="min-w-0 flex-1">
-                <div className={clsx("truncate text-[length:calc(13px*var(--ui-scale,1))] text-text", done && "text-faint line-through")}>{t.title}</div>
+                <div className={clsx("truncate text-[length:calc(13px*var(--ui-scale,1))] text-text", done && "text-faint line-through")}>{task.title}</div>
                 <div className="flex flex-wrap gap-x-2 text-[length:calc(11px*var(--ui-scale,1))] text-faint">
-                  <span>{taskLabel(t)}</span>
-                  {due && <span className={clsx(late && "text-rose")}>{format(due, due.getHours() === 23 && due.getMinutes() === 59 ? "EEE d/M" : "EEE d/M HH:mm", { locale: es })}</span>}
-                  {t.subjectId && names.get(t.subjectId) && <span className="truncate">{names.get(t.subjectId)}</span>}
+                  <span>{taskLabel(task)}</span>
+                  {due && <span className={clsx(late && "text-rose")}>{format(due, due.getHours() === 23 && due.getMinutes() === 59 ? "EEE d/M" : "EEE d/M HH:mm", { locale: dateLocale() })}</span>}
+                  {task.subjectId && names.get(task.subjectId) && <span className="truncate">{names.get(task.subjectId)}</span>}
                 </div>
               </div>
             </div>

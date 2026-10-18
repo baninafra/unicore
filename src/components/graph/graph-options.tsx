@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { GraphForces, GraphGroup, GraphOptions } from "./graph-model";
+import { t } from "@/lib/i18n";
 
 interface Props {
   opts: GraphOptions;
@@ -24,8 +25,8 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
         type="button"
         onClick={() => setOpen(true)}
         className="icon-btn absolute right-3 top-3 z-10 border border-border bg-surface shadow-pop"
-        aria-label="Mostrar opciones del grafo"
-        title="Opciones del grafo"
+        aria-label={t("Mostrar opciones del grafo")}
+        title={t("Opciones del grafo")}
       >
         <SlidersHorizontal strokeWidth={1.75} />
       </button>
@@ -35,16 +36,16 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
   return (
     <div className="absolute right-3 top-3 z-10 flex max-h-[calc(100%-24px)] w-[232px] flex-col overflow-y-auto rounded-md border border-border bg-surface py-1 shadow-pop">
       <div className="flex items-center justify-between px-2 pb-1">
-        <span className="section-label">Opciones</span>
-        <button type="button" className="icon-btn h-6 w-6" onClick={() => setOpen(false)} aria-label="Ocultar opciones" title="Ocultar">
+        <span className="section-label">{t("Opciones")}</span>
+        <button type="button" className="icon-btn h-6 w-6" onClick={() => setOpen(false)} aria-label={t("Ocultar opciones")} title={t("Ocultar")}>
           <ChevronDown strokeWidth={1.75} />
         </button>
       </div>
 
-      <Section title="Filtros">
+      <Section title={t("Filtros")}>
         {local && (
           <Slider
-            label="Profundidad"
+            label={t("Profundidad")}
             value={opts.depth}
             min={1}
             max={3}
@@ -55,18 +56,18 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
         )}
         <input
           className="input h-7 text-[length:calc(13px*var(--ui-scale,1))]"
-          placeholder="Buscar nota"
+          placeholder={t("Buscar nota")}
           value={opts.query}
           onChange={(e) => onChange({ query: e.target.value })}
-          aria-label="Buscar notas en el grafo"
+          aria-label={t("Buscar notas en el grafo")}
         />
-        <Check label="Mostrar etiquetas" checked={opts.showTags} onChange={(v) => onChange({ showTags: v })} />
-        <Check label="Mostrar materias" checked={opts.showSubjects} onChange={(v) => onChange({ showSubjects: v })} />
-        <Check label="Mostrar huérfanas" checked={opts.showOrphans} onChange={(v) => onChange({ showOrphans: v })} />
+        <Check label={t("Mostrar etiquetas")} checked={opts.showTags} onChange={(v) => onChange({ showTags: v })} />
+        <Check label={t("Mostrar materias")} checked={opts.showSubjects} onChange={(v) => onChange({ showSubjects: v })} />
+        <Check label={t("Mostrar huérfanas")} checked={opts.showOrphans} onChange={(v) => onChange({ showOrphans: v })} />
       </Section>
 
-      <Section title="Grupos">
-        <Check label="Colorear por materia" checked={opts.colorBySubject} onChange={(v) => onChange({ colorBySubject: v })} />
+      <Section title={t("Grupos")}>
+        <Check label={t("Colorear por materia")} checked={opts.colorBySubject} onChange={(v) => onChange({ colorBySubject: v })} />
         {groups.map((g) => (
           <div key={g.key} className="row">
             <span className="h-2.5 w-2.5 flex-none rounded-[3px]" style={{ background: g.color }} aria-hidden />
@@ -75,9 +76,9 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
         ))}
       </Section>
 
-      <Section title="Fuerzas">
+      <Section title={t("Fuerzas")}>
         <Slider
-          label="Repulsión"
+          label={t("Repulsión")}
           value={opts.forces.repulsion}
           min={100}
           max={2000}
@@ -85,7 +86,7 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
           onChange={(v) => onForces({ repulsion: v })}
         />
         <Slider
-          label="Longitud de enlace"
+          label={t("Longitud de enlace")}
           value={opts.forces.linkDistance}
           min={20}
           max={250}
@@ -93,7 +94,7 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
           onChange={(v) => onForces({ linkDistance: v })}
         />
         <Slider
-          label="Gravedad"
+          label={t("Gravedad")}
           value={opts.forces.gravity}
           min={0}
           max={0.2}
@@ -102,7 +103,7 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
           onChange={(v) => onForces({ gravity: v })}
         />
         <button type="button" className="btn btn-sm btn-ghost self-start" onClick={onReset}>
-          Restablecer
+          {t("Restablecer")}
         </button>
       </Section>
     </div>

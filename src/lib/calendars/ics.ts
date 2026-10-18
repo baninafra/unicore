@@ -1,5 +1,7 @@
 // Lector de archivos iCalendar (.ics): eventos simples y repetidos (RRULE, EXDATE, cambios de una sola fecha).
 
+import { t } from "@/lib/i18n";
+
 export interface IcsEvent {
   uid: string;
   title: string;
@@ -232,7 +234,7 @@ export function parseIcsSeries(text: string): IcsSeries[] {
     const exdates = (b.EXDATE ?? []).flatMap((ex) => ex.value.split(",").flatMap((v) => parseDate({ params: ex.params, value: v })?.date ?? []));
     out.push({
       uid: b.UID?.[0]?.value ?? `${start.getTime()}`,
-      title: unescapeText(b.SUMMARY?.[0]?.value ?? "").trim() || "Sin título",
+      title: unescapeText(b.SUMMARY?.[0]?.value ?? "").trim() || t("Sin título"),
       start,
       end,
       allDay,
@@ -359,7 +361,7 @@ export function parseIcs(text: string, from: Date, to: Date): IcsEvent[] {
     const uid = b.UID?.[0]?.value ?? `${start.getTime()}-${b.SUMMARY?.[0]?.value ?? ""}`;
     const base = {
       uid,
-      title: unescapeText(b.SUMMARY?.[0]?.value ?? "").trim() || "Sin título",
+      title: unescapeText(b.SUMMARY?.[0]?.value ?? "").trim() || t("Sin título"),
       allDay,
       location: unescapeText(b.LOCATION?.[0]?.value ?? "").trim() || undefined,
       description: unescapeText(b.DESCRIPTION?.[0]?.value ?? "").trim() || undefined,

@@ -4,6 +4,7 @@
 // y el puente que mantiene el título igual en todas las PCs.
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { t } from "@/lib/i18n";
 import { Check, Copy, Users } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { db, nowIso } from "@/lib/db";
@@ -36,11 +37,11 @@ function NameField() {
   const [name, setName] = useState(() => shareUser().name);
   return (
     <label className="field">
-      <span>Tu nombre (lo ven los demás en tu cursor)</span>
+      <span>{t("Tu nombre (lo ven los demás en tu cursor)")}</span>
       <input
         className="input"
         value={name}
-        placeholder="Ej.: Fede"
+        placeholder={t("Ej.: Fede")}
         onChange={(e) => {
           setName(e.target.value);
           setShareName(e.target.value);
@@ -50,7 +51,7 @@ function NameField() {
   );
 }
 
-const peopleText = (n: number) => (n === 0 ? "Todavía no se conectó nadie" : n === 1 ? "1 persona conectada" : `${n} personas conectadas`);
+const peopleText = (n: number) => (n === 0 ? t("Todavía no se conectó nadie") : n === 1 ? t("1 persona conectada") : t("{n} personas conectadas", { n }));
 
 export function ShareDialog({ noteId, title, onClose }: { noteId: string; title: string; onClose: () => void }) {
   const share = useShare(noteId);
@@ -62,7 +63,7 @@ export function ShareDialog({ noteId, title, onClose }: { noteId: string; title:
     <Modal
       open
       onClose={onClose}
-      title={share?.role === "invitado" ? "Nota compartida" : "Compartir nota"}
+      title={share?.role === "invitado" ? t("Nota compartida") : t("Compartir nota")}
       width={480}
       footer={
         share ? (
@@ -75,16 +76,16 @@ export function ShareDialog({ noteId, title, onClose }: { noteId: string; title:
                 onClose();
               }}
             >
-              {share.role === "anfitrion" ? "Dejar de compartir" : "Desconectarme"}
+              {share.role === "anfitrion" ? t("Dejar de compartir") : t("Desconectarme")}
             </button>
             <button type="button" className="btn btn-primary" onClick={onClose}>
-              Listo
+              {t("Listo")}
             </button>
           </>
         ) : (
           <>
             <button type="button" className="btn" onClick={onClose}>
-              Cancelar
+              {t("Cancelar")}
             </button>
             <button
               type="button"
@@ -95,14 +96,14 @@ export function ShareDialog({ noteId, title, onClose }: { noteId: string; title:
                 try {
                   await startShare(noteId, title);
                 } catch {
-                  toast("No se pudo empezar a compartir. Revisá la conexión a internet.", { tone: "error" });
+                  toast(t("No se pudo empezar a compartir. Revisá la conexión a internet."), { tone: "error" });
                 } finally {
                   setStarting(false);
                 }
               }}
             >
               <Users />
-              {starting ? "Preparando…" : "Compartir"}
+              {starting ? t("Preparando…") : t("Compartir")}
             </button>
           </>
         )
@@ -111,14 +112,13 @@ export function ShareDialog({ noteId, title, onClose }: { noteId: string; title:
       <div className="flex flex-col gap-4">
         {!share && (
           <p className="t-small text-muted">
-            Te damos un link para pasarle a quien quieras. Se conecta directo a tu PC y escriben los dos a la vez en esta nota; cada uno se
-            guarda una copia. Tu app tiene que quedar abierta mientras editan.
+            {t("Te damos un link para pasarle a quien quieras. Se conecta directo a tu PC y escriben los dos a la vez en esta nota; cada uno se guarda una copia. Tu app tiene que quedar abierta mientras editan.")}
           </p>
         )}
         <NameField />
         {share?.role === "anfitrion" && (
           <div className="field">
-            <span>Link para invitar</span>
+            <span>{t("Link para invitar")}</span>
             <div className="flex gap-2">
               <input className="input min-w-0 flex-1 font-mono text-[length:calc(12px*var(--ui-scale,1))]" readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
               <button
@@ -132,16 +132,16 @@ export function ShareDialog({ noteId, title, onClose }: { noteId: string; title:
                 }
               >
                 {copied ? <Check /> : <Copy />}
-                {copied ? "Copiado" : "Copiar"}
+                {copied ? t("Copiado") : t("Copiar")}
               </button>
             </div>
-            <span className="t-small font-normal text-faint">El otro lo pega en «Unirse a una nota compartida» (barra izquierda o Ctrl+P).</span>
+            <span className="t-small font-normal text-faint">{t("El otro lo pega en «Unirse a una nota compartida» (barra izquierda o Ctrl+P).")}</span>
           </div>
         )}
         {share && (
           <p className="t-small flex items-center gap-2 text-muted">
             <span className={share.peers.length ? "h-2 w-2 rounded-full bg-mint" : "h-2 w-2 rounded-full bg-faint"} />
-            {share.role === "invitado" && !share.synced ? "Conectando con el anfitrión…" : peopleText(share.peers.length)}
+            {share.role === "invitado" && !share.synced ? t("Conectando con el anfitrión…") : peopleText(share.peers.length)}
           </p>
         )}
       </div>
@@ -177,16 +177,16 @@ export function JoinDialogHost() {
     if (!link) return;
     // Se elige dónde queda la copia local de la nota.
     setOpen(false);
-    const to = await pickFolder("¿Dónde guardo la nota compartida?");
+    const to = await pickFolder(t("¿Dónde guardo la nota compartida?"));
     if (!to) return;
     setBusy(true);
     try {
-      const id = await createNote({ subjectId: to, title: "Nota compartida", unitNumber: 1 });
+      const id = await createNote({ subjectId: to, title: t("Nota compartida"), unitNumber: 1 });
       await joinShare(id, link);
       openView({ type: "nota", id }, "tab");
-      toast("Conectando con el anfitrión…");
+      toast(t("Conectando con el anfitrión…"));
     } catch {
-      toast("No se pudo conectar. Revisá el link y la conexión a internet.", { tone: "error" });
+      toast(t("No se pudo conectar. Revisá el link y la conexión a internet."), { tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -196,22 +196,22 @@ export function JoinDialogHost() {
     <Modal
       open
       onClose={() => setOpen(false)}
-      title="Unirse a una nota compartida"
+      title={t("Unirse a una nota compartida")}
       width={480}
       footer={
         <>
           <button type="button" className="btn" onClick={() => setOpen(false)}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="button" className="btn btn-primary" disabled={!link || busy} onClick={() => void join()}>
-            Unirme
+            {t("Unirme")}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         <label className="field">
-          <span>Link que te pasaron</span>
+          <span>{t("Link que te pasaron")}</span>
           <input
             className="input font-mono text-[length:calc(12px*var(--ui-scale,1))]"
             autoFocus
@@ -220,7 +220,7 @@ export function JoinDialogHost() {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void join()}
           />
-          {text && !link && <span className="t-small font-normal text-rose">Ese link no parece de UniCore.</span>}
+          {text && !link && <span className="t-small font-normal text-rose">{t("Ese link no parece de UniCore.")}</span>}
         </label>
         <NameField />
       </div>

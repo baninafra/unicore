@@ -36,21 +36,22 @@ import { deleteWithUndo, toast } from "@/lib/undo";
 import { IDEAS_FOLDER, type Note } from "@/lib/types";
 import { PromptModal } from "@/components/ui/prompt-modal";
 import { folderName, renameFolder, useFolderNames } from "@/lib/folder-names";
+import { intlLocale, t } from "@/lib/i18n";
 
 const NoteEditor = dynamic(() => import("@/components/notes/note-editor").then((m) => m.NoteEditor), { ssr: false });
 
 // Colores translúcidos: se ven bien en tema claro y oscuro.
 export const IDEA_COLORS = [
-  { key: "", label: "Sin color", bg: "transparent", border: "var(--border)" },
-  { key: "rojo", label: "Rojo", bg: "rgba(244, 63, 94, 0.16)", border: "rgba(244, 63, 94, 0.38)" },
-  { key: "naranja", label: "Naranja", bg: "rgba(249, 115, 22, 0.16)", border: "rgba(249, 115, 22, 0.38)" },
-  { key: "amarillo", label: "Amarillo", bg: "rgba(234, 179, 8, 0.17)", border: "rgba(234, 179, 8, 0.4)" },
-  { key: "verde", label: "Verde", bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.36)" },
-  { key: "turquesa", label: "Turquesa", bg: "rgba(20, 184, 166, 0.15)", border: "rgba(20, 184, 166, 0.36)" },
-  { key: "celeste", label: "Celeste", bg: "rgba(56, 189, 248, 0.15)", border: "rgba(56, 189, 248, 0.38)" },
-  { key: "violeta", label: "Violeta", bg: "rgba(139, 92, 246, 0.17)", border: "rgba(139, 92, 246, 0.4)" },
-  { key: "rosa", label: "Rosa", bg: "rgba(236, 72, 153, 0.15)", border: "rgba(236, 72, 153, 0.36)" },
-  { key: "gris", label: "Gris", bg: "rgba(148, 163, 184, 0.15)", border: "rgba(148, 163, 184, 0.36)" },
+  { key: "", label: t("Sin color"), bg: "transparent", border: "var(--border)" },
+  { key: "rojo", label: t("Rojo"), bg: "rgba(244, 63, 94, 0.16)", border: "rgba(244, 63, 94, 0.38)" },
+  { key: "naranja", label: t("Naranja"), bg: "rgba(249, 115, 22, 0.16)", border: "rgba(249, 115, 22, 0.38)" },
+  { key: "amarillo", label: t("Amarillo"), bg: "rgba(234, 179, 8, 0.17)", border: "rgba(234, 179, 8, 0.4)" },
+  { key: "verde", label: t("Verde"), bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.36)" },
+  { key: "turquesa", label: t("Turquesa"), bg: "rgba(20, 184, 166, 0.15)", border: "rgba(20, 184, 166, 0.36)" },
+  { key: "celeste", label: t("Celeste"), bg: "rgba(56, 189, 248, 0.15)", border: "rgba(56, 189, 248, 0.38)" },
+  { key: "violeta", label: t("Violeta"), bg: "rgba(139, 92, 246, 0.17)", border: "rgba(139, 92, 246, 0.4)" },
+  { key: "rosa", label: t("Rosa"), bg: "rgba(236, 72, 153, 0.15)", border: "rgba(236, 72, 153, 0.36)" },
+  { key: "gris", label: t("Gris"), bg: "rgba(148, 163, 184, 0.15)", border: "rgba(148, 163, 184, 0.36)" },
 ] as const;
 
 const colorOf = (n: Note) => IDEA_COLORS.find((c) => c.key === (n.properties?.color ?? "")) ?? IDEA_COLORS[0];
@@ -70,7 +71,7 @@ export async function addIdea(title: string, opts: { body?: string; checklist?: 
         .filter(Boolean)
         .map((t) => ({ type: "checkListItem", props: { checked: false }, content: t }))
     : markdownToBlocks(body);
-  const id = await createNote({ subjectId: IDEAS_FOLDER, title: title || "Sin título", unitNumber: 1, content });
+  const id = await createNote({ subjectId: IDEAS_FOLDER, title: title || t("Sin título"), unitNumber: 1, content });
   await db.notes.update(id, { properties: { color: opts.color ?? "", fijada: false, archivada: false } });
   return id;
 }
@@ -236,13 +237,13 @@ function Capture() {
       {!open ? (
         <div className="flex items-center gap-2 px-4 py-3">
           <button type="button" className="flex-1 text-left text-[length:calc(14px*var(--ui-scale,1))] text-faint" onClick={() => setOpen(true)}>
-            Anotá una idea…
+            {t("Anotá una idea…")}
           </button>
           <button
             type="button"
             className="icon-btn"
-            title="Nueva lista"
-            aria-label="Nueva lista"
+            title={t("Nueva lista")}
+            aria-label={t("Nueva lista")}
             onClick={() => {
               setChecklist(true);
               setOpen(true);
@@ -258,7 +259,7 @@ function Capture() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && bodyRef.current?.focus()}
-            placeholder="Título"
+            placeholder={t("Título")}
             className="w-full bg-transparent text-[length:calc(15px*var(--ui-scale,1))] font-medium text-text outline-none placeholder:text-faint"
           />
           <textarea
@@ -271,25 +272,25 @@ function Capture() {
               if (e.key === "Escape") void save();
             }}
             rows={2}
-            placeholder={checklist ? "Un elemento por renglón" : "Anotá una idea… (Markdown: **negrita**, - listas, # títulos)"}
+            placeholder={checklist ? t("Un elemento por renglón") : t("Anotá una idea… (Markdown: **negrita**, - listas, # títulos)")}
             className="w-full resize-none bg-transparent text-[length:calc(14px*var(--ui-scale,1))] leading-6 text-text outline-none placeholder:text-faint"
           />
           <div className="flex items-center gap-1">
-            <button type="button" className="icon-btn" title="Color" aria-label="Color" onClick={() => setPalette((p) => !p)}>
+            <button type="button" className="icon-btn" title={t("Color")} aria-label={t("Color")} onClick={() => setPalette((p) => !p)}>
               <Palette strokeWidth={1.75} />
             </button>
             <button
               type="button"
               className={clsx("icon-btn", checklist && "text-primary-soft")}
-              title={checklist ? "Pasar a texto" : "Pasar a lista con casillas"}
+              title={checklist ? t("Pasar a texto") : t("Pasar a lista con casillas")}
               aria-pressed={checklist}
               onClick={() => setChecklist((v) => !v)}
             >
               <CheckSquare strokeWidth={1.75} />
             </button>
-            <span className="ml-auto text-[length:calc(11px*var(--ui-scale,1))] text-faint">Ctrl+Enter para guardar</span>
+            <span className="ml-auto text-[length:calc(11px*var(--ui-scale,1))] text-faint">{t("Ctrl+Enter para guardar")}</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void save()}>
-              Cerrar
+              {t("Cerrar")}
             </button>
           </div>
           {palette && <ColorPicker value={color} onPick={setColor} />}
@@ -322,7 +323,7 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
     if (t !== note.title) void db.notes.update(note.id, { title: t, updatedAt: nowIso() });
   };
 
-  const edited = new Date(note.updatedAt).toLocaleString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const edited = new Date(note.updatedAt).toLocaleString(intlLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" onMouseDown={(e) => e.target === e.currentTarget && (saveTitle(), onClose())}>
@@ -340,12 +341,12 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
             onBlur={saveTitle}
             onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur(), saveTitle())}
             className="min-w-0 flex-1 bg-transparent text-[22px] font-semibold leading-8 text-text outline-none"
-            aria-label="Título de la idea"
+            aria-label={t("Título de la idea")}
           />
           <button
             type="button"
             className="icon-btn mt-1"
-            title={isPinned(note) ? "Dejar de fijar" : "Fijar arriba"}
+            title={isPinned(note) ? t("Dejar de fijar") : t("Fijar arriba")}
             onClick={() => void setProps(note, { fijada: !isPinned(note) })}
           >
             {isPinned(note) ? <PinOff strokeWidth={1.75} /> : <Pin strokeWidth={1.75} />}
@@ -353,7 +354,7 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
           <button
             type="button"
             className="icon-btn mt-1"
-            title="Abrir como nota en una pestaña"
+            title={t("Abrir como nota en una pestaña")}
             onClick={() => {
               saveTitle();
               onClose();
@@ -362,7 +363,7 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
           >
             <Maximize2 strokeWidth={1.75} />
           </button>
-          <button type="button" className="icon-btn mt-1" title="Cerrar (Esc)" aria-label="Cerrar" onClick={() => (saveTitle(), onClose())}>
+          <button type="button" className="icon-btn mt-1" title={t("Cerrar (Esc)")} aria-label={t("Cerrar")} onClick={() => (saveTitle(), onClose())}>
             <X strokeWidth={1.75} />
           </button>
         </div>
@@ -377,13 +378,13 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
           </div>
         )}
         <div className="flex items-center gap-1 border-t px-4 py-2" style={{ borderColor: c.border }}>
-          <button type="button" className="icon-btn" title="Color" aria-label="Color" onClick={() => setPalette((p) => !p)}>
+          <button type="button" className="icon-btn" title={t("Color")} aria-label={t("Color")} onClick={() => setPalette((p) => !p)}>
             <Palette strokeWidth={1.75} />
           </button>
           <button
             type="button"
             className="icon-btn"
-            title={isArchived(note) ? "Sacar del archivo" : "Archivar"}
+            title={isArchived(note) ? t("Sacar del archivo") : t("Archivar")}
             onClick={() => {
               void setProps(note, { archivada: !isArchived(note) });
               onClose();
@@ -391,10 +392,10 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
           >
             {isArchived(note) ? <ArchiveRestore strokeWidth={1.75} /> : <Archive strokeWidth={1.75} />}
           </button>
-          <button type="button" className="icon-btn" title="Más opciones" onClick={(e) => menu.open(e, actions(note))}>
+          <button type="button" className="icon-btn" title={t("Más opciones")} onClick={(e) => menu.open(e, actions(note))}>
             <ListPlus strokeWidth={1.75} />
           </button>
-          <span className="ml-auto text-[length:calc(12px*var(--ui-scale,1))] text-faint">Editada {edited}</span>
+          <span className="ml-auto text-[length:calc(12px*var(--ui-scale,1))] text-faint">{t("Editada {edited}", { edited })}</span>
         </div>
       </div>
       {menu.menu}
@@ -431,12 +432,12 @@ export function IdeasView() {
 
   const remove = (n: Note) => {
     if (openId === n.id) setOpenId(null);
-    void deleteWithUndo(`Se eliminó «${n.title}»`, () => deleteNote(n.id));
+    void deleteWithUndo(t("Se eliminó «{title}»", { title: n.title }), () => deleteNote(n.id));
   };
 
   const actions = (n: Note): MenuItem[] => [
     {
-      label: "Convertir en tarea",
+      label: t("Convertir en tarea"),
       icon: ListPlus,
       onSelect: () => {
         setOpenId(null);
@@ -448,18 +449,18 @@ export function IdeasView() {
       .slice(0, 8)
       .map(
         (s): MenuItem => ({
-          label: `Pasar a apuntes de ${s.name}`,
+          label: t("Pasar a apuntes de {name}", { name: s.name }),
           onSelect: async () => {
             setOpenId(null);
             await db.notes.update(n.id, { subjectId: s.id, updatedAt: nowIso() });
-            toast(`«${n.title}» ahora está en ${s.name}`);
+            toast(t("«{title}» ahora está en {name}", { title: n.title, name: s.name }));
           },
         }),
       ),
     { type: "separator" },
-    { label: isPinned(n) ? "Dejar de fijar" : "Fijar arriba", icon: Pin, onSelect: () => void setProps(n, { fijada: !isPinned(n) }) },
-    { label: isArchived(n) ? "Sacar del archivo" : "Archivar", icon: Archive, onSelect: () => void setProps(n, { archivada: !isArchived(n) }) },
-    { label: "Eliminar", icon: Trash2, danger: true, onSelect: () => remove(n) },
+    { label: isPinned(n) ? t("Dejar de fijar") : t("Fijar arriba"), icon: Pin, onSelect: () => void setProps(n, { fijada: !isPinned(n) }) },
+    { label: isArchived(n) ? t("Sacar del archivo") : t("Archivar"), icon: Archive, onSelect: () => void setProps(n, { archivada: !isArchived(n) }) },
+    { label: t("Eliminar"), icon: Trash2, danger: true, onSelect: () => remove(n) },
   ];
 
   const card = (n: Note) => {
@@ -481,7 +482,7 @@ export function IdeasView() {
             e.stopPropagation();
             void setProps(n, { fijada: !isPinned(n) });
           }}
-          title={isPinned(n) ? "Dejar de fijar" : "Fijar arriba"}
+          title={isPinned(n) ? t("Dejar de fijar") : t("Fijar arriba")}
           className={clsx(
             "absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full text-faint hover:bg-surface-raised hover:text-text",
             isPinned(n) ? "opacity-100" : "opacity-0 group-hover:opacity-100",
@@ -502,13 +503,13 @@ export function IdeasView() {
         )}
         {/* Barra de acciones al pasar el mouse, como en Keep */}
         <div className="-mb-1 mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="icon-btn" title="Color" aria-label="Color" onClick={() => setPaletteFor((p) => (p === n.id ? null : n.id))}>
+          <button type="button" className="icon-btn" title={t("Color")} aria-label={t("Color")} onClick={() => setPaletteFor((p) => (p === n.id ? null : n.id))}>
             <Palette strokeWidth={1.75} />
           </button>
-          <button type="button" className="icon-btn" title={isArchived(n) ? "Sacar del archivo" : "Archivar"} onClick={() => void setProps(n, { archivada: !isArchived(n) })}>
+          <button type="button" className="icon-btn" title={isArchived(n) ? t("Sacar del archivo") : t("Archivar")} onClick={() => void setProps(n, { archivada: !isArchived(n) })}>
             {isArchived(n) ? <ArchiveRestore strokeWidth={1.75} /> : <Archive strokeWidth={1.75} />}
           </button>
-          <button type="button" className="icon-btn" title="Eliminar" aria-label="Eliminar" onClick={() => remove(n)}>
+          <button type="button" className="icon-btn" title={t("Eliminar")} aria-label={t("Eliminar")} onClick={() => remove(n)}>
             <Trash2 strokeWidth={1.75} />
           </button>
         </div>
@@ -539,7 +540,7 @@ export function IdeasView() {
         <Lightbulb className="h-5 w-5 text-amber" strokeWidth={1.75} />
         <h1
           className="t-h1 mr-auto cursor-text rounded-md px-1 hover:bg-surface-raised"
-          title="Clic para cambiar el nombre"
+          title={t("Clic para cambiar el nombre")}
           onClick={() => setRenaming(true)}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -547,23 +548,23 @@ export function IdeasView() {
             setRenaming(true);
           }}
         >
-          {showArchived ? `${ideasName} archivadas` : ideasName}
+          {showArchived ? t("{name} archivadas", { name: ideasName }) : ideasName}
         </h1>
         <PromptModal
           open={renaming}
-          title="Renombrar carpeta"
+          title={t("Renombrar carpeta")}
           initial={ideasName}
-          confirmLabel="Renombrar"
+          confirmLabel={t("Renombrar")}
           onConfirm={(v) => renameFolder(IDEAS_FOLDER, v)}
           onClose={() => setRenaming(false)}
         />
         <label className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 text-[length:calc(13px*var(--ui-scale,1))]">
           <Search className="h-3.5 w-3.5 text-faint" strokeWidth={1.75} />
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar ideas" className="w-40 bg-transparent outline-none placeholder:text-faint" />
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("Buscar ideas")} className="w-40 bg-transparent outline-none placeholder:text-faint" />
         </label>
         <button type="button" className={clsx("btn btn-sm", showArchived && "btn-ai")} onClick={() => setShowArchived((v) => !v)}>
           <Archive className="h-4 w-4" strokeWidth={1.75} />
-          {showArchived ? "Ver ideas" : "Archivadas"}
+          {showArchived ? t("Ver ideas") : t("Archivadas")}
         </button>
       </header>
 
@@ -572,19 +573,19 @@ export function IdeasView() {
       {ideas && visible.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-16 text-center text-faint">
           <Lightbulb className="h-14 w-14 opacity-40" strokeWidth={1.25} />
-          <p className="t-body">{showArchived ? "No hay ideas archivadas." : filter ? "Ninguna idea coincide." : "Las ideas que anotes aparecen acá."}</p>
+          <p className="t-body">{showArchived ? t("No hay ideas archivadas.") : filter ? t("Ninguna idea coincide.") : t("Las ideas que anotes aparecen acá.")}</p>
         </div>
       )}
 
       {pinned.length > 0 && (
         <section className="space-y-2">
-          <p className="section-label">Fijadas</p>
+          <p className="section-label">{t("Fijadas")}</p>
           {grid(pinned)}
         </section>
       )}
       {others.length > 0 && (
         <section className="space-y-2">
-          {pinned.length > 0 && <p className="section-label">Otras</p>}
+          {pinned.length > 0 && <p className="section-label">{t("Otras")}</p>}
           {grid(others)}
         </section>
       )}

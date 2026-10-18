@@ -7,6 +7,7 @@ import { useOpen } from "@/components/workspace/use-open";
 import { useSubjectMenu } from "./subject-menu";
 import { FolderKanban } from "lucide-react";
 import { iconFor } from "@/lib/folder-icons";
+import { t, intlLocale } from "@/lib/i18n";
 
 // Orden de los grupos: lo que está en curso primero.
 const ORDER: SubjectStatus[] = ["CURSANDO", "PENDIENTE", "REGULAR", "APROBADA"];
@@ -34,13 +35,13 @@ export function ItemList({
   const terms = PROFILES[kindOf(degree)];
 
   if (subjects.length === 0) {
-    return <p className="t-small px-2 py-3 text-faint">Sin {terms.item.many} todavía. Sumá {terms.item.f ? "la primera" : "el primero"} con el +.</p>;
+    return <p className="t-small px-2 py-3 text-faint">{t("Sin {items} todavía. Sumá {cual} con el +.", { items: terms.item.many, cual: terms.item.f ? t("la primera") : t("el primero") })}</p>;
   }
 
   return (
     <div className="flex flex-col">
       {ORDER.map((status) => {
-        const list = subjects.filter((s) => s.status === status).sort((a, b) => a.name.localeCompare(b.name, "es"));
+        const list = subjects.filter((s) => s.status === status).sort((a, b) => a.name.localeCompare(b.name, intlLocale()));
         if (list.length === 0) return null;
         return (
           <section key={status} className="flex flex-col">

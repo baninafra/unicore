@@ -6,11 +6,12 @@
 import { useEffect, useState } from "react";
 import { MoveDialog } from "@/components/explorer/move-dialog";
 import { useAllSubjects, useDegrees } from "@/lib/hooks";
+import { t } from "@/lib/i18n";
 
 const EVENT = "uc:pick-folder";
 
 // Devuelve la carpeta elegida, o null si se canceló.
-export function pickFolder(title = "¿Dónde lo guardo?"): Promise<string | null> {
+export function pickFolder(title = t("¿Dónde lo guardo?")): Promise<string | null> {
   return new Promise((resolve) => window.dispatchEvent(new CustomEvent(EVENT, { detail: { title, resolve } })));
 }
 

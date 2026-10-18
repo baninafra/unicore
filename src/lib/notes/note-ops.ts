@@ -6,6 +6,7 @@ import { db, newId, nowIso } from "@/lib/db";
 import { syncInlineCards } from "./cards";
 import { indexNote, mapWikilinks, normalizeTag, type BlockLike } from "./index-note";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note, type NoteSnapshot } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export const SNAPSHOT_EVERY_MS = 5 * 60 * 1000;
 export const MAX_SNAPSHOTS = 50;
@@ -110,9 +111,9 @@ export async function deleteNote(noteId: string): Promise<void> {
 
 // Nombre legible de la carpeta o materia de una nota (para migas y selectores).
 export function noteLocationLabel(note: Pick<Note, "subjectId">): string {
-  if (note.subjectId === DAILY_FOLDER) return "Diario";
-  if (note.subjectId === LOOSE_FOLDER) return "Notas";
-  if (note.subjectId === IDEAS_FOLDER) return "Ideas";
-  if (note.subjectId === TEMPLATES_FOLDER) return "Plantillas";
+  if (note.subjectId === DAILY_FOLDER) return t("Diario");
+  if (note.subjectId === LOOSE_FOLDER) return t("Notas");
+  if (note.subjectId === IDEAS_FOLDER) return t("Ideas");
+  if (note.subjectId === TEMPLATES_FOLDER) return t("Plantillas");
   return "";
 }

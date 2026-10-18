@@ -17,15 +17,16 @@ import { toast } from "@/lib/undo";
 import { isVideoFile } from "@/lib/video";
 import { Modal } from "@/components/ui/modal";
 import type { OfficeKind } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 const KIND_ICON = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, pdf: FileType, geo: DraftingCompass } as const;
-const EDITOR_NAME: Record<OfficeKind, string> = { doc: "documentos", sheet: "planillas", deck: "presentaciones", pdf: "PDF", geo: "construcciones de geometría" };
+const EDITOR_NAME: Record<OfficeKind, string> = { doc: t("documentos"), sheet: t("planillas"), deck: t("presentaciones"), pdf: "PDF", geo: t("construcciones de geometría") };
 const EDITOR_HINT: Record<OfficeKind, string> = {
-  doc: "Lo editás con formato, como en Word.",
-  sheet: "Lo editás con fórmulas y gráficos, como en Excel.",
-  deck: "Lo editás y lo presentás, como en PowerPoint.",
-  pdf: "Lo anotás, firmás, ordenás y combinás.",
-  geo: "La abrís con gráficos, geometría, 3D y cálculo simbólico.",
+  doc: t("Lo editás con formato, como en Word."),
+  sheet: t("Lo editás con fórmulas y gráficos, como en Excel."),
+  deck: t("Lo editás y lo presentás, como en PowerPoint."),
+  pdf: t("Lo anotás, firmás, ordenás y combinás."),
+  geo: t("La abrís con gráficos, geometría, 3D y cálculo simbólico."),
 };
 
 type Ask = { files: File[]; folder: string };
@@ -41,20 +42,20 @@ export function GlobalFiles() {
   async function importAsNotes(files: File[], folder: string) {
     for (const f of files) {
       if (isVideoFile(f)) {
-        toast("Para guardar un video, abrí una nota y soltalo ahí.", { tone: "error" });
+        toast(t("Para guardar un video, abrí una nota y soltalo ahí."), { tone: "error" });
         continue;
       }
       if (!fileKind(f)) {
-        toast(`No sabemos leer «${f.name}».`, { tone: "error" });
+        toast(t("No sabemos leer «{name}».", { name: f.name }), { tone: "error" });
         continue;
       }
-      setBusy(`Importando ${f.name}…`);
+      setBusy(t("Importando {name}…", { name: f.name }));
       try {
-        const id = await importFileAsNote(f, folder, (t) => setBusy(t));
+        const id = await importFileAsNote(f, folder, (msg) => setBusy(msg));
         ctx.current.openView({ type: "nota", id }, "tab");
-        toast(`Importamos «${f.name}» como nota`);
+        toast(t("Importamos «{name}» como nota", { name: f.name }));
       } catch (err) {
-        toast(err instanceof Error ? err.message : "No pudimos importar el archivo.", { tone: "error" });
+        toast(err instanceof Error ? err.message : t("No pudimos importar el archivo."), { tone: "error" });
       } finally {
         setBusy(null);
       }
@@ -71,7 +72,7 @@ export function GlobalFiles() {
         const id = await createOfficeDoc({ kind, subjectId: folder, file: f });
         ctx.current.openView({ type: "editor", id }, "tab");
       } catch {
-        toast(`No pudimos guardar «${f.name}».`, { tone: "error" });
+        toast(t("No pudimos guardar «{name}».", { name: f.name }), { tone: "error" });
       }
     }
   }
@@ -132,8 +133,8 @@ export function GlobalFiles() {
     };
     const onPaste = (e: ClipboardEvent) => {
       if (e.defaultPrevented) return;
-      const t = e.target as Element;
-      if (t.closest?.("input, textarea, [contenteditable='true'], .bn-editor, .uc-canvas")) return;
+      const target = e.target as Element;
+      if (target.closest?.("input, textarea, [contenteditable='true'], .bn-editor, .uc-canvas")) return;
       const files = [...(e.clipboardData?.files ?? [])];
       if (!files.length) return;
       e.preventDefault();
@@ -161,16 +162,16 @@ export function GlobalFiles() {
 
   return (
     <>
-      <Modal open={!!ask} onClose={() => setAsk(null)} title={single ? `Abrir «${single.name}»` : `Abrir ${ask?.files.length ?? 0} archivos`} width={480}>
+      <Modal open={!!ask} onClose={() => setAsk(null)} title={single ? t("Abrir «{name}»", { name: single.name }) : t("Abrir {n} archivos", { n: ask?.files.length ?? 0 })} width={480}>
         <div className="flex flex-col gap-2">
           <button type="button" autoFocus className="card card-hover flex items-start gap-3 p-3 text-left" onClick={() => answer("editor")}>
             <EditorIcon className="mt-0.5 h-5 w-5 flex-none text-primary-soft" strokeWidth={1.75} />
             <span>
               <span className="t-h3 block">
-                {kinds.length === 1 ? `Abrir en el editor de ${EDITOR_NAME[kinds[0]]}` : "Abrir en sus editores"}
+                {kinds.length === 1 ? t("Abrir en el editor de {editor}", { editor: EDITOR_NAME[kinds[0]] }) : t("Abrir en sus editores")}
               </span>
               <span className="t-small text-muted">
-                {kinds.length === 1 ? EDITOR_HINT[kinds[0]] : "Cada archivo en el suyo: documento, planilla, presentación o PDF."} Queda guardado en UniCore.
+                {kinds.length === 1 ? EDITOR_HINT[kinds[0]] : t("Cada archivo en el suyo: documento, planilla, presentación o PDF.")} {t("Queda guardado en UniCore.")}
               </span>
             </span>
           </button>
@@ -178,8 +179,8 @@ export function GlobalFiles() {
             <button type="button" className="card card-hover flex items-start gap-3 p-3 text-left" onClick={() => answer("nota")}>
               <NotebookPen className="mt-0.5 h-5 w-5 flex-none text-primary-soft" strokeWidth={1.75} />
               <span>
-                <span className="t-h3 block">Convertir en nota</span>
-                <span className="t-small text-muted">Pasamos el contenido a una nota: texto editable, enlaces, etiquetas, y la IA lo puede leer.</span>
+                <span className="t-h3 block">{t("Convertir en nota")}</span>
+                <span className="t-small text-muted">{t("Pasamos el contenido a una nota: texto editable, enlaces, etiquetas, y la IA lo puede leer.")}</span>
               </span>
             </button>
           )}
@@ -193,7 +194,7 @@ export function GlobalFiles() {
         over && (
           <div className="pointer-events-none fixed inset-0 z-[65] border-2 border-dashed border-primary/70 bg-primary-tint/20">
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-surface-raised px-3 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] text-text shadow-pop">
-              Soltá para agregar: en una nota, en el lienzo, en el chat, como nota nueva o en su editor
+              {t("Soltá para agregar: en una nota, en el lienzo, en el chat, como nota nueva o en su editor")}
             </div>
           </div>
         )

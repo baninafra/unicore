@@ -7,16 +7,17 @@ import { indexNote, normalizeTag, type BlockLike } from "@/lib/notes/index-note"
 import { useOpen } from "@/components/workspace/use-open";
 import type { Note } from "@/lib/types";
 import { Select } from "@/components/ui/select";
+import { t } from "@/lib/i18n";
 
 type PropValue = string | number | boolean | string[];
 type PropType = "texto" | "numero" | "fecha" | "casilla" | "lista";
 
 const PROP_TYPES: { value: PropType; label: string }[] = [
-  { value: "texto", label: "Texto" },
-  { value: "numero", label: "Número" },
-  { value: "fecha", label: "Fecha" },
-  { value: "casilla", label: "Casilla" },
-  { value: "lista", label: "Lista" },
+  { value: "texto", label: t("Texto") },
+  { value: "numero", label: t("Número") },
+  { value: "fecha", label: t("Fecha") },
+  { value: "casilla", label: t("Casilla") },
+  { value: "lista", label: t("Lista") },
 ];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -28,8 +29,8 @@ function typeOf(v: PropValue): PropType {
   return DATE_RE.test(v) ? "fecha" : "texto";
 }
 
-function coerce(v: PropValue, t: PropType): PropValue {
-  switch (t) {
+function coerce(v: PropValue, kind: PropType): PropValue {
+  switch (kind) {
     case "texto":
       return Array.isArray(v) ? v.join(", ") : String(v);
     case "numero":
@@ -95,7 +96,7 @@ function ValueInput({ value, type, onCommit }: { value: PropValue; type: PropTyp
     <input
       inputMode={type === "numero" ? "decimal" : undefined}
       className="w-full min-w-0 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] text-text outline-none placeholder:text-faint"
-      placeholder={type === "lista" ? "Separadas por coma" : "Vacío"}
+      placeholder={type === "lista" ? t("Separadas por coma") : t("Vacío")}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -131,7 +132,7 @@ export function NoteProperties({ note }: { note: Note }) {
         className="t-small text-faint opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
         onClick={() => setAdding(true)}
       >
-        Agregar propiedad
+        {t("Agregar propiedad")}
       </button>
     );
   }
@@ -170,8 +171,8 @@ export function NoteProperties({ note }: { note: Note }) {
   const removeTag = (tag: string) => {
     if (!manualTags.includes(tag)) return;
     void db.notes.update(note.id, {
-      properties: { ...props, tags: manualTags.filter((t) => t !== tag) },
-      tags: allTags.filter((t) => t !== tag || textTags.includes(t)),
+      properties: { ...props, tags: manualTags.filter((x) => x !== tag) },
+      tags: allTags.filter((x) => x !== tag || textTags.includes(x)),
       updatedAt: nowIso(),
     });
   };
@@ -191,7 +192,7 @@ export function NoteProperties({ note }: { note: Note }) {
       <div className="pb-1">
         <button type="button" className="section-label flex items-center gap-1 px-0" onClick={() => setExpanded((v) => !v)}>
           {expanded ? <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.75} /> : <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />}
-          Propiedades
+          {t("Propiedades")}
         </button>
       </div>
 
@@ -211,17 +212,17 @@ export function NoteProperties({ note }: { note: Note }) {
               tags
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {allTags.map((t) => (
-                <span key={t} className="tag cursor-pointer" onClick={(e) => open({ type: "busqueda", query: `tag:#${t}` }, e)}>
-                  #{t}
-                  {manualTags.includes(t) && (
+              {allTags.map((tg) => (
+                <span key={tg} className="tag cursor-pointer" onClick={(e) => open({ type: "busqueda", query: `tag:#${tg}` }, e)}>
+                  #{tg}
+                  {manualTags.includes(tg) && (
                     <button
                       type="button"
                       className="ml-1 text-faint hover:text-text"
-                      aria-label={`Quitar etiqueta ${t}`}
+                      aria-label={t("Quitar etiqueta {tag}", { tag: tg })}
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeTag(t);
+                        removeTag(tg);
                       }}
                     >
                       <X className="h-3 w-3" strokeWidth={1.75} />
@@ -231,7 +232,7 @@ export function NoteProperties({ note }: { note: Note }) {
               ))}
               <input
                 className="w-32 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] outline-none placeholder:text-faint"
-                placeholder="Agregar etiqueta"
+                placeholder={t("Agregar etiqueta")}
                 value={tagDraft}
                 onChange={(e) => setTagDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -257,11 +258,11 @@ export function NoteProperties({ note }: { note: Note }) {
                   className="h-6 rounded-sm border-0 bg-transparent text-[length:calc(12px*var(--ui-scale,1))] text-faint outline-none"
                   value={typeOf(value)}
                   onChange={(e) => setProp(key, coerce(value, e.target.value as PropType))}
-                  aria-label="Tipo de propiedad"
+                  aria-label={t("Tipo de propiedad")}
                 >
-                  {PROP_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  {PROP_TYPES.map((pt) => (
+                    <option key={pt.value} value={pt.value}>
+                      {pt.label}
                     </option>
                   ))}
                 </Select>
@@ -271,7 +272,7 @@ export function NoteProperties({ note }: { note: Note }) {
                 <button
                   type="button"
                   className="icon-btn opacity-0 group-hover:opacity-100"
-                  aria-label={`Quitar ${key}`}
+                  aria-label={t("Quitar {key}", { key })}
                   onClick={() => removeProp(key)}
                 >
                   <X />
@@ -285,7 +286,7 @@ export function NoteProperties({ note }: { note: Note }) {
               <input
                 autoFocus
                 className="min-w-0 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] outline-none placeholder:text-faint"
-                placeholder="Nombre"
+                placeholder={t("Nombre")}
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
                 onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
@@ -297,17 +298,17 @@ export function NoteProperties({ note }: { note: Note }) {
                   className="h-6 rounded-sm border-0 bg-transparent text-[length:calc(12px*var(--ui-scale,1))] text-faint outline-none"
                   value={newType}
                   onChange={(e) => setNewType(e.target.value as PropType)}
-                  aria-label="Tipo de propiedad nueva"
+                  aria-label={t("Tipo de propiedad nueva")}
                 >
-                  {PROP_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  {PROP_TYPES.map((pt) => (
+                    <option key={pt.value} value={pt.value}>
+                      {pt.label}
                     </option>
                   ))}
                 </Select>
                 <input
                   className="min-w-0 flex-1 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] outline-none placeholder:text-faint"
-                  placeholder="Valor"
+                  placeholder={t("Valor")}
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -324,7 +325,7 @@ export function NoteProperties({ note }: { note: Note }) {
               onClick={() => setAdding(true)}
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Agregar propiedad
+              {t("Agregar propiedad")}
             </button>
           )}
         </>

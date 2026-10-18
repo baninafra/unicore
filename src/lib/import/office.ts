@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/lib/i18n";
+
 // Lee Excel (.xlsx), PowerPoint (.pptx) y Word (.docx) sin librerías: son ZIPs con XML adentro.
 // Devuelve Markdown, que después se convierte en nota (md-blocks) o se le pasa a la IA.
 
@@ -21,7 +23,7 @@ export async function readZip(buf: ArrayBuffer): Promise<Map<string, () => Promi
       break;
     }
   }
-  if (eocd < 0) throw new Error("El archivo no es un documento de Office válido.");
+  if (eocd < 0) throw new Error(t("El archivo no es un documento de Office válido."));
   const count = view.getUint16(eocd + 10, true);
   let p = view.getUint32(eocd + 16, true);
   const files = new Map<string, () => Promise<Uint8Array>>();
@@ -43,7 +45,7 @@ export async function readZip(buf: ArrayBuffer): Promise<Map<string, () => Promi
       const raw = bytes.subarray(start, start + csize);
       if (method === 0) return raw;
       if (method === 8) return inflateRaw(raw);
-      throw new Error("Formato de compresión no soportado.");
+      throw new Error(t("Formato de compresión no soportado."));
     });
   }
   return files;
@@ -110,19 +112,19 @@ export async function xlsxToMarkdown(buf: ArrayBuffer): Promise<{ markdown: stri
       const r: string[] = [];
       for (const c of tags(row, "c")) {
         const i = colIndex(c.getAttribute("r") ?? "A");
-        const t = c.getAttribute("t");
+        const ctype = c.getAttribute("t");
         const v = tags(c, "v")[0]?.textContent ?? "";
         let val = v;
-        if (t === "s") val = strings[Number(v)] ?? "";
-        else if (t === "inlineStr") val = tags(c, "t").map((x) => x.textContent ?? "").join("");
-        else if (t === "b") val = v === "1" ? "VERDADERO" : "FALSO";
-        else if (v && !t && xfIsDate[Number(c.getAttribute("s") ?? -1)]) val = excelDate(Number(v));
+        if (ctype === "s") val = strings[Number(v)] ?? "";
+        else if (ctype === "inlineStr") val = tags(c, "t").map((x) => x.textContent ?? "").join("");
+        else if (ctype === "b") val = v === "1" ? t("VERDADERO") : t("FALSO");
+        else if (v && !ctype && xfIsDate[Number(c.getAttribute("s") ?? -1)]) val = excelDate(Number(v));
         else if (v && /^-?\d+\.\d{6,}$/.test(v)) val = String(Math.round(Number(v) * 1e4) / 1e4).replace(".", ",");
         r[i] = val;
       }
       if (r.some((x) => x && x.trim())) rows.push(Array.from(r, (x) => x ?? ""));
     }
-    sheets.push({ name: s.getAttribute("name") ?? `Hoja ${sheets.length + 1}`, rows });
+    sheets.push({ name: s.getAttribute("name") ?? t("Hoja {n}", { n: sheets.length + 1 }), rows });
   }
 
   const md = sheets
@@ -185,7 +187,7 @@ export async function pptxToMarkdown(buf: ArrayBuffer): Promise<string> {
           .filter((t) => t && !/^\d+$/.test(t))
           .join(" ")
       : "";
-    out.push(`## ${title || `Diapositiva ${i + 1}`}`, ...lines, ...(noteText ? [`> ${noteText}`] : []), "");
+    out.push(`## ${title || t("Diapositiva {n}", { n: i + 1 })}`, ...lines, ...(noteText ? [`> ${noteText}`] : []), "");
   }
   return out.join("\n");
 }
@@ -195,7 +197,7 @@ export async function pptxToMarkdown(buf: ArrayBuffer): Promise<string> {
 export async function docxToMarkdown(buf: ArrayBuffer): Promise<string> {
   const files = await readZip(buf);
   const doc = await xml(files, "word/document.xml");
-  if (!doc) throw new Error("No pudimos leer el documento.");
+  if (!doc) throw new Error(t("No pudimos leer el documento."));
   const body = tags(doc, "body")[0];
   const out: string[] = [];
   for (const el of body ? [...body.children] : []) {

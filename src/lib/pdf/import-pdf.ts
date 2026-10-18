@@ -2,6 +2,7 @@
 
 import type { PDFPageProxy } from "pdfjs-dist";
 import type { Worker as OcrWorker } from "tesseract.js";
+import { t } from "@/lib/i18n";
 
 // CONTRATO: importar PDFs como texto. Todo corre en el navegador.
 
@@ -120,7 +121,7 @@ export function pdfToBlocks(extraction: PdfExtraction): unknown[] {
   for (const page of extraction.pages) {
     if (page.paragraphs.length === 0) continue;
     if (multiPage && page.paragraphs[0].kind !== "heading") {
-      blocks.push({ type: "heading", props: { level: 3 }, content: `Página ${page.number}` });
+      blocks.push({ type: "heading", props: { level: 3 }, content: t("Página {n}", { n: page.number }) });
     }
     for (const p of page.paragraphs) {
       blocks.push(
@@ -273,7 +274,7 @@ async function recognizePage(page: PDFPageProxy, worker: OcrWorker): Promise<str
   canvas.width = Math.ceil(viewport.width);
   canvas.height = Math.ceil(viewport.height);
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("No hay contexto 2D para renderizar la página");
+  if (!ctx) throw new Error(t("No hay contexto 2D para renderizar la página"));
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);

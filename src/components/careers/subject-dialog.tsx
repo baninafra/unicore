@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { t, intlLocale } from "@/lib/i18n";
 import { deleteWithUndo } from "@/lib/undo";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -17,10 +18,10 @@ type Errors = Partial<Record<"name" | "grade" | "professorEmail" | "campusUrl" |
 const STATUSES = Object.keys(SUBJECT_STATUS_LABEL) as SubjectStatus[];
 
 const ITEM_PLACEHOLDER: Record<string, string> = {
-  trabajo: "Lanzamiento de la web",
-  proyectos: "App de recetas",
-  personal: "Salud",
-  colegio: "Matemática",
+  trabajo: t("Lanzamiento de la web"),
+  proyectos: t("App de recetas"),
+  personal: t("Salud"),
+  colegio: t("Matemática"),
 };
 
 // "8,42" o "8.42" → 8.42. Null si no es un número.
@@ -45,7 +46,7 @@ function parseUrl(raw: string): string | null {
 }
 
 function normalize(text: string) {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es-AR");
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase(intlLocale());
 }
 
 // Se monta sólo cuando está abierto: el estado inicial sale de `subject` o `defaultDegreeId`.
@@ -81,8 +82,8 @@ export function SubjectDialog({
   const [saveError, setSaveError] = useState<string>();
 
   const degree = degrees.find((d) => d.id === degreeId);
-  const t = PROFILES[kindOf(degree)];
-  const study = t.study;
+  const profile = PROFILES[kindOf(degree)];
+  const study = profile.study;
   const yearOptions = Array.from({ length: Math.max(degree?.totalYears ?? 1, year) }, (_, i) => i + 1);
 
   // Materias elegibles: de la misma carrera, de cuatrimestres anteriores (y las ya marcadas, para no perderlas sin verlo).
@@ -110,23 +111,23 @@ export function SubjectDialog({
     e.preventDefault();
     const next: Errors = {};
     const cleanName = name.trim();
-    if (!cleanName) next.name = `Ponele un nombre ${t.item.f ? "a la" : "al"} ${t.item.one}.`;
+    if (!cleanName) next.name = profile.item.f ? t("Ponele un nombre a la {item}.", { item: profile.item.one }) : t("Ponele un nombre al {item}.", { item: profile.item.one });
 
     let finalGrade: number | undefined;
     if (study && status === "APROBADA") {
       const n = parseGrade(grade);
-      if (n === null || n < 1 || n > 10) next.grade = "La nota tiene que estar entre 1 y 10.";
+      if (n === null || n < 1 || n > 10) next.grade = t("La nota tiene que estar entre 1 y 10.");
       else finalGrade = n;
     }
 
     const email = professorEmail.trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      next.professorEmail = "Revisá el mail. Tiene que tener la forma nombre@dominio.com.";
+      next.professorEmail = t("Revisá el mail. Tiene que tener la forma nombre@dominio.com.");
     }
     const campus = parseUrl(campusUrl);
-    if (campus === null) next.campusUrl = "Revisá el link. Tiene que ser una dirección web.";
+    if (campus === null) next.campusUrl = t("Revisá el link. Tiene que ser una dirección web.");
     const drive = parseUrl(driveUrl);
-    if (drive === null) next.driveUrl = "Revisá el link. Tiene que ser una dirección web.";
+    if (drive === null) next.driveUrl = t("Revisá el link. Tiene que ser una dirección web.");
 
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -151,7 +152,7 @@ export function SubjectDialog({
       await saveSubject(input, subject);
       onClose();
     } catch {
-      setSaveError(`No pudimos guardar ${t.item.f ? "la" : "el"} ${t.item.one}. Probá de nuevo.`);
+      setSaveError(profile.item.f ? t("No pudimos guardar la {item}. Probá de nuevo.", { item: profile.item.one }) : t("No pudimos guardar el {item}. Probá de nuevo.", { item: profile.item.one }));
       setSaving(false);
     }
   }
@@ -163,9 +164,9 @@ export function SubjectDialog({
     try {
       const { id, name } = subject;
       onClose();
-      await deleteWithUndo(`Se eliminó «${name}»`, () => deleteSubjectCascade(id));
+      await deleteWithUndo(t("Se eliminó «{name}»", { name }), () => deleteSubjectCascade(id));
     } catch {
-      setSaveError(`No pudimos eliminar ${t.item.f ? "la" : "el"} ${t.item.one}. Probá de nuevo.`);
+      setSaveError(profile.item.f ? t("No pudimos eliminar la {item}. Probá de nuevo.", { item: profile.item.one }) : t("No pudimos eliminar el {item}. Probá de nuevo.", { item: profile.item.one }));
       setSaving(false);
     }
   }
@@ -173,10 +174,10 @@ export function SubjectDialog({
   const footer = confirmingDelete ? (
     <>
       <button type="button" className="btn" onClick={() => setConfirmingDelete(false)} disabled={saving}>
-        Cancelar
+        {t("Cancelar")}
       </button>
       <button type="button" className="btn btn-danger" onClick={remove} disabled={saving}>
-        Eliminar {t.item.one}
+        {t("Eliminar {item}", { item: profile.item.one })}
       </button>
     </>
   ) : (
@@ -184,39 +185,40 @@ export function SubjectDialog({
       {subject && (
         <button type="button" className="btn btn-danger mr-auto" onClick={() => void remove()} disabled={saving}>
           <Trash2 strokeWidth={1.75} />
-          Eliminar
+          {t("Eliminar")}
         </button>
       )}
       <button type="button" className="btn" onClick={onClose} disabled={saving}>
-        Cancelar
+        {t("Cancelar")}
       </button>
       <button type="submit" form="subject-form" className="btn btn-primary" disabled={saving}>
-        Guardar
+        {t("Guardar")}
       </button>
     </>
   );
 
   return (
-    <Modal open onClose={onClose} title={subject ? `Editar ${t.item.one}` : nuevo(t.item)} width={600} footer={footer}>
+    <Modal open onClose={onClose} title={subject ? t("Editar {item}", { item: profile.item.one }) : nuevo(profile.item)} width={600} footer={footer}>
       {confirmingDelete ? (
         <p className="t-body text-muted">
-          Se borran {t.item.f ? "la" : "el"} {t.item.one} y sus tareas.{study && " También se saca de las correlativas de las materias que la usan."}
+          {profile.item.f ? t("Se borran la {item} y sus tareas.", { item: profile.item.one }) : t("Se borran el {item} y sus tareas.", { item: profile.item.one })}
+          {study && <> {t("También se saca de las correlativas de las materias que la usan.")}</>}
         </p>
       ) : (
         <form id="subject-form" onSubmit={submit} className="flex flex-col gap-4" noValidate>
-          <FormField label="Nombre" error={errors.name}>
+          <FormField label={t("Nombre")} error={errors.name}>
             <input
               className={clsx("input", errors.name && "input-error")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={ITEM_PLACEHOLDER[t.kind] ?? "Matemática I"}
+              placeholder={ITEM_PLACEHOLDER[profile.kind] ?? t("Matemática I")}
               aria-invalid={!!errors.name}
               autoFocus
             />
           </FormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {study && <FormField label={t.space.one.charAt(0).toUpperCase() + t.space.one.slice(1)}>
+            {study && <FormField label={profile.space.one.charAt(0).toUpperCase() + profile.space.one.slice(1)}>
               <Select className="input" value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
                 {degrees.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -226,40 +228,40 @@ export function SubjectDialog({
               </Select>
             </FormField>}
 
-            <FormField label="Estado">
+            <FormField label={t("Estado")}>
               <Select className="input" value={status} onChange={(e) => setStatus(e.target.value as SubjectStatus)}>
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {t.statuses[s]}
+                    {profile.statuses[s]}
                   </option>
                 ))}
               </Select>
             </FormField>
 
-            {study && <FormField label="Año">
+            {study && <FormField label={t("Año")}>
               <Select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    {y}.º año
+                    {t("{y}.º año", { y })}
                   </option>
                 ))}
               </Select>
             </FormField>}
 
-            {study && <FormField label="Cuatrimestre">
+            {study && <FormField label={t("Cuatrimestre")}>
               <Select
                 className="input"
                 value={semester}
                 onChange={(e) => setSemester(Number(e.target.value) as 1 | 2)}
               >
-                <option value={1}>1.º cuatrimestre</option>
-                <option value={2}>2.º cuatrimestre</option>
+                <option value={1}>{t("1.º cuatrimestre")}</option>
+                <option value={2}>{t("2.º cuatrimestre")}</option>
               </Select>
             </FormField>}
           </div>
 
           {study && status === "APROBADA" && (
-            <FormField label="Nota final" error={errors.grade}>
+            <FormField label={t("Nota final")} error={errors.grade}>
               <input
                 className={clsx("input", errors.grade && "input-error")}
                 value={grade}
@@ -272,21 +274,21 @@ export function SubjectDialog({
           )}
 
           {study && <div className="flex flex-col gap-2">
-            <span className="t-small font-medium text-muted">Correlativas</span>
+            <span className="t-small font-medium text-muted">{t("Correlativas")}</span>
             <input
               type="search"
               className="input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar materia"
-              aria-label="Buscar correlativas"
+              placeholder={t("Buscar materia")}
+              aria-label={t("Buscar correlativas")}
             />
             <div className="max-h-48 overflow-y-auto rounded-md border border-border">
               {candidates.length === 0 ? (
                 <p className="t-small p-3 text-faint">
                   {search.trim()
-                    ? "Ninguna materia coincide con la búsqueda."
-                    : "Todavía no hay materias de cuatrimestres anteriores para elegir."}
+                    ? t("Ninguna materia coincide con la búsqueda.")
+                    : t("Todavía no hay materias de cuatrimestres anteriores para elegir.")}
                 </p>
               ) : (
                 candidates.map((s) => (
@@ -309,7 +311,7 @@ export function SubjectDialog({
             </div>
           </div>}
 
-          <FormField label={study ? "Mail del profesor" : "Mail de contacto"} error={errors.professorEmail}>
+          <FormField label={study ? t("Mail del profesor") : t("Mail de contacto")} error={errors.professorEmail}>
             <input
               type="email"
               className="input"
@@ -320,7 +322,7 @@ export function SubjectDialog({
             />
           </FormField>
 
-          <FormField label={study ? "Link del campus" : "Link principal"} error={errors.campusUrl}>
+          <FormField label={study ? t("Link del campus") : t("Link principal")} error={errors.campusUrl}>
             <input
               className="input"
               value={campusUrl}
@@ -331,7 +333,7 @@ export function SubjectDialog({
             />
           </FormField>
 
-          <FormField label="Link del drive" error={errors.driveUrl}>
+          <FormField label={t("Link del drive")} error={errors.driveUrl}>
             <input
               className="input"
               value={driveUrl}

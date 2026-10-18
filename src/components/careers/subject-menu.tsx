@@ -7,6 +7,7 @@ import { useProfiles } from "@/lib/profiles";
 import { useContextMenu } from "@/components/ui/menu";
 import { exportMenuItem } from "@/components/export/export-menu";
 import { useWorkspace } from "@/lib/workspace";
+import { t } from "@/lib/i18n";
 
 const STATUSES: SubjectStatus[] = ["PENDIENTE", "CURSANDO", "REGULAR", "APROBADA"];
 
@@ -20,18 +21,18 @@ export function useSubjectMenu({ onEdit, onDelete }: { onEdit: (s: Subject) => v
     const view = { type: "materia" as const, id: subject.id };
     const labels = termsFor(subject.degreeId).statuses;
     open(e, [
-      { label: "Abrir", icon: BookOpen, onSelect: () => openView(view) },
-      { label: "Abrir en pestaña nueva", onSelect: () => openView(view, "tab") },
-      { label: "Editar", icon: Pencil, onSelect: () => onEdit(subject) },
+      { label: t("Abrir"), icon: BookOpen, onSelect: () => openView(view) },
+      { label: t("Abrir en pestaña nueva"), onSelect: () => openView(view, "tab") },
+      { label: t("Editar"), icon: Pencil, onSelect: () => onEdit(subject) },
       exportMenuItem({ kind: "subject", id: subject.id }),
       { type: "separator" },
       ...STATUSES.map((st) => ({
-        label: `Estado: ${labels[st]}`,
+        label: t("Estado: {estado}", { estado: labels[st] }),
         disabled: subject.status === st,
         onSelect: () => void db.subjects.update(subject.id, { status: st }),
       })),
       { type: "separator" },
-      { label: "Eliminar", icon: Trash2, danger: true, onSelect: () => onDelete(subject) },
+      { label: t("Eliminar"), icon: Trash2, danger: true, onSelect: () => onDelete(subject) },
     ]);
   }
 

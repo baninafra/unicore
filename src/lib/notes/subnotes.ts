@@ -6,6 +6,7 @@
 import { db, nowIso } from "../db";
 import type { Note } from "../types";
 import { createNote } from "@/components/notes/note-utils";
+import { t } from "@/lib/i18n";
 
 export const MAX_NOTE_DEPTH = 2;
 
@@ -47,17 +48,17 @@ function heightOf(id: string, all: Lite[]): number {
 
 // Por qué no se puede poner `childId` adentro de `parentId` (o null si se puede).
 export function nestError(childId: string, parentId: string, all: Lite[]): string | null {
-  if (childId === parentId || descendantsOf(childId, all).includes(parentId)) return "Una nota no puede ir adentro de sí misma.";
-  if (noteDepth(parentId, all) + 1 + heightOf(childId, all) > MAX_NOTE_DEPTH) return "Las subnotas llegan hasta dos niveles.";
+  if (childId === parentId || descendantsOf(childId, all).includes(parentId)) return t("Una nota no puede ir adentro de sí misma.");
+  if (noteDepth(parentId, all) + 1 + heightOf(childId, all) > MAX_NOTE_DEPTH) return t("Las subnotas llegan hasta dos niveles.");
   return null;
 }
 
 export async function createSubnote(parentId: string): Promise<string> {
   const parent = await db.notes.get(parentId);
-  if (!parent) throw new Error("No encontramos la nota.");
+  if (!parent) throw new Error(t("No encontramos la nota."));
   const all = await db.notes.toArray();
-  if (noteDepth(parentId, all) >= MAX_NOTE_DEPTH) throw new Error("Las subnotas llegan hasta dos niveles.");
-  const id = await createNote({ subjectId: parent.subjectId, title: "Sin título", unitNumber: parent.unitNumber });
+  if (noteDepth(parentId, all) >= MAX_NOTE_DEPTH) throw new Error(t("Las subnotas llegan hasta dos niveles."));
+  const id = await createNote({ subjectId: parent.subjectId, title: t("Sin título"), unitNumber: parent.unitNumber });
   await db.notes.update(id, { parentId });
   return id;
 }

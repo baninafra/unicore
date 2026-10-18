@@ -12,6 +12,7 @@ import { kindOf, profileOfDegree, PROFILES, useProfiles } from "@/lib/profiles";
 import type { Subject } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { useWorkspace } from "@/lib/workspace";
+import { t } from "@/lib/i18n";
 
 export type FolderDialogRequest =
   | { degreeId?: string; item?: boolean } // nueva carpeta (item: un proyecto/materia en vez de una carpeta libre)
@@ -40,9 +41,9 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
   }, [degreeId, degrees, singleSpace, activeProfile, profiles, inScope]);
 
   const terms = termsFor(degreeId || undefined);
-  const what = editing ? (editing.folder ? "carpeta" : terms.item.one) : asItem ? terms.item.one : "carpeta";
+  const what = editing ? (editing.folder ? t("carpeta") : terms.item.one) : asItem ? terms.item.one : t("carpeta");
   const fem = editing ? editing.folder || terms.item.f : asItem ? terms.item.f : true;
-  const title = editing ? `Editar ${what}` : `${fem ? "Nueva" : "Nuevo"} ${what}`;
+  const title = editing ? t("Editar {what}", { what }) : fem ? t("Nueva {what}", { what }) : t("Nuevo {what}", { what });
   const options = degrees.filter((d) => inScope(d.id) || d.id === degreeId);
 
   async function save() {
@@ -79,10 +80,10 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="button" className="btn btn-primary" disabled={!name.trim() || !degreeId} onClick={() => void save()}>
-            {editing ? "Guardar" : "Crear"}
+            {editing ? t("Guardar") : t("Crear")}
           </button>
         </>
       }
@@ -96,7 +97,7 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
             className="input h-11 flex-1"
             autoFocus
             value={name}
-            placeholder={`Nombre ${fem ? "de la" : "del"} ${what}`}
+            placeholder={fem ? t("Nombre de la {what}", { what }) : t("Nombre del {what}", { what })}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void save()}
           />
@@ -104,7 +105,7 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
 
         {!editing && options.length > 1 && (
           <label className="flex flex-col gap-1.5">
-            <span className="t-small font-medium text-muted">Dónde</span>
+            <span className="t-small font-medium text-muted">{t("Dónde")}</span>
             <select className="input" value={degreeId} onChange={(e) => setDegreeId(e.target.value)}>
               {options.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -114,10 +115,10 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
             </select>
           </label>
         )}
-        {!degrees.length && <p className="t-small text-rose">Primero creá un perfil (abajo a la izquierda, junto a Ajustes).</p>}
+        {!degrees.length && <p className="t-small text-rose">{t("Primero creá un perfil (abajo a la izquierda, junto a Ajustes).")}</p>}
 
         <div className="flex flex-col gap-1.5">
-          <span className="t-small font-medium text-muted">Ícono</span>
+          <span className="t-small font-medium text-muted">{t("Ícono")}</span>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-1.5">
             {Object.entries(FOLDER_ICONS).map(([key, Icon]) => (
               <button

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { t } from "@/lib/i18n";
 
 // Piezas compartidas por las secciones de Ajustes.
 
@@ -62,7 +63,7 @@ export function Slider({ value, min, max, onChange }: { value: number; min: numb
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-36 accent-primary"
-        aria-label="Tamaño"
+        aria-label={t("Tamaño")}
       />
       <span className="t-small num w-12 text-right text-muted">{value} px</span>
     </>

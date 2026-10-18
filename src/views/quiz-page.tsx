@@ -15,6 +15,7 @@ import { makeAnother, readQuiz, recordAttempt } from "@/lib/quiz/quiz-store";
 import { specialFolderName } from "@/lib/panes/note-data";
 import { toast } from "@/lib/undo";
 import type { Note } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export function QuizPage({ note }: { note: Note }) {
   const meta = useMemo(() => readQuiz(note), [note]);
@@ -48,12 +49,12 @@ export function QuizPage({ note }: { note: Note }) {
   };
 
   async function another(e: React.MouseEvent) {
-    setBusy("La IA está armando otro cuestionario sobre lo mismo…");
+    setBusy(t("La IA está armando otro cuestionario sobre lo mismo…"));
     try {
       const id = await makeAnother(ai, note);
       open({ type: "nota", id }, { ctrlKey: !e.shiftKey });
     } catch (err) {
-      toast(err instanceof Error ? err.message : "No pudimos armar otro cuestionario.", { tone: "error" });
+      toast(err instanceof Error ? err.message : t("No pudimos armar otro cuestionario."), { tone: "error" });
     } finally {
       setBusy(null);
     }
@@ -66,7 +67,7 @@ export function QuizPage({ note }: { note: Note }) {
         newFlashcardRecord({ subjectId, noteId: note.id, front: q.question, back: `${q.options[q.answerIndex]}${q.explanation ? ` — ${q.explanation}` : ""}` }),
       ),
     );
-    toast(`Creamos ${qs.length} flashcards`);
+    toast(t("Creamos {n} flashcards", { n: qs.length }));
   }
 
   const place = subject?.name ?? specialFolderName(note.subjectId);
@@ -77,20 +78,20 @@ export function QuizPage({ note }: { note: Note }) {
       <header className="mb-5 space-y-2">
         <div className="flex items-center gap-2 text-[length:calc(13px*var(--ui-scale,1))] text-faint">
           <ClipboardCheck className="h-4 w-4 text-primary-soft" strokeWidth={1.75} />
-          <span>Cuestionario</span>
+          <span>{t("Cuestionario")}</span>
           {place && <span>· {place}</span>}
         </div>
         <h1 className="t-h1">{note.title}</h1>
         <div className="flex flex-wrap items-center gap-1.5">
-          {meta.parcial && <span className="badge badge-rose">Para: {meta.parcial}</span>}
+          {meta.parcial && <span className="badge badge-rose">{t("Para: {parcial}", { parcial: meta.parcial })}</span>}
           {clase && (
             <button type="button" className="tag hover:text-text" onClick={(e) => open({ type: "nota", id: clase.id }, e)}>
               <BookOpen className="h-3 w-3" strokeWidth={1.75} />
               {clase.title}
             </button>
           )}
-          <span className="tag">{qs.length} preguntas</span>
-          {meta.intentos.length > 0 && <span className="tag">Último intento: {meta.intentos[meta.intentos.length - 1]}</span>}
+          <span className="tag">{t("{n} preguntas", { n: qs.length })}</span>
+          {meta.intentos.length > 0 && <span className="tag">{t("Último intento: {intento}", { intento: meta.intentos[meta.intentos.length - 1] })}</span>}
         </div>
       </header>
 
@@ -100,11 +101,11 @@ export function QuizPage({ note }: { note: Note }) {
           <i style={{ width: `${qs.length ? (answered / qs.length) * 100 : 0}%` }} />
         </div>
         <span className="num text-[length:calc(13px*var(--ui-scale,1))] text-muted">
-          {answered}/{qs.length} · {correct} bien
+          {t("{answered}/{total} · {correct} bien", { answered, total: qs.length, correct })}
         </span>
       </div>
 
-      {qs.length === 0 && <p className="t-body text-muted">Este cuestionario no tiene preguntas.</p>}
+      {qs.length === 0 && <p className="t-body text-muted">{t("Este cuestionario no tiene preguntas.")}</p>}
 
       <ol className="space-y-4">
         {qs.map((q, qi) => {
@@ -152,33 +153,33 @@ export function QuizPage({ note }: { note: Note }) {
         {done && (
           <div className={clsx("card p-4", pct >= 60 ? "border-mint" : "border-amber")}>
             <p className="t-h2">
-              {correct} de {qs.length} bien · {pct} %
+              {t("{correct} de {total} bien · {pct} %", { correct, total: qs.length, pct })}
             </p>
-            <p className="t-small text-muted">{pct >= 80 ? "Muy bien. Probá con otro para seguir afianzando." : pct >= 60 ? "Bien. Repasá las que fallaste." : "Conviene repasar el tema y volver a intentar."}</p>
+            <p className="t-small text-muted">{pct >= 80 ? t("Muy bien. Probá con otro para seguir afianzando.") : pct >= 60 ? t("Bien. Repasá las que fallaste.") : t("Conviene repasar el tema y volver a intentar.")}</p>
           </div>
         )}
         {busy && <p className="t-small text-muted">{busy}</p>}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-ai" onClick={(e) => void another(e)} disabled={!!busy}>
             <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-            Hacer otro sobre lo mismo
+            {t("Hacer otro sobre lo mismo")}
           </button>
           <button type="button" className="btn" onClick={restart}>
             <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
-            Rehacer
+            {t("Rehacer")}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => void toCards()} disabled={!qs.length}>
             <Layers className="h-4 w-4" strokeWidth={1.75} />
-            Pasar a flashcards
+            {t("Pasar a flashcards")}
           </button>
         </div>
         {meta.intentos.length > 1 && (
           <details className="t-small text-muted">
-            <summary className="cursor-pointer">Intentos anteriores</summary>
+            <summary className="cursor-pointer">{t("Intentos anteriores")}</summary>
             <ul className="mt-1 space-y-0.5">
-              {[...meta.intentos].reverse().map((t, i) => (
+              {[...meta.intentos].reverse().map((att, i) => (
                 <li key={i} className="num">
-                  {t}
+                  {att}
                 </li>
               ))}
             </ul>

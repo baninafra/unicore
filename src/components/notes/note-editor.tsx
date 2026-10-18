@@ -4,7 +4,11 @@ import "@blocknote/mantine/style.css";
 import "./editor.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { es } from "@blocknote/core/locales";
+import { de as bnDe, en as bnEn, es as bnEs, fr as bnFr, pt as bnPt, zh as bnZh } from "@blocknote/core/locales";
+import { getLang } from "@/lib/i18n";
+
+// Menús propios del editor en el idioma de la app.
+const es = { es: bnEs, en: bnEn, fr: bnFr, de: bnDe, pt: bnPt, zh: bnZh }[getLang()];
 import { filterSuggestionItems, type BlockNoteEditorOptions, type PartialBlock } from "@blocknote/core";
 import { withCollaboration } from "@blocknote/core/yjs";
 import { markSeeded, shareUser, type ShareSession } from "@/lib/share/share";
@@ -12,6 +16,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import { SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
 import { modeFromEvent } from "@/components/workspace/use-open";
 import { useAppState } from "@/lib/app-state";
+import { intlLocale, t } from "@/lib/i18n";
 import { useSettings } from "@/components/settings/apply-settings";
 import { resolveFileUrl, saveFile } from "@/lib/db";
 import { plainTextOf, type BlockLike } from "@/lib/notes/index-note";
@@ -34,7 +39,8 @@ type SaveState = "saved" | "pending" | "error";
 function formatStats(text: string): string {
   const words = text.split(/\s+/).filter(Boolean).length;
   const chars = text.length;
-  return `${words.toLocaleString("es-AR")} ${words === 1 ? "palabra" : "palabras"} · ${chars.toLocaleString("es-AR")} caracteres`;
+  const vars = { words: words.toLocaleString(intlLocale()), chars: chars.toLocaleString(intlLocale()) };
+  return words === 1 ? t("{words} palabra · {chars} caracteres", vars) : t("{words} palabras · {chars} caracteres", vars);
 }
 
 interface NoteEditorProps {
@@ -144,7 +150,7 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
   }, [editor, onEditor]);
 
   // Barra de estado: palabras y guardado (sólo mientras la nota está activa).
-  const saveLabel = saveState === "saved" ? "Guardado" : saveState === "pending" ? "Guardando…" : "No se guardó";
+  const saveLabel = saveState === "saved" ? t("Guardado") : saveState === "pending" ? t("Guardando…") : t("No se guardó");
   const statsNode = useMemo(() => <span>{statsText}</span>, [statsText]);
   const saveNode = useMemo(() => <span>{saveLabel}</span>, [saveLabel]);
   useStatusItem("nota-palabras", active && settings.wordCount ? statsNode : null);

@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import clsx from "clsx";
 import { BookOpen, File, FileText, Globe } from "lucide-react";
 import { db, resolveFileUrl } from "@/lib/db";
+import { t } from "@/lib/i18n";
 import { useOpen } from "@/components/workspace/use-open";
 import { MiniMarkdown } from "./mini-markdown";
 import { cardColorStyle, type CanvasNode, type CanvasNodeData } from "./canvas-types";
@@ -74,7 +75,7 @@ export function TextoNode({ id, data, selected }: NodeProps<CanvasNode>) {
         />
       ) : (
         <div className="nowheel h-full overflow-y-auto p-3" onDoubleClick={() => setEditingId(id)}>
-          {data.text?.trim() ? <MiniMarkdown text={data.text} /> : <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Doble clic para editar</span>}
+          {data.text?.trim() ? <MiniMarkdown text={data.text} /> : <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Doble clic para editar")}</span>}
         </div>
       )}
     </Card>
@@ -89,7 +90,7 @@ function TextEditor({ initial, onDone }: { initial: string; onDone: (value: stri
       autoFocus
       defaultValue={initial}
       className="nodrag nowheel h-full w-full resize-none bg-transparent p-3 text-[length:calc(13px*var(--ui-scale,1))] leading-snug text-text outline-none"
-      placeholder="Escribí en markdown: # títulos, - listas, **negrita**"
+      placeholder={t("Escribí en markdown: # títulos, - listas, **negrita**")}
       onBlur={(e) => onDone(skip.current ? undefined : e.currentTarget.value)}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
@@ -116,7 +117,7 @@ export function NotaNode({ data, selected }: NodeProps<CanvasNode>) {
         <div className="flex items-center gap-1.5 text-[length:calc(13px*var(--ui-scale,1))] font-medium">
           <FileText className="h-3.5 w-3.5 flex-none text-faint" strokeWidth={1.75} />
           <span className="truncate">
-            {note ? note.title?.trim() || "Sin título" : note === null ? "Nota eliminada" : "Cargando…"}
+            {note ? note.title?.trim() || t("Sin título") : note === null ? t("Nota eliminada") : t("Cargando…")}
           </span>
         </div>
         {note?.plainTextCache && (
@@ -152,7 +153,7 @@ export function ArchivoNode({ data, selected }: NodeProps<CanvasNode>) {
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-muted">
             <File className="h-6 w-6 text-faint" strokeWidth={1.75} />
-            <span className="max-w-full truncate text-[length:calc(13px*var(--ui-scale,1))]">{data.fileName || "Archivo"}</span>
+            <span className="max-w-full truncate text-[length:calc(13px*var(--ui-scale,1))]">{data.fileName || t("Archivo")}</span>
           </div>
         )}
       </div>
@@ -171,7 +172,7 @@ export function PdfNode({ data, selected }: NodeProps<CanvasNode>) {
           <BookOpen className="h-4 w-4" strokeWidth={1.75} />
         </div>
         <div className="min-w-0">
-          <div className="truncate text-[length:calc(13px*var(--ui-scale,1))] font-medium">{data.fileName || "PDF"}</div>
+          <div className="truncate text-[length:calc(13px*var(--ui-scale,1))] font-medium">{data.fileName || t("PDF")}</div>
           <div className="text-[length:calc(12px*var(--ui-scale,1))] text-faint">PDF</div>
         </div>
       </div>
@@ -199,7 +200,7 @@ export function WebNode({ data, selected }: NodeProps<CanvasNode>) {
           <Globe className="h-4 w-4" strokeWidth={1.75} />
         </div>
         <div className="min-w-0">
-          <div className="truncate text-[length:calc(13px*var(--ui-scale,1))] font-medium">{data.title || hostOf(url) || "Web"}</div>
+          <div className="truncate text-[length:calc(13px*var(--ui-scale,1))] font-medium">{data.title || hostOf(url) || t("Web")}</div>
           <div className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{url}</div>
         </div>
       </div>
@@ -220,7 +221,7 @@ export function GrupoNode({ id, data, selected }: NodeProps<CanvasNode>) {
         {editing ? (
           <input
             autoFocus
-            defaultValue={data.name ?? "Grupo"}
+            defaultValue={data.name ?? t("Grupo")}
             className="nodrag input h-6 w-56 text-[length:calc(13px*var(--ui-scale,1))]"
             onBlur={(e) => {
               if (!skip.current) patchNode(id, { name: e.currentTarget.value.trim() || "Grupo" });
@@ -237,7 +238,7 @@ export function GrupoNode({ id, data, selected }: NodeProps<CanvasNode>) {
           />
         ) : (
           <span className="block cursor-text truncate text-[length:calc(13px*var(--ui-scale,1))] font-medium text-muted" onDoubleClick={() => setEditingId(id)}>
-            {data.name || "Grupo"}
+            {data.name || t("Grupo")}
           </span>
         )}
       </div>

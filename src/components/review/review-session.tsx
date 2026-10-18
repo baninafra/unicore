@@ -5,12 +5,13 @@ import clsx from "clsx";
 import { previewIntervals, rateCard, type Calificacion } from "@/lib/fsrs";
 import { useSubjectMap } from "@/lib/hooks";
 import type { Flashcard } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 const OPCIONES: { rating: Calificacion; label: string; textClass: string }[] = [
-  { rating: 1, label: "Otra vez", textClass: "text-rose" },
-  { rating: 2, label: "Difícil", textClass: "" },
-  { rating: 3, label: "Bien", textClass: "" },
-  { rating: 4, label: "Fácil", textClass: "text-mint" },
+  { rating: 1, label: t("Otra vez"), textClass: "text-rose" },
+  { rating: 2, label: t("Difícil"), textClass: "" },
+  { rating: 3, label: t("Bien"), textClass: "" },
+  { rating: 4, label: t("Fácil"), textClass: "text-mint" },
 ];
 
 // Sesión de repaso: una tarjeta por vez. "Otra vez" la vuelve a poner al final.
@@ -49,7 +50,7 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
         setShownAt(Date.now());
       } catch (err) {
         console.error(err);
-        setError("No pudimos guardar la calificación. Probá de nuevo.");
+        setError(t("No pudimos guardar la calificación. Probá de nuevo."));
       } finally {
         setBusy(false);
       }
@@ -89,7 +90,7 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
       <div className="flex items-center justify-between gap-3">
         <span className="t-small truncate text-faint">{subjectName}</span>
         <span className="t-small num flex-none text-faint">
-          {graduated} de {total}
+          {t("{graduated} de {total}", { graduated, total })}
         </span>
       </div>
       <div className="progress" style={{ height: 2 }}>
@@ -101,8 +102,8 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
 
         {!revealed ? (
           <button type="button" className="btn btn-primary h-9 px-5" onClick={() => setRevealed(true)}>
-            Mostrar respuesta
-            <span className="kbd">Espacio</span>
+            {t("Mostrar respuesta")}
+            <span className="kbd">{t("Espacio")}</span>
           </button>
         ) : (
           <>
@@ -122,7 +123,7 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
                 type="button"
                 disabled={busy}
                 onClick={() => void rate(o.rating)}
-                title={`Atajo: ${o.rating}`}
+                title={t("Atajo: {n}", { n: o.rating })}
                 className={clsx("btn h-14 flex-col gap-1", o.rating === 3 && "border-primary")}
               >
                 <span className={o.textClass}>{o.label}</span>

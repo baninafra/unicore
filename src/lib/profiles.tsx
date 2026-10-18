@@ -9,6 +9,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLiveQuery } from "dexie-react-hooks";
 import { Briefcase, GraduationCap, Heart, Layers2, Rocket, School, type LucideIcon } from "lucide-react";
 import { db, newId } from "./db";
+import { t } from "./i18n";
 import type { Degree, ProfileKind, SubjectStatus, Task, TaskType } from "./types";
 
 export type { ProfileKind };
@@ -37,94 +38,94 @@ export interface ProfileDef {
   statuses: Record<SubjectStatus, string>;
 }
 
-const STUDY_TASKS: Record<TaskType, string> = { PARCIAL: "Parcial", FINAL: "Final", TP: "TP", FORO: "Foro", LECTURA: "Lectura", TAREA: "Tarea" };
-const STUDY_STATUS: Record<SubjectStatus, string> = { PENDIENTE: "Pendiente", CURSANDO: "Cursando", REGULAR: "Regular", APROBADA: "Aprobada" };
-const PROJECT_STATUS: Record<SubjectStatus, string> = { PENDIENTE: "Por empezar", CURSANDO: "En curso", REGULAR: "En pausa", APROBADA: "Terminado" };
+const STUDY_TASKS: Record<TaskType, string> = { PARCIAL: t("Parcial"), FINAL: t("Final"), TP: t("TP"), FORO: t("Foro"), LECTURA: t("Lectura"), TAREA: t("Tarea") };
+const STUDY_STATUS: Record<SubjectStatus, string> = { PENDIENTE: t("Pendiente"), CURSANDO: t("Cursando"), REGULAR: t("Regular"), APROBADA: t("Aprobada") };
+const PROJECT_STATUS: Record<SubjectStatus, string> = { PENDIENTE: t("Por empezar"), CURSANDO: t("En curso"), REGULAR: t("En pausa"), APROBADA: t("Terminado") };
 
 export const PROFILES: Record<ProfileKind, ProfileDef> = {
   universidad: {
     kind: "universidad",
-    label: "Universidad",
+    label: t("Universidad"),
     icon: GraduationCap,
-    blurb: "Carreras, materias, parciales, apuntes y repaso",
-    space: { one: "carrera", many: "carreras", f: true },
+    blurb: t("Carreras, materias, parciales, apuntes y repaso"),
+    space: { one: t("carrera"), many: t("carreras"), f: true },
     spaceIcon: GraduationCap,
-    item: { one: "materia", many: "materias", f: true },
-    unit: "Unidad",
-    spacesView: "Mis carreras",
+    item: { one: t("materia"), many: t("materias"), f: true },
+    unit: t("Unidad"),
+    spacesView: t("Mis carreras"),
     study: true,
     taskTypes: STUDY_TASKS,
     statuses: STUDY_STATUS,
   },
   colegio: {
     kind: "colegio",
-    label: "Colegio",
+    label: t("Colegio"),
     icon: School,
-    blurb: "Secundario o terciario: materias, pruebas y trabajos",
-    space: { one: "curso", many: "cursos", f: false },
+    blurb: t("Secundario o terciario: materias, pruebas y trabajos"),
+    space: { one: t("curso"), many: t("cursos"), f: false },
     spaceIcon: School,
-    item: { one: "materia", many: "materias", f: true },
-    unit: "Unidad",
-    spacesView: "Mis cursos",
+    item: { one: t("materia"), many: t("materias"), f: true },
+    unit: t("Unidad"),
+    spacesView: t("Mis cursos"),
     study: true,
-    taskTypes: { PARCIAL: "Prueba", FINAL: "Examen", TP: "Trabajo práctico", FORO: "Exposición", LECTURA: "Lectura", TAREA: "Tarea" },
-    statuses: { PENDIENTE: "Por cursar", CURSANDO: "Cursando", REGULAR: "Previa", APROBADA: "Aprobada" },
+    taskTypes: { PARCIAL: t("Prueba"), FINAL: t("Examen"), TP: t("Trabajo práctico"), FORO: t("Exposición"), LECTURA: t("Lectura"), TAREA: t("Tarea") },
+    statuses: { PENDIENTE: t("Por cursar"), CURSANDO: t("Cursando"), REGULAR: t("Previa"), APROBADA: t("Aprobada") },
   },
   trabajo: {
     kind: "trabajo",
-    label: "Trabajo",
+    label: t("Trabajo"),
     icon: Briefcase,
-    blurb: "Tu empleo: proyectos, reuniones, entregas e informes",
-    space: { one: "trabajo", many: "trabajos", f: false },
+    blurb: t("Tu empleo: proyectos, reuniones, entregas e informes"),
+    space: { one: t("trabajo"), many: t("trabajos"), f: false },
     spaceIcon: Briefcase,
-    item: { one: "proyecto", many: "proyectos", f: false },
-    unit: "Etapa",
-    spacesView: "Proyectos",
+    item: { one: t("proyecto"), many: t("proyectos"), f: false },
+    unit: t("Etapa"),
+    spacesView: t("Proyectos"),
     study: false,
-    taskTypes: { PARCIAL: "Presentación", FINAL: "Entrega final", TP: "Entregable", FORO: "Reunión", LECTURA: "Lectura", TAREA: "Tarea" },
+    taskTypes: { PARCIAL: t("Presentación"), FINAL: t("Entrega final"), TP: t("Entregable"), FORO: t("Reunión"), LECTURA: t("Lectura"), TAREA: t("Tarea") },
     statuses: PROJECT_STATUS,
   },
   proyectos: {
     kind: "proyectos",
-    label: "Proyectos",
+    label: t("Proyectos"),
     icon: Rocket,
-    blurb: "Freelance, emprendimientos o proyectos propios",
-    space: { one: "espacio", many: "espacios", f: false },
+    blurb: t("Freelance, emprendimientos o proyectos propios"),
+    space: { one: t("espacio"), many: t("espacios"), f: false },
     spaceIcon: Rocket,
-    item: { one: "proyecto", many: "proyectos", f: false },
-    unit: "Etapa",
-    spacesView: "Proyectos",
+    item: { one: t("proyecto"), many: t("proyectos"), f: false },
+    unit: t("Etapa"),
+    spacesView: t("Proyectos"),
     study: false,
-    taskTypes: { PARCIAL: "Hito", FINAL: "Lanzamiento", TP: "Entregable", FORO: "Reunión", LECTURA: "Investigación", TAREA: "Tarea" },
+    taskTypes: { PARCIAL: t("Hito"), FINAL: t("Lanzamiento"), TP: t("Entregable"), FORO: t("Reunión"), LECTURA: t("Investigación"), TAREA: t("Tarea") },
     statuses: PROJECT_STATUS,
   },
   personal: {
     kind: "personal",
-    label: "Personal",
+    label: t("Personal"),
     icon: Heart,
-    blurb: "Salud, finanzas, hogar, hobbies y metas",
-    space: { one: "espacio", many: "espacios", f: false },
+    blurb: t("Salud, finanzas, hogar, hobbies y metas"),
+    space: { one: t("espacio"), many: t("espacios"), f: false },
     spaceIcon: Heart,
-    item: { one: "área", many: "áreas", f: true },
-    unit: "Parte",
-    spacesView: "Áreas",
+    item: { one: t("área"), many: t("áreas"), f: true },
+    unit: t("Parte"),
+    spacesView: t("Áreas"),
     study: false,
-    taskTypes: { PARCIAL: "Evento", FINAL: "Meta", TP: "Trámite", FORO: "Turno", LECTURA: "Lectura", TAREA: "Pendiente" },
-    statuses: { PENDIENTE: "Más adelante", CURSANDO: "Activa", REGULAR: "En pausa", APROBADA: "Cumplida" },
+    taskTypes: { PARCIAL: t("Evento"), FINAL: t("Meta"), TP: t("Trámite"), FORO: t("Turno"), LECTURA: t("Lectura"), TAREA: t("Pendiente") },
+    statuses: { PENDIENTE: t("Más adelante"), CURSANDO: t("Activa"), REGULAR: t("En pausa"), APROBADA: t("Cumplida") },
   },
 };
 
 // Cuando se ven varios perfiles juntos.
 export const GENERAL: ProfileDef = {
   kind: "general",
-  label: "Todo",
+  label: t("Todo"),
   icon: Layers2,
-  blurb: "Todos tus perfiles juntos",
-  space: { one: "espacio", many: "espacios", f: false },
+  blurb: t("Todos tus perfiles juntos"),
+  space: { one: t("espacio"), many: t("espacios"), f: false },
   spaceIcon: Layers2,
-  item: { one: "tema", many: "temas", f: false },
-  unit: "Unidad",
-  spacesView: "Mis espacios",
+  item: { one: t("tema"), many: t("temas"), f: false },
+  unit: t("Unidad"),
+  spacesView: t("Mis espacios"),
   study: true,
   taskTypes: STUDY_TASKS,
   statuses: STUDY_STATUS,
@@ -132,7 +133,7 @@ export const GENERAL: ProfileDef = {
 
 export const cap = (s: string) => s.charAt(0).toLocaleUpperCase("es-AR") + s.slice(1);
 // "Nueva carrera", "Nuevo proyecto"
-export const nuevo = (n: Noun) => `${n.f ? "Nueva" : "Nuevo"} ${n.one}`;
+export const nuevo = (n: Noun) => (n.f ? t("Nueva {x}", { x: n.one }) : t("Nuevo {x}", { x: n.one }));
 
 // Los espacios viejos (sin tipo) son carreras.
 export const kindOf = (degree?: Pick<Degree, "kind">): ProfileKind => degree?.kind ?? "universidad";

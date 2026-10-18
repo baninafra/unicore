@@ -26,6 +26,7 @@ import { convertFile, fileKind, IMPORT_ACCEPT } from "@/lib/import/import-file";
 import { fmtTime, isVideoFile, videoFrames, videoInfo, videoInfoText, videoLinksIn } from "@/lib/video";
 import { Markdown } from "./markdown";
 import { Select } from "@/components/ui/select";
+import { t, t as tr } from "@/lib/i18n"; // tr: dentro de turns.map, donde `t` es el turno
 
 // Copia el texto al portapapeles y muestra un check un momento.
 function CopyButton({ text }: { text: string }) {
@@ -33,7 +34,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      title="Copiar"
+      title={t("Copiar")}
       onClick={() => {
         navigator.clipboard
           .writeText(text)
@@ -46,7 +47,7 @@ function CopyButton({ text }: { text: string }) {
       className="flex items-center gap-1 text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-text"
     >
       {done ? <Check className="h-3.5 w-3.5" strokeWidth={2} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />}
-      {done ? "Copiado" : "Copiar"}
+      {done ? t("Copiado") : t("Copiar")}
     </button>
   );
 }
@@ -64,7 +65,7 @@ function ModelPicker() {
   };
   return (
     <Select
-      aria-label="Modelo de IA"
+      aria-label={t("Modelo de IA")}
       className="h-7 min-w-0 max-w-full cursor-pointer truncate rounded-md border border-transparent bg-transparent px-1.5 text-[length:calc(13px*var(--ui-scale,1))] text-muted outline-none hover:border-border hover:bg-surface-raised focus:border-primary"
       value={s.localModel}
       onChange={(e) => writeAISettings({ localModel: e.target.value as LocalModel })}
@@ -122,12 +123,12 @@ const DOC_CHARS = 24000; // texto de un archivo adjunto que entra en el mensaje
 const AGENT_KEEP = 40; // mensajes de la conversación que se le mandan a la IA potente
 
 const TOOL_WORKING: Record<string, string> = {
-  buscar_web: "Buscando en internet…",
-  leer_pagina: "Leyendo la página…",
-  leer_video: "Leyendo el video…",
-  cargar_cronograma: "Cargando el cronograma…",
-  buscar_notas: "Buscando en tus apuntes…",
-  listar_tareas: "Revisando tu agenda…",
+  buscar_web: t("Buscando en internet…"),
+  leer_pagina: t("Leyendo la página…"),
+  leer_video: t("Leyendo el video…"),
+  cargar_cronograma: t("Cargando el cronograma…"),
+  buscar_notas: t("Buscando en tus apuntes…"),
+  listar_tareas: t("Revisando tu agenda…"),
 };
 
 function buildSystemPrompt(contextName: string | undefined, material: string): string {
@@ -288,7 +289,7 @@ export function AIChatPane() {
       const kind = isVideoFile(file) ? "video" : fileKind(file);
       const att: Attachment = {
         id: newId(),
-        name: file.name || "imagen",
+        name: file.name || t("imagen"),
         kind: kind === "image" ? "image" : kind === "video" ? "video" : "doc",
         status: "reading",
       };
@@ -307,7 +308,7 @@ export function AIChatPane() {
         }
         const c = await convertFile(file);
         done({ status: "ready", text: c.text.slice(0, DOC_CHARS) });
-      })().catch((err) => done({ status: "error", error: err instanceof Error ? err.message : "No pudimos leer el archivo." }));
+      })().catch((err) => done({ status: "error", error: err instanceof Error ? err.message : t("No pudimos leer el archivo.") }));
     }
   }
 
@@ -535,7 +536,7 @@ export function AIChatPane() {
       }
     } catch (err) {
       patchTurn(aiId, {
-        content: err instanceof Error ? err.message : "No pudimos responder. Probá de nuevo.",
+        content: err instanceof Error ? err.message : t("No pudimos responder. Probá de nuevo."),
         failed: true,
         working: undefined,
       });
@@ -594,7 +595,7 @@ export function AIChatPane() {
   function renderStatus() {
     switch (ai.status) {
       case "unsupported":
-        return <p className="t-small text-muted">Tu navegador no puede correr la IA. Probá con Chrome o Edge actualizados.</p>;
+        return <p className="t-small text-muted">{t("Tu navegador no puede correr la IA. Probá con Chrome o Edge actualizados.")}</p>;
       case "loading": {
         const pct = Math.round(ai.progress * 100);
         return (
@@ -626,9 +627,9 @@ export function AIChatPane() {
           </button>
         );
       case "generating":
-        return <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Trabajando…</span>;
+        return <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Trabajando…")}</span>;
       default:
-        return <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Lista</span>;
+        return <span className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Lista")}</span>;
     }
   }
 
@@ -676,8 +677,8 @@ export function AIChatPane() {
           type="button"
           className="icon-btn flex-none"
           onClick={() => openView({ type: "ajustes", section: "ia" }, "tab")}
-          aria-label="Descargar o elegir IA"
-          title="Descargar o elegir IA"
+          aria-label={t("Descargar o elegir IA")}
+          title={t("Descargar o elegir IA")}
         >
           <Settings2 strokeWidth={1.75} />
         </button>
@@ -686,8 +687,8 @@ export function AIChatPane() {
           className="icon-btn flex-none disabled:opacity-40"
           onClick={newConversation}
           disabled={turns.length === 0}
-          aria-label="Nueva conversación"
-          title="Nueva conversación"
+          aria-label={t("Nueva conversación")}
+          title={t("Nueva conversación")}
         >
           <SquarePen strokeWidth={1.75} />
         </button>
@@ -763,7 +764,7 @@ export function AIChatPane() {
               ) : t.working ? (
                 <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t.working}</p>
               ) : busy && t.id === turns[turns.length - 1]?.id && !confirm ? (
-                <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">Pensando…</p>
+                <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{tr("Pensando…")}</p>
               ) : null}
               {confirm?.turnId === t.id && (
                 <div className="space-y-2 rounded-md border border-rose bg-rose-tint p-2.5">
@@ -817,7 +818,7 @@ export function AIChatPane() {
           </div>
         )}
         {!powerful && attachments.some((a) => a.kind === "image" || a.kind === "video") && (
-          <p className="mb-1 text-[length:calc(12px*var(--ui-scale,1))] text-amber">La IA liviana no ve imágenes ni videos. Elegí la IA potente arriba.</p>
+          <p className="mb-1 text-[length:calc(12px*var(--ui-scale,1))] text-amber">{t("La IA liviana no ve imágenes ni videos. Elegí la IA potente arriba.")}</p>
         )}
         <div className="flex items-end gap-2">
           <input
@@ -835,8 +836,8 @@ export function AIChatPane() {
             type="button"
             className="btn btn-sm btn-icon btn-ghost flex-none"
             onClick={() => fileRef.current?.click()}
-            aria-label="Adjuntar archivo o imagen"
-            title="Adjuntar (PDF, Excel, PowerPoint, Word, imagen, video)"
+            aria-label={t("Adjuntar archivo o imagen")}
+            title={t("Adjuntar (PDF, Excel, PowerPoint, Word, imagen, video)")}
           >
             <Paperclip strokeWidth={1.75} />
           </button>
@@ -849,11 +850,11 @@ export function AIChatPane() {
             onPaste={onPaste}
             disabled={unavailable}
             placeholder={agentMode ? "Pedí o preguntá algo" : "Preguntá algo"}
-            aria-label="Pregunta para el asistente"
+            aria-label={t("Pregunta para el asistente")}
             className="min-h-[32px] min-w-0 flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
           />
           {busy ? (
-            <button type="button" className="btn btn-sm btn-icon flex-none" onClick={stopAll} aria-label="Detener" title="Detener">
+            <button type="button" className="btn btn-sm btn-icon flex-none" onClick={stopAll} aria-label={t("Detener")} title={t("Detener")}>
               <Square strokeWidth={1.75} />
             </button>
           ) : (
@@ -862,8 +863,8 @@ export function AIChatPane() {
               className={clsx("btn btn-primary btn-sm btn-icon flex-none", !canSend && "opacity-50")}
               onClick={() => void send(input)}
               disabled={!canSend || unavailable}
-              aria-label="Enviar"
-              title="Enviar (Enter)"
+              aria-label={t("Enviar")}
+              title={t("Enviar (Enter)")}
             >
               <Send strokeWidth={1.75} />
             </button>

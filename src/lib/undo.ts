@@ -5,6 +5,7 @@
 // queda guardado en memoria para poder restaurarlo.
 
 import { db } from "./db";
+import { t } from "@/lib/i18n";
 
 export interface ToastAction {
   label: string;
@@ -50,9 +51,9 @@ function structuredCloneSafe<T>(obj: T): T {
 async function restore(captured: Captured) {
   const byTable = new Map<string, unknown[]>();
   for (const c of captured) byTable.set(c.table, [...(byTable.get(c.table) ?? []), c.obj]);
-  const tables = [...byTable.keys()].map((t) => db.table(t));
+  const tables = [...byTable.keys()].map((name) => db.table(name));
   await db.transaction("rw", tables, async () => {
-    for (const [t, rows] of byTable) await db.table(t).bulkPut(rows);
+    for (const [name, rows] of byTable) await db.table(name).bulkPut(rows);
   });
 }
 
@@ -65,9 +66,10 @@ export async function undoLastDelete(): Promise<boolean> {
   if (!last) return false;
   try {
     await restore(last.captured);
-    toast(last.label.replace(/^Se eliminó/, "Se restauró"));
+    const deleted = t("Se eliminó");
+    toast(last.label.startsWith(deleted) ? t("Se restauró") + last.label.slice(deleted.length) : t("Se restauró lo eliminado."));
   } catch {
-    toast("No pudimos deshacer.", { tone: "error" });
+    toast(t("No pudimos deshacer."), { tone: "error" });
   }
   return true;
 }
@@ -83,7 +85,7 @@ export async function deleteWithUndo(label: string, run: () => unknown): Promise
     // Algunos borrados se disparan sin esperar (runSafe): les damos un momento para terminar.
     await new Promise((r) => setTimeout(r, 700));
   } catch (err) {
-    toast("No pudimos eliminar. Probá de nuevo.", { tone: "error" });
+    toast(t("No pudimos eliminar. Probá de nuevo."), { tone: "error" });
     throw err;
   } finally {
     recording = prev;
@@ -96,11 +98,11 @@ export async function deleteWithUndo(label: string, run: () => unknown): Promise
   toast(label, {
     ms: 8000,
     action: {
-      label: "Deshacer",
+      label: t("Deshacer"),
       run: () => {
         const i = undoStack.indexOf(entry);
         if (i >= 0) undoStack.splice(i, 1); // ya restaurado: Ctrl+Z no lo repite
-        return restore(mine).catch(() => toast("No pudimos deshacer.", { tone: "error" }));
+        return restore(mine).catch(() => toast(t("No pudimos deshacer."), { tone: "error" }));
       },
     },
   });

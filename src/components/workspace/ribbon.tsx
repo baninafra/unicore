@@ -12,6 +12,7 @@ import { openEditorApp } from "@/components/shell/editor-app";
 import { openJoinDialog } from "@/components/share/share-dialog";
 import { PROFILES, useProfiles } from "@/lib/profiles";
 import { ProfileSwitcher } from "./profile-switcher";
+import { t } from "@/lib/i18n";
 
 // El PDF no se crea vacío: se elige uno del equipo y se abre en el editor.
 function pickPdf(onPick: (file: File) => void) {
@@ -72,29 +73,29 @@ export function Ribbon() {
     node: <RibbonButton icon={icon} label={label} active={activeView.type === type} onClick={() => openView({ type } as ViewState)} />,
   });
   const views: Item[] = [
-    view("inicio", LayoutDashboard, "Inicio"),
+    view("inicio", LayoutDashboard, t("Inicio")),
     {
       id: "notificaciones",
       node: (
         <RibbonButton
           icon={Bell}
-          label={unread ? `Notificaciones (${unread})` : "Notificaciones"}
+          label={unread ? t("Notificaciones ({n})", { n: unread }) : t("Notificaciones")}
           badge={unread}
           active={activeView.type === "notificaciones"}
           onClick={() => openView({ type: "notificaciones" })}
         />
       ),
     },
-    { id: "diario", node: <RibbonButton icon={CalendarCheck} label="Nota del día" onClick={() => runCommand("diario:hoy")} /> },
-    view("calendario", CalendarDays, "Calendario"),
+    { id: "diario", node: <RibbonButton icon={CalendarCheck} label={t("Nota del día")} onClick={() => runCommand("diario:hoy")} /> },
+    view("calendario", CalendarDays, t("Calendario")),
     view("carreras", terms.spaceIcon, terms.spacesView),
-    view("plantillas", LayoutTemplate, "Plantillas"),
-    view("ideas", Lightbulb, "Ideas"),
-    ...(studying ? [view("repaso", Layers, "Repaso")] : []),
-    ...(showMail ? [view("mails", Inbox, "Mails")] : []),
-    view("grafo", GitFork, "Grafo"),
-    { id: "unirse", node: <RibbonButton icon={UserPlus} label="Unirse a una nota compartida" onClick={openJoinDialog} /> },
-    { id: "paleta", node: <RibbonButton icon={Terminal} label="Comandos (Ctrl+P)" onClick={() => runCommand("paleta:abrir")} /> },
+    view("plantillas", LayoutTemplate, t("Plantillas")),
+    view("ideas", Lightbulb, t("Ideas")),
+    ...(studying ? [view("repaso", Layers, t("Repaso"))] : []),
+    ...(showMail ? [view("mails", Inbox, t("Mails"))] : []),
+    view("grafo", GitFork, t("Grafo")),
+    { id: "unirse", node: <RibbonButton icon={UserPlus} label={t("Unirse a una nota compartida")} onClick={openJoinDialog} /> },
+    { id: "paleta", node: <RibbonButton icon={Terminal} label={t("Comandos (Ctrl+P)")} onClick={() => runCommand("paleta:abrir")} /> },
   ];
   const editors: Item[] = [
     ...([
@@ -106,19 +107,19 @@ export function Ribbon() {
       id: kind,
       node: <RibbonButton icon={icon} label={EDITOR_KINDS[kind].label} onClick={() => openEditorApp(kind)} />,
     })),
-    { id: "pdf", node: <RibbonButton icon={FileType} label="PDF" onClick={() => pickPdf((file) => openEditorApp("pdf", file))} /> },
+    { id: "pdf", node: <RibbonButton icon={FileType} label={t("PDF")} onClick={() => pickPdf((file) => openEditorApp("pdf", file))} /> },
   ];
   return (
     <nav className="flex w-11 flex-none flex-col items-center gap-1 border-r border-border bg-bg py-2">
-      <RibbonButton icon={PanelLeft} label="Mostrar u ocultar la barra lateral" onClick={() => setLeft(!leftOpen)} />
+      <RibbonButton icon={PanelLeft} label={t("Mostrar u ocultar la barra lateral")} onClick={() => setLeft(!leftOpen)} />
       <div className="my-1 h-px w-5 bg-border" />
       <Group group="ribbon-views" items={views} />
       <div className="my-1 h-px w-5 bg-border" />
       <Group group="ribbon-editors" items={editors} />
       <div className="mt-auto flex flex-col items-center gap-1">
-        {isDesktop() && <RibbonButton icon={FolderOpen} label="Carpeta de datos" onClick={() => openDataFolder()} />}
+        {isDesktop() && <RibbonButton icon={FolderOpen} label={t("Carpeta de datos")} onClick={() => openDataFolder()} />}
         <ProfileSwitcher />
-        <RibbonButton icon={Settings} label="Ajustes" active={activeView.type === "ajustes"} onClick={() => openView({ type: "ajustes" })} />
+        <RibbonButton icon={Settings} label={t("Ajustes")} active={activeView.type === "ajustes"} onClick={() => openView({ type: "ajustes" })} />
       </div>
     </nav>
   );

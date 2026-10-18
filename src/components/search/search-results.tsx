@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { CheckSquare, FileText, NotebookPen, Shapes, type LucideIcon } from "lucide-react";
+import { t } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import { useAppState } from "@/lib/app-state";
 import { useOpen } from "@/components/workspace/use-open";
@@ -50,10 +51,10 @@ export function Highlighted({ text, marks }: { text: string; marks: Mark[] }) {
 
 export function SortSelect({ value, onChange }: { value: SortMode; onChange: (v: SortMode) => void }) {
   return (
-    <Select className="input" aria-label="Ordenar resultados" value={value} onChange={(e) => onChange(e.target.value as SortMode)}>
-      <option value="relevancia">Más coincidencias</option>
-      <option value="nombre">Nombre</option>
-      <option value="modificacion">Modificación</option>
+    <Select className="input" aria-label={t("Ordenar resultados")} value={value} onChange={(e) => onChange(e.target.value as SortMode)}>
+      <option value="relevancia">{t("Más coincidencias")}</option>
+      <option value="nombre">{t("Nombre")}</option>
+      <option value="modificacion">{t("Modificación")}</option>
     </Select>
   );
 }
@@ -109,13 +110,13 @@ export function SearchResults({
   onOpen: (hit: SearchHit, fragment?: Fragment, e?: ModifierEvent) => void;
 }) {
   if (!hits.length) {
-    return query.trim() ? <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin resultados</p> : null;
+    return query.trim() ? <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Sin resultados")}</p> : null;
   }
   return (
     <div className="flex flex-col gap-1.5">
       {hits.map((hit) => {
         const Icon = KIND_ICON[hit.doc.kind];
-        const meta = [hit.doc.subjectName, hit.doc.unit !== undefined ? `Unidad ${hit.doc.unit}` : ""].filter(Boolean).join(" · ");
+        const meta = [hit.doc.subjectName, hit.doc.unit !== undefined ? t("Unidad {n}", { n: hit.doc.unit }) : ""].filter(Boolean).join(" · ");
         return (
           <div key={hit.doc.key} className="flex flex-col">
             <button type="button" className="row w-full text-left" onClick={(e) => onOpen(hit, undefined, e)}>

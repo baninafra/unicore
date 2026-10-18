@@ -17,6 +17,7 @@ import dynamic from "next/dynamic";
 import { markdownToBlocks } from "@/lib/notes/md-blocks";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useWorkspace } from "@/lib/workspace";
+import { t } from "@/lib/i18n";
 import { subjectNotesForLinking } from "@/lib/tasks/class-tasks";
 import { plainTextOf, type BlockLike } from "@/lib/notes/index-note";
 
@@ -114,7 +115,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
     e.preventDefault();
     const clean = title.trim();
     if (!clean) {
-      setError("Escribí un título para la tarea.");
+      setError(t("Escribí un título para la tarea."));
       return;
     }
     setError(undefined);
@@ -153,7 +154,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
       }
       onClose();
     } catch {
-      setError("No pudimos guardar la tarea. Probá de nuevo.");
+      setError(t("No pudimos guardar la tarea. Probá de nuevo."));
       setSaving(false);
     }
   }
@@ -162,17 +163,17 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
     if (!task?.id) return;
     const id = task.id;
     onClose();
-    await deleteWithUndo(`Se eliminó «${task.title ?? "la tarea"}»`, () => db.tasks.delete(id));
+    await deleteWithUndo(t("Se eliminó «{name}»", { name: task.title ?? t("la tarea") }), () => db.tasks.delete(id));
   }
 
   const footer = confirmingDelete ? (
     <>
-      <span className="t-small mr-auto text-muted">¿Eliminar esta tarea?</span>
+      <span className="t-small mr-auto text-muted">{t("¿Eliminar esta tarea?")}</span>
       <button className="btn btn-sm" onClick={() => setConfirmingDelete(false)}>
-        Cancelar
+        {t("Cancelar")}
       </button>
       <button className="btn btn-danger btn-sm" onClick={onDelete}>
-        Eliminar
+        {t("Eliminar")}
       </button>
     </>
   ) : (
@@ -180,27 +181,27 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
       {editing && (
         <button className="btn btn-ghost btn-sm mr-auto" onClick={() => void onDelete()}>
           <Trash2 strokeWidth={1.75} />
-          Eliminar
+          {t("Eliminar")}
         </button>
       )}
       <button className="btn btn-sm" onClick={onClose}>
-        Cancelar
+        {t("Cancelar")}
       </button>
       <button className="btn btn-primary btn-sm" type="submit" form="task-form" disabled={saving}>
-        Guardar
+        {t("Guardar")}
       </button>
     </>
   );
 
   return (
-    <Modal open onClose={onClose} title={editing ? "Editar tarea" : "Nueva tarea"} footer={footer} width={760} className="max-h-[90vh]">
+    <Modal open onClose={onClose} title={editing ? t("Editar tarea") : t("Nueva tarea")} footer={footer} width={760} className="max-h-[90vh]">
       <form id="task-form" className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
         <input
           className={clsx("w-full bg-transparent t-h2 outline-none placeholder:text-faint", error && "text-rose")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Título"
-          aria-label="Título"
+          placeholder={t("Título")}
+          aria-label={t("Título")}
           autoFocus
         />
         {error && <p className="t-small text-rose">{error}</p>}
@@ -213,11 +214,11 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
         )}
 
         <div className="flex flex-col">
-          <Prop label="Tipo">
+          <Prop label={t("Tipo")}>
             <Select className={CONTROL} value={type} onChange={(e) => setType(e.target.value as TaskType)}>
-              {(Object.keys(TASK_TYPE_LABEL) as TaskType[]).map((t) => (
-                <option key={t} value={t}>
-                  {terms.taskTypes[t]}
+              {(Object.keys(TASK_TYPE_LABEL) as TaskType[]).map((tt) => (
+                <option key={tt} value={tt}>
+                  {terms.taskTypes[tt]}
                 </option>
               ))}
             </Select>
@@ -226,7 +227,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
           {!(singleSpace && degreeId === singleSpace.id) && (
             <Prop label={cap(terms.space.one)}>
               <Select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
-                <option value="">Sin {terms.space.one}</option>
+                <option value="">{t("Sin {what}", { what: terms.space.one })}</option>
                 {degrees.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -238,7 +239,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
 
           <Prop label={cap(terms.item.one)}>
             <Select className={CONTROL} value={subjectId} onChange={(e) => { setSubjectId(e.target.value); setNoteId(""); }}>
-              <option value="">Sin {terms.item.one}</option>
+              <option value="">{t("Sin {what}", { what: terms.item.one })}</option>
               {visibleSubjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {!degreeId && degreeName(s.degreeId) ? `${s.name} · ${degreeName(s.degreeId)}` : s.name}
@@ -248,12 +249,12 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
           </Prop>
 
           {subjectId && (
-            <Prop label={terms.study ? "Clase" : "Nota"}>
-              <Select className={CONTROL} value={noteId} onChange={(e) => setNoteId(e.target.value)} aria-label="Clase o nota enlazada">
-                <option value="">Sin enlazar</option>
+            <Prop label={terms.study ? t("Clase") : t("Nota")}>
+              <Select className={CONTROL} value={noteId} onChange={(e) => setNoteId(e.target.value)} aria-label={t("Clase o nota enlazada")}>
+                <option value="">{t("Sin enlazar")}</option>
                 {linkable.map((n) => (
                   <option key={n.id} value={n.id}>
-                    {n.title || "Sin título"}
+                    {n.title || t("Sin título")}
                   </option>
                 ))}
               </Select>
@@ -266,26 +267,26 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
                     openView({ type: "nota", id: noteId }, "tab");
                   }}
                 >
-                  Abrir
+                  {t("Abrir")}
                 </button>
               )}
             </Prop>
           )}
 
-          <Prop label="Vence">
-            <input type="date" className={CONTROL} value={date} onChange={(e) => setDate(e.target.value)} aria-label="Fecha" />
+          <Prop label={t("Vence")}>
+            <input type="date" className={CONTROL} value={date} onChange={(e) => setDate(e.target.value)} aria-label={t("Fecha")} />
             <input
               type="time"
               className={clsx(CONTROL, "w-24")}
               value={time}
               onChange={(e) => setTime(e.target.value)}
               disabled={!date}
-              aria-label="Hora"
+              aria-label={t("Hora")}
               placeholder={END_OF_DAY}
             />
           </Prop>
 
-          <Prop label="Prioridad">
+          <Prop label={t("Prioridad")}>
             <Select className={CONTROL} value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
               {(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((p) => (
                 <option key={p} value={p}>
@@ -295,7 +296,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
             </Select>
           </Prop>
 
-          <Prop label="Estado">
+          <Prop label={t("Estado")}>
             <Select className={CONTROL} value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
               {statusOptions.map((s) => (
                 <option key={s} value={s}>
@@ -310,16 +311,16 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
           <RichField
             initial={initialContent}
             onChange={onContent}
-            placeholder="Detalles, consignas, links, fotos… Escribí / para agregar listas, tablas o imágenes"
+            placeholder={t("Detalles, consignas, links, fotos… Escribí / para agregar listas, tablas o imágenes")}
           />
         </div>
 
         {fromMail && (
           <details className="rounded-md border border-border px-3 py-2">
-            <summary className="t-small cursor-pointer text-muted">Mail original</summary>
+            <summary className="t-small cursor-pointer text-muted">{t("Mail original")}</summary>
             <div className="mt-2 flex flex-col gap-2">
-              {task?.rawEmailFrom && <p className="t-small text-muted">De: {task.rawEmailFrom}</p>}
-              <pre className="t-small whitespace-pre-wrap font-sans">{task?.rawEmailBody ?? "Sin contenido."}</pre>
+              {task?.rawEmailFrom && <p className="t-small text-muted">{t("De: {from}", { from: task.rawEmailFrom })}</p>}
+              <pre className="t-small whitespace-pre-wrap font-sans">{task?.rawEmailBody ?? t("Sin contenido.")}</pre>
             </div>
           </details>
         )}

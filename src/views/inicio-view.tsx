@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { dateLocale, t } from "@/lib/i18n";
 import { Agenda } from "@/components/dashboard/agenda";
 import { Kanban } from "@/components/dashboard/kanban";
 import { MailPanel } from "@/components/dashboard/mail-panel";
@@ -14,7 +14,7 @@ import { useProfiles } from "@/lib/profiles";
 // "Buen día", "Buenas tardes" o "Buenas noches" según la hora.
 function greeting(now: Date) {
   const h = now.getHours();
-  return h >= 6 && h < 13 ? "Buen día" : h >= 13 && h < 20 ? "Buenas tardes" : "Buenas noches";
+  return h >= 6 && h < 13 ? t("Buen día") : h >= 13 && h < 20 ? t("Buenas tardes") : t("Buenas noches");
 }
 
 function capitalize(text: string) {
@@ -35,7 +35,7 @@ export function InicioView() {
   const firstName = profile.name.trim().split(/\s+/)[0];
 
   // Sin la hora del navegador la fecha queda vacía un instante, para no diferir del servidor.
-  const dateLabel = now ? capitalize(format(now, "EEEE d 'de' MMMM", { locale: es })) : "";
+  const dateLabel = now ? capitalize(format(now, t("EEEE d 'de' MMMM"), { locale: dateLocale() })) : "";
 
   return (
     <div className="view-wide @container mx-auto grid max-w-[1280px] gap-8 @min-[820px]:grid-cols-[minmax(0,1fr)_280px]">

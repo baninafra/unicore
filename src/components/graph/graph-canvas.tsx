@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { t } from "@/lib/i18n";
 import { ForceSim, type SimNode } from "./force-sim";
 import type { GraphData, GraphForces, GraphNode } from "./graph-model";
 
@@ -398,7 +399,7 @@ export function GraphCanvas({ graph, forces, colorBySubject, activeId, onOpen, o
 
   return (
     <div ref={wrapRef} className="absolute inset-0 overflow-hidden">
-      <canvas ref={canvasRef} className="block touch-none" aria-label="Grafo de notas" />
+      <canvas ref={canvasRef} className="block touch-none" aria-label={t("Grafo de notas")} />
     </div>
   );
 }

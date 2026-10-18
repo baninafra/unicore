@@ -4,6 +4,7 @@ import { addDays, endOfDay } from "date-fns";
 import type { Subject, Task } from "@/lib/types";
 import { byDueDate } from "@/components/tasks/task-meta";
 import { TaskRow } from "@/components/tasks/task-row";
+import { t } from "@/lib/i18n";
 
 // Hoy (incluye lo vencido sin terminar) y los próximos 7 días, como filas.
 export function Agenda({ tasks, subjectMap, now }: { tasks: Task[]; subjectMap: Record<string, Subject>; now?: Date }) {
@@ -32,12 +33,12 @@ export function Agenda({ tasks, subjectMap, now }: { tasks: Task[]; subjectMap: 
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-0.5">
-        <h2 className="section-label mb-1">Hoy · {today.length}</h2>
-        {render(today, "Nada para hoy")}
+        <h2 className="section-label mb-1">{t("Hoy · {n}", { n: today.length })}</h2>
+        {render(today, t("Nada para hoy"))}
       </section>
       <section className="flex flex-col gap-0.5">
-        <h2 className="section-label mb-1">Próximos 7 días · {upcoming.length}</h2>
-        {render(upcoming, "Nada en los próximos 7 días")}
+        <h2 className="section-label mb-1">{t("Próximos 7 días · {n}", { n: upcoming.length })}</h2>
+        {render(upcoming, t("Nada en los próximos 7 días"))}
       </section>
     </div>
   );

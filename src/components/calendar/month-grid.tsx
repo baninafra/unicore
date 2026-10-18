@@ -4,15 +4,17 @@
 // Clic en un hueco crea un evento ese día; se arrastran eventos y tareas de un día a otro (conservan la hora)
 // y se sueltan tareas desde la lista. Clic en el número abre el día.
 
+import { dateLocale } from "@/lib/i18n";
 import { useState } from "react";
 import clsx from "clsx";
 import { addDays, format, isSameMonth, isToday, startOfDay } from "date-fns";
 import type { CalItem } from "@/lib/calendars/events";
 import { ITEM_MIME, ItemChip, TASK_MIME } from "./calendar-parts";
 import type { GridHandlers } from "./time-grid";
+import { t } from "@/lib/i18n";
 
-const WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
-const WEEKDAYS_SUNDAY_FIRST = ["dom", ...WEEKDAYS.slice(0, 6)];
+const WEEKDAYS = [t("lun"), t("mar"), t("mié"), t("jue"), t("vie"), t("sáb"), t("dom")];
+const WEEKDAYS_SUNDAY_FIRST = [t("dom"), ...WEEKDAYS.slice(0, 6)];
 const DAY_MS = 86_400_000;
 
 export function dayKey(date: Date) {
@@ -110,7 +112,7 @@ export function MonthGrid({
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  title="Ver este día"
+                  title={t("Ver este día")}
                   onClick={(e) => {
                     e.stopPropagation();
                     h.onPickDay(day);
@@ -120,7 +122,7 @@ export function MonthGrid({
                     today ? "bg-primary-fill font-semibold text-on-primary hover:bg-primary-fill" : inMonth ? "text-muted" : "text-faint",
                   )}
                 >
-                  {day.getDate() === 1 ? format(day, "d MMM") : format(day, "d")}
+                  {day.getDate() === 1 ? format(day, "d MMM", { locale: dateLocale() }) : format(day, "d")}
                 </button>
               </div>
 
@@ -142,7 +144,7 @@ export function MonthGrid({
                     });
                   }}
                 >
-                  {isExpanded ? "Ver menos" : `+${hidden} más`}
+                  {isExpanded ? t("Ver menos") : t("+{hidden} más", { hidden })}
                 </button>
               )}
             </div>

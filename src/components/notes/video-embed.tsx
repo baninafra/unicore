@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink, MonitorPlay, Sparkles } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { parseVideoUrl } from "@/lib/video";
+import { t } from "@/lib/i18n";
 
 // Le pide a la IA que trabaje sobre un video (abre el panel si estaba cerrado).
 export function askAIAboutVideo(setAiOpen: (open: boolean) => void, url: string) {
@@ -38,7 +39,7 @@ export function VideoEmbedView({ url, editable, onUrl }: { url: string; editable
         <input
           autoFocus
           className="input h-8 min-w-0 flex-1"
-          placeholder="Pegá un link de YouTube, Vimeo o Drive"
+          placeholder={t("Pegá un link de YouTube, Vimeo o Drive")}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
@@ -46,9 +47,9 @@ export function VideoEmbedView({ url, editable, onUrl }: { url: string; editable
           }}
         />
         <button type="submit" className="btn btn-sm">
-          Insertar
+          {t("Insertar")}
         </button>
-        {error && <span className="text-[length:calc(12px*var(--ui-scale,1))] text-rose">Ese link no es de un video.</span>}
+        {error && <span className="text-[length:calc(12px*var(--ui-scale,1))] text-rose">{t("Ese link no es de un video.")}</span>}
       </form>
     );
   }
@@ -58,7 +59,7 @@ export function VideoEmbedView({ url, editable, onUrl }: { url: string; editable
       <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
         <iframe
           src={video.embed}
-          title="Video"
+          title={t("Video")}
           className="absolute inset-0 h-full w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
@@ -76,7 +77,7 @@ export function VideoEmbedView({ url, editable, onUrl }: { url: string; editable
           onClick={() => askAIAboutVideo(setAiOpen, video.url)}
         >
           <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
-          Resumir con IA
+          {t("Resumir con IA")}
         </button>
       </div>
     </div>

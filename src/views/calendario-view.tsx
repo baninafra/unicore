@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { addDays, addMonths, addWeeks, eachDayOfInterval, endOfMonth, endOfWeek, format, startOfDay, startOfMonth, startOfWeek } from "date-fns";
-import { es } from "date-fns/locale";
+import { dateLocale, t } from "@/lib/i18n";
 import {
   CalendarClock,
   CalendarPlus,
@@ -49,7 +49,7 @@ import { deleteOccurrence, duplicateEvent, eventToTask, planTask, saveEvent, def
 
 type CalView = "dia" | "semana" | "multisemana" | "mes" | "agenda";
 
-const VIEW_LABEL: Record<CalView, string> = { dia: "Día", semana: "Semana", multisemana: "Varias semanas", mes: "Mes", agenda: "Agenda" };
+const VIEW_LABEL: Record<CalView, string> = { dia: t("Día"), semana: t("Semana"), multisemana: t("Varias semanas"), mes: t("Mes"), agenda: t("Agenda") };
 const VIEW_KEY: Record<string, CalView> = { d: "dia", s: "semana", v: "multisemana", m: "mes", a: "agenda" };
 
 // Preferencias de la vista que se recuerdan en este equipo.
@@ -108,27 +108,27 @@ export function CalendarioView() {
   // Rango visible de la vista actual.
   const { from, to, days, title } = useMemo(() => {
     const ws = { weekStartsOn: weekStartsOn as 0 | 1 };
-    if (view === "dia") return { from: base, to: addDays(base, 1), days: [base], title: cap(format(base, "EEEE d 'de' MMMM yyyy", { locale: es })) };
+    if (view === "dia") return { from: base, to: addDays(base, 1), days: [base], title: cap(format(base, t("EEEE d 'de' MMMM yyyy"), { locale: dateLocale() })) };
     if (view === "semana") {
       const s = startOfWeek(base, ws);
       let list = eachDayOfInterval({ start: s, end: addDays(s, 6) });
       if (hideWeekend) list = list.filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
       const e = addDays(s, 6);
-      const t = s.getMonth() === e.getMonth() ? `${format(s, "d")} – ${format(e, "d 'de' MMMM yyyy", { locale: es })}` : `${format(s, "d MMM", { locale: es })} – ${format(e, "d MMM yyyy", { locale: es })}`;
-      return { from: s, to: addDays(s, 7), days: list, title: t };
+      const wTitle = s.getMonth() === e.getMonth() ? `${format(s, "d")} – ${format(e, t("d 'de' MMMM yyyy"), { locale: dateLocale() })}` : `${format(s, "d MMM", { locale: dateLocale() })} – ${format(e, "d MMM yyyy", { locale: dateLocale() })}`;
+      return { from: s, to: addDays(s, 7), days: list, title: wTitle };
     }
     if (view === "multisemana") {
       const s = startOfWeek(base, ws);
       const e = addDays(s, weeks * 7);
-      return { from: s, to: e, days: eachDayOfInterval({ start: s, end: addDays(e, -1) }), title: `${format(s, "d MMM", { locale: es })} – ${format(addDays(e, -1), "d MMM yyyy", { locale: es })}` };
+      return { from: s, to: e, days: eachDayOfInterval({ start: s, end: addDays(e, -1) }), title: `${format(s, "d MMM", { locale: dateLocale() })} – ${format(addDays(e, -1), "d MMM yyyy", { locale: dateLocale() })}` };
     }
     if (view === "mes") {
       const m = startOfMonth(base);
       const s = startOfWeek(m, ws);
       const e = addDays(endOfWeek(endOfMonth(m), ws), 1);
-      return { from: s, to: e, days: eachDayOfInterval({ start: s, end: addDays(e, -1) }), title: cap(format(m, "LLLL yyyy", { locale: es })) };
+      return { from: s, to: e, days: eachDayOfInterval({ start: s, end: addDays(e, -1) }), title: cap(format(m, "LLLL yyyy", { locale: dateLocale() })) };
     }
-    return { from: base, to: addDays(base, 45), days: [], title: `Desde el ${format(base, "d 'de' MMMM", { locale: es })}` };
+    return { from: base, to: addDays(base, 45), days: [], title: t("Desde el {fecha}", { fecha: format(base, t("d 'de' MMMM"), { locale: dateLocale() }) }) };
   }, [view, base.getTime(), weekStartsOn, weeks, hideWeekend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const searching = query.trim().length > 1;
@@ -169,8 +169,8 @@ export function CalendarioView() {
   // Atajos de teclado.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (e.ctrlKey || e.metaKey || e.altKey || t?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      const tgt = e.target as HTMLElement | null;
+      if (e.ctrlKey || e.metaKey || e.altKey || tgt?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
       const k = e.key.toLowerCase();
       if (k === "t") setCursor(startOfDay(new Date()));
       else if (VIEW_KEY[k]) setView(VIEW_KEY[k]);
@@ -214,61 +214,61 @@ export function CalendarioView() {
       scope = picked;
     }
     await deleteOccurrence(it.event, it.occurrence, scope);
-    toast("Evento borrado.");
+    toast(t("Evento borrado."));
   }, []);
 
   const contextFor = useCallback(
     (it: CalItem): MenuItem[] => {
       if (it.kind === "task" && it.task) {
-        const t = it.task;
-        const done = t.status === "DONE";
+        const task = it.task;
+        const done = task.status === "DONE";
         return [
-          { label: "Editar tarea", icon: Pencil, onSelect: () => openTaskDialog(t) },
+          { label: t("Editar tarea"), icon: Pencil, onSelect: () => openTaskDialog(task) },
           done
-            ? { label: "Reabrir", icon: Undo2, onSelect: () => void db.tasks.update(t.id, { status: "TODO" }) }
-            : { label: "Marcar como hecha", icon: Check, onSelect: () => void db.tasks.update(t.id, { status: "DONE" }) },
-          { label: "Planificar un bloque en el calendario", icon: CalendarClock, onSelect: () => void planTask(t).then(() => toast("Bloque agregado al calendario.")) },
-          { label: "Quitar la fecha", icon: CalendarX, onSelect: () => void db.tasks.update(t.id, { dueDate: undefined }) },
+            ? { label: t("Reabrir"), icon: Undo2, onSelect: () => void db.tasks.update(task.id, { status: "TODO" }) }
+            : { label: t("Marcar como hecha"), icon: Check, onSelect: () => void db.tasks.update(task.id, { status: "DONE" }) },
+          { label: t("Planificar un bloque en el calendario"), icon: CalendarClock, onSelect: () => void planTask(task).then(() => toast(t("Bloque agregado al calendario."))) },
+          { label: t("Quitar la fecha"), icon: CalendarX, onSelect: () => void db.tasks.update(task.id, { dueDate: undefined }) },
           { type: "separator" },
-          { label: "Borrar tarea", icon: Trash2, danger: true, onSelect: () => void deleteWithUndo(`Se eliminó «${t.title}»`, () => db.tasks.delete(t.id)) },
+          { label: t("Borrar tarea"), icon: Trash2, danger: true, onSelect: () => void deleteWithUndo(t("Se eliminó «{title}»", { title: task.title }), () => db.tasks.delete(task.id)) },
         ];
       }
       if (it.kind === "event" && it.event) {
         const ev = it.event;
         return [
-          { label: "Editar evento", icon: Pencil, onSelect: () => openEventDialog({ item: it }) },
-          { label: "Duplicar", icon: Copy, onSelect: () => void duplicateEvent(ev, it.occurrence) },
+          { label: t("Editar evento"), icon: Pencil, onSelect: () => openEventDialog({ item: it }) },
+          { label: t("Duplicar"), icon: Copy, onSelect: () => void duplicateEvent(ev, it.occurrence) },
           ev.taskId
             ? {
-                label: "Abrir la tarea vinculada",
+                label: t("Abrir la tarea vinculada"),
                 icon: ListTodo,
                 onSelect: async () => {
-                  const t = await db.tasks.get(ev.taskId!);
-                  if (t) openTaskDialog(t);
+                  const linked = await db.tasks.get(ev.taskId!);
+                  if (linked) openTaskDialog(linked);
                 },
               }
-            : { label: "Convertir en tarea", icon: ListTodo, onSelect: () => void eventToTask(ev, it.occurrence).then(() => toast("Tarea creada y vinculada.")) },
+            : { label: t("Convertir en tarea"), icon: ListTodo, onSelect: () => void eventToTask(ev, it.occurrence).then(() => toast(t("Tarea creada y vinculada."))) },
           ...(locals.length > 1
             ? [
                 {
-                  label: "Mover a otro calendario",
+                  label: t("Mover a otro calendario"),
                   icon: FolderInput,
                   submenu: locals.filter((c) => c.id !== ev.calendarId).map((c) => ({ label: c.name, onSelect: () => void db.events.update(ev.id, { calendarId: c.id }) })),
                 } as MenuItem,
               ]
             : []),
           { type: "separator" },
-          { label: ev.rrule ? "Borrar…" : "Borrar evento", icon: Trash2, danger: true, onSelect: () => void removeEvent(it) },
+          { label: ev.rrule ? t("Borrar…") : t("Borrar evento"), icon: Trash2, danger: true, onSelect: () => void removeEvent(it) },
         ];
       }
       return [
-        { label: "Ver detalles", icon: ExternalLink, onSelect: () => openEventDialog({ item: it }) },
+        { label: t("Ver detalles"), icon: ExternalLink, onSelect: () => openEventDialog({ item: it }) },
         {
-          label: "Copiar a mi calendario",
+          label: t("Copiar a mi calendario"),
           icon: CalendarPlus,
           onSelect: async () => {
             await saveEvent({ calendarId: await defaultCalendarId(), title: it.title, start: it.start.toISOString(), end: it.end.toISOString(), allDay: it.allDay, location: it.location, description: it.description });
-            toast("Copiado a tu calendario.");
+            toast(t("Copiado a tu calendario."));
           },
         },
       ];
@@ -284,18 +284,18 @@ export function CalendarioView() {
     onMove: (it, start, end, allDay) => void moveItem(it, start, end, allDay),
     // A un día: la tarea vence ese día. A una hora: se reserva un bloque para hacerla (la fecha de entrega no cambia).
     onDropTask: async (taskId, start, allDay) => {
-      const t = await db.tasks.get(taskId);
-      if (!t) return;
+      const task = await db.tasks.get(taskId);
+      if (!task) return;
       if (allDay) {
-        const prev = t.dueDate ? new Date(t.dueDate) : null;
+        const prev = task.dueDate ? new Date(task.dueDate) : null;
         const due = new Date(start);
         if (prev && !(prev.getHours() === 23 && prev.getMinutes() === 59)) due.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
         else due.setHours(23, 59, 0, 0);
         await db.tasks.update(taskId, { dueDate: due.toISOString() });
-        toast(`«${t.title}» vence el ${format(due, "EEEE d/M", { locale: es })}.`);
+        toast(t("«{title}» vence el {fecha}.", { title: task.title, fecha: format(due, "EEEE d/M", { locale: dateLocale() }) }));
       } else {
-        await planTask(t, start);
-        toast(`Reservaste tiempo para «${t.title}».`);
+        await planTask(task, start);
+        toast(t("Reservaste tiempo para «{title}».", { title: task.title }));
       }
     },
     onPickDay: (d) => {
@@ -307,39 +307,39 @@ export function CalendarioView() {
   if (!cursor) return <div />;
 
   const newMenu: MenuItem[] = [
-    { label: "Evento", icon: CalendarPlus, hint: "N", onSelect: () => newEvent() },
-    { label: "Tarea", icon: ListPlus, onSelect: () => openTaskDialog({ dueDate: endOfDayIso(base) }) },
+    { label: t("Evento"), icon: CalendarPlus, hint: "N", onSelect: () => newEvent() },
+    { label: t("Tarea"), icon: ListPlus, onSelect: () => openTaskDialog({ dueDate: endOfDayIso(base) }) },
   ];
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Barra de herramientas */}
       <div className="flex h-10 flex-none items-center gap-1.5 border-b border-border px-2">
-        <button type="button" className="icon-btn" aria-pressed={showLeft} aria-label="Mostrar u ocultar los calendarios" title="Calendarios" onClick={() => setShowLeft(!showLeft)}>
+        <button type="button" className="icon-btn" aria-pressed={showLeft} aria-label={t("Mostrar u ocultar los calendarios")} title={t("Calendarios")} onClick={() => setShowLeft(!showLeft)}>
           <PanelLeft />
         </button>
-        <button type="button" className="btn btn-sm" onClick={() => setCursor(startOfDay(new Date()))} title="Ir a hoy (T)">
-          Hoy
+        <button type="button" className="btn btn-sm" onClick={() => setCursor(startOfDay(new Date()))} title={t("Ir a hoy (T)")}>
+          {t("Hoy")}
         </button>
-        <button type="button" className="icon-btn" aria-label="Anterior" title="Anterior (←)" onClick={() => step(-1)}>
+        <button type="button" className="icon-btn" aria-label={t("Anterior")} title={t("Anterior (←)")} onClick={() => step(-1)}>
           <ChevronLeft />
         </button>
-        <button type="button" className="icon-btn" aria-label="Siguiente" title="Siguiente (→)" onClick={() => step(1)}>
+        <button type="button" className="icon-btn" aria-label={t("Siguiente")} title={t("Siguiente (→)")} onClick={() => step(1)}>
           <ChevronRight />
         </button>
-        <span className="ml-1 truncate text-[length:calc(15px*var(--ui-scale,1))] font-semibold text-text">{searching ? `Resultados para «${query.trim()}»` : title}</span>
+        <span className="ml-1 truncate text-[length:calc(15px*var(--ui-scale,1))] font-semibold text-text">{searching ? t("Resultados para «{query}»", { query: query.trim() }) : title}</span>
 
         <div className="ml-auto flex items-center gap-1.5">
           <div className="relative hidden md:block">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
-            <input className="input h-7 w-44 pl-7 pr-6 text-[length:calc(12px*var(--ui-scale,1))]" placeholder="Buscar eventos y tareas" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQuery("")} aria-label="Buscar en el calendario" />
+            <input className="input h-7 w-44 pl-7 pr-6 text-[length:calc(12px*var(--ui-scale,1))]" placeholder={t("Buscar eventos y tareas")} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQuery("")} aria-label={t("Buscar en el calendario")} />
             {query && (
-              <button type="button" className="absolute right-1 top-1/2 -translate-y-1/2 text-faint hover:text-text" aria-label="Limpiar búsqueda" onClick={() => setQuery("")}>
+              <button type="button" className="absolute right-1 top-1/2 -translate-y-1/2 text-faint hover:text-text" aria-label={t("Limpiar búsqueda")} onClick={() => setQuery("")}>
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <div className="flex rounded-md border border-border p-0.5" role="tablist" aria-label="Vista">
+          <div className="flex rounded-md border border-border p-0.5" role="tablist" aria-label={t("Vista")}>
             {(Object.keys(VIEW_LABEL) as CalView[]).map((v) => (
               <button
                 key={v}
@@ -355,28 +355,28 @@ export function CalendarioView() {
             ))}
           </div>
           {view === "multisemana" && !searching && (
-            <select className="input h-7 w-auto px-1.5 text-[length:calc(12px*var(--ui-scale,1))]" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} aria-label="Cantidad de semanas">
+            <select className="input h-7 w-auto px-1.5 text-[length:calc(12px*var(--ui-scale,1))]" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} aria-label={t("Cantidad de semanas")}>
               {[2, 3, 4, 5, 6].map((n) => (
                 <option key={n} value={n}>
-                  {n} semanas
+                  {t("{n} semanas", { n })}
                 </option>
               ))}
             </select>
           )}
           {view === "semana" && !searching && (
-            <button type="button" className="btn btn-sm" aria-pressed={hideWeekend} title="Mostrar sólo de lunes a viernes" onClick={() => setHideWeekend(!hideWeekend)}>
-              {hideWeekend ? "Lun a vie" : "7 días"}
+            <button type="button" className="btn btn-sm" aria-pressed={hideWeekend} title={t("Mostrar sólo de lunes a viernes")} onClick={() => setHideWeekend(!hideWeekend)}>
+              {hideWeekend ? t("Lun a vie") : t("7 días")}
             </button>
           )}
           <div className="flex">
-            <button type="button" className="btn btn-primary btn-sm rounded-r-none" onClick={() => newEvent()} title="Nuevo evento (N)">
+            <button type="button" className="btn btn-primary btn-sm rounded-r-none" onClick={() => newEvent()} title={t("Nuevo evento (N)")}>
               <CalendarPlus />
-              Nuevo
+              {t("Nuevo")}
             </button>
             <button
               type="button"
               className="btn btn-primary btn-sm btn-icon rounded-l-none border-l border-l-[color-mix(in_srgb,var(--on-primary)_25%,transparent)]"
-              aria-label="Más opciones para crear"
+              aria-label={t("Más opciones para crear")}
               onClick={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 openMenu({ clientX: r.right - 180, clientY: r.bottom + 4 }, newMenu);
@@ -385,7 +385,7 @@ export function CalendarioView() {
               <ChevronDown />
             </button>
           </div>
-          <button type="button" className="icon-btn" aria-pressed={showRight} aria-label="Mostrar u ocultar las tareas" title="Tareas" onClick={() => setShowRight(!showRight)}>
+          <button type="button" className="icon-btn" aria-pressed={showRight} aria-label={t("Mostrar u ocultar las tareas")} title={t("Tareas")} onClick={() => setShowRight(!showRight)}>
             <PanelRight />
           </button>
         </div>
@@ -408,11 +408,11 @@ export function CalendarioView() {
 
         <main className={clsx("min-h-0 min-w-0 flex-1", (view === "mes" || view === "multisemana") && !searching && "p-2", (view === "agenda" || searching) && "overflow-y-auto")}>
           {searching ? (
-            <AgendaList items={found} h={h} empty="No hay eventos ni tareas que coincidan." />
+            <AgendaList items={found} h={h} empty={t("No hay eventos ni tareas que coincidan.")} />
           ) : view === "dia" || view === "semana" ? (
             <TimeGrid days={days} items={items} h={h} />
           ) : view === "agenda" ? (
-            <AgendaList items={items.filter((it) => it.end > base)} h={h} empty="Nada en los próximos 45 días." />
+            <AgendaList items={items.filter((it) => it.end > base)} h={h} empty={t("Nada en los próximos 45 días.")} />
           ) : (
             <MonthGrid days={days} month={view === "mes" ? startOfMonth(base) : undefined} items={items} weekStart={settings.weekStart} h={h} compact={view === "multisemana" && weeks > 4} />
           )}
@@ -421,9 +421,9 @@ export function CalendarioView() {
         {showRight && (
           <aside className="flex w-[272px] flex-none flex-col border-l border-border">
             <div className="flex h-9 flex-none items-center gap-2 border-b border-border px-3">
-              <span className="t-label">Tareas</span>
-              <span className="t-small ml-auto text-faint" title="Arrastrá una tarea a un día para ponerle fecha, o a una hora para reservar tiempo para hacerla">
-                Arrastralas al calendario
+              <span className="t-label">{t("Tareas")}</span>
+              <span className="t-small ml-auto text-faint" title={t("Arrastrá una tarea a un día para ponerle fecha, o a una hora para reservar tiempo para hacerla")}>
+                {t("Arrastralas al calendario")}
               </span>
             </div>
             <div className="min-h-0 flex-1">

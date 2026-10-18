@@ -14,6 +14,7 @@ import { examsOf, quizSource, saveQuiz } from "@/lib/quiz/quiz-store";
 import { isClassNote, classDate } from "@/lib/tasks/class-tasks";
 import { useWorkspace } from "@/lib/workspace";
 import { shortDate } from "@/lib/format";
+import { t } from "@/lib/i18n";
 
 export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectId: string; initialClaseId?: string; onClose: () => void }) {
   const ai = useLocalAI();
@@ -46,15 +47,15 @@ export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectI
             ? { subjectId, parcialId: exam?.id, tema: tema || undefined }
             : { subjectId, tema };
       const source = await quizSource(opts);
-      if (!source.trim()) throw new Error("No hay material para armar el cuestionario. Escribí apuntes en las clases o subí bibliografía.");
+      if (!source.trim()) throw new Error(t("No hay material para armar el cuestionario. Escribí apuntes en las clases o subí bibliografía."));
       const focus = mode === "tema" && tema ? `Concentrate en este tema: ${tema}.\n\n` : mode === "parcial" && tema ? `Hacé foco en: ${tema}.\n\n` : "";
       const questions = await generateQuiz(ai, `${focus}${source}`, Number(count));
       const title =
         mode === "clase"
-          ? `Cuestionario · ${clase?.title.replace(/^Clase (\d+) · \d{2}\/\d{2} · /, "Clase $1: ") ?? "Clase"}`
+          ? t("Cuestionario · {name}", { name: clase?.title.replace(/^Clase (\d+) · \d{2}\/\d{2} · /, t("Clase $1: ")) ?? t("Clase") })
           : mode === "parcial"
-            ? `Cuestionario · ${exam?.title ?? "Parcial"}`
-            : `Cuestionario · ${tema}`;
+            ? t("Cuestionario · {name}", { name: exam?.title ?? t("Parcial") })
+            : t("Cuestionario · {name}", { name: tema });
       const id = await saveQuiz({
         subjectId,
         title,
@@ -67,7 +68,7 @@ export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectI
       onClose();
       openView({ type: "nota", id }, "tab");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos armar el cuestionario. Probá de nuevo.");
+      setError(err instanceof Error ? err.message : t("No pudimos armar el cuestionario. Probá de nuevo."));
       setBusy(false);
     }
   }
@@ -78,33 +79,33 @@ export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectI
     <Modal
       open
       onClose={onClose}
-      title="Nuevo cuestionario"
+      title={t("Nuevo cuestionario")}
       width={520}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="button" className="btn btn-primary" onClick={() => void create()} disabled={disabled}>
             <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-            {busy ? "Armando…" : "Armar cuestionario"}
+            {busy ? t("Armando…") : t("Armar cuestionario")}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
         <label className="field">
-          <span>Sobre</span>
+          <span>{t("Sobre")}</span>
           <Select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
-            <option value="parcial">Lo que entra en un parcial o final</option>
-            <option value="clase">Una clase</option>
-            <option value="tema">Un tema</option>
+            <option value="parcial">{t("Lo que entra en un parcial o final")}</option>
+            <option value="clase">{t("Una clase")}</option>
+            <option value="tema">{t("Un tema")}</option>
           </Select>
         </label>
 
         {mode === "clase" && (
           <label className="field">
-            <span>Clase</span>
+            <span>{t("Clase")}</span>
             {classes.length ? (
               <Select value={clase?.id ?? ""} onChange={(e) => setClaseId(e.target.value)}>
                 {classes.map((c) => (
@@ -114,7 +115,7 @@ export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectI
                 ))}
               </Select>
             ) : (
-              <p className="t-small text-muted">Esta materia no tiene clases. Cargá el cronograma con la IA o elegí «Un tema».</p>
+              <p className="t-small text-muted">{t("Esta materia no tiene clases. Cargá el cronograma con la IA o elegí «Un tema».")}</p>
             )}
           </label>
         )}
@@ -122,36 +123,36 @@ export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectI
         {mode === "parcial" && (
           <>
             <label className="field">
-              <span>Para</span>
+              <span>{t("Para")}</span>
               {exams.length ? (
                 <Select value={exam?.id ?? ""} onChange={(e) => setParcialId(e.target.value)}>
-                  {exams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                      {t.dueDate ? ` · ${shortDate(t.dueDate)}` : ""}
+                  {exams.map((ex) => (
+                    <option key={ex.id} value={ex.id}>
+                      {ex.title}
+                      {ex.dueDate ? ` · ${shortDate(ex.dueDate)}` : ""}
                     </option>
                   ))}
                 </Select>
               ) : (
-                <p className="t-small text-muted">No hay parciales cargados en esta materia. Agregá uno como tarea de tipo Parcial o elegí «Un tema».</p>
+                <p className="t-small text-muted">{t("No hay parciales cargados en esta materia. Agregá uno como tarea de tipo Parcial o elegí «Un tema».")}</p>
               )}
             </label>
             <label className="field">
-              <span>Enfocarse en (opcional)</span>
-              <input className="input" value={tema} onChange={(e) => setTema(e.target.value)} placeholder="Ej: elasticidades, unidad 2" />
+              <span>{t("Enfocarse en (opcional)")}</span>
+              <input className="input" value={tema} onChange={(e) => setTema(e.target.value)} placeholder={t("Ej: elasticidades, unidad 2")} />
             </label>
           </>
         )}
 
         {mode === "tema" && (
           <label className="field">
-            <span>Tema</span>
-            <input className="input" autoFocus value={tema} onChange={(e) => setTema(e.target.value)} placeholder="Ej: costos de producción" />
+            <span>{t("Tema")}</span>
+            <input className="input" autoFocus value={tema} onChange={(e) => setTema(e.target.value)} placeholder={t("Ej: costos de producción")} />
           </label>
         )}
 
         <label className="field">
-          <span>Preguntas</span>
+          <span>{t("Preguntas")}</span>
           <Select value={count} onChange={(e) => setCount(e.target.value)}>
             <option value="5">5</option>
             <option value="8">8</option>
@@ -161,7 +162,7 @@ export function NewQuizDialog({ subjectId, initialClaseId, onClose }: { subjectI
         </label>
 
         {error && <p className="t-small text-rose">{error}</p>}
-        {busy && <p className="t-small text-muted">La IA está leyendo el material y armando las preguntas…</p>}
+        {busy && <p className="t-small text-muted">{t("La IA está leyendo el material y armando las preguntas…")}</p>}
       </div>
     </Modal>
   );

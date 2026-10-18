@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import clsx from "clsx";
 import { format } from "date-fns";
 import { FileUp, ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { t } from "@/lib/i18n";
 import { db, newId } from "@/lib/db";
 import { useAppState } from "@/lib/app-state";
 import { parseScheduleText, scheduleDateLabel, sortSchedule } from "@/lib/cronograma";
@@ -50,15 +51,15 @@ function EntryDialog({ subject, entry, onClose }: { subject: Subject; entry?: Sc
     <Modal
       open
       onClose={onClose}
-      title={entry ? "Editar fecha" : "Agregar al cronograma"}
+      title={entry ? t("Editar fecha") : t("Agregar al cronograma")}
       width={440}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="button" className="btn btn-primary" disabled={!date} onClick={() => void submit()}>
-            Guardar
+            {t("Guardar")}
           </button>
         </>
       }
@@ -71,11 +72,11 @@ function EntryDialog({ subject, entry, onClose }: { subject: Subject; entry?: Sc
         }}
       >
         <label className="field">
-          <span>Fecha</span>
+          <span>{t("Fecha")}</span>
           <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <label className="field">
-          <span>Tipo</span>
+          <span>{t("Tipo")}</span>
           <Select value={kind} onChange={(e) => setKind(e.target.value as ScheduleKind)}>
             {KINDS.map((k) => (
               <option key={k} value={k}>
@@ -85,8 +86,8 @@ function EntryDialog({ subject, entry, onClose }: { subject: Subject; entry?: Sc
           </Select>
         </label>
         <label className="field">
-          <span>Tema o actividad</span>
-          <input className="input" autoFocus value={title} placeholder="Límites y continuidad" onChange={(e) => setTitle(e.target.value)} />
+          <span>{t("Tema o actividad")}</span>
+          <input className="input" autoFocus value={title} placeholder={t("Límites y continuidad")} onChange={(e) => setTitle(e.target.value)} />
         </label>
       </form>
     </Modal>
@@ -110,21 +111,21 @@ function LoadDialog({ subject, onClose }: { subject: Subject; onClose: () => voi
 
   async function readFile(file: File) {
     setError(undefined);
-    setReading("Leyendo el archivo…");
+    setReading(t("Leyendo el archivo…"));
     try {
       let content: string;
       if (fileKind(file) === "image") {
-        setReading("Reconociendo el texto de la foto…");
+        setReading(t("Reconociendo el texto de la foto…"));
         const { ocrImage } = await import("@/lib/pdf/import-pdf");
         content = await ocrImage(file);
       } else {
         content = (await convertFile(file, setReading)).text;
       }
-      if (!content.trim()) throw new Error("No encontramos texto en el archivo. Probá con otro o pegalo a mano.");
+      if (!content.trim()) throw new Error(t("No encontramos texto en el archivo. Probá con otro o pegalo a mano."));
       setFileName(file.name);
       setText(content.slice(0, 60000));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No pudimos leer el archivo. Probá con otro.");
+      setError(e instanceof Error ? e.message : t("No pudimos leer el archivo. Probá con otro."));
     } finally {
       setReading(null);
     }
@@ -139,15 +140,15 @@ function LoadDialog({ subject, onClose }: { subject: Subject; onClose: () => voi
     <Modal
       open
       onClose={onClose}
-      title="Cargar cronograma"
+      title={t("Cargar cronograma")}
       width={600}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="button" className="btn btn-primary" disabled={parsed.length === 0 || !!reading} onClick={() => void add()}>
-            {parsed.length ? `Agregar ${parsed.length} ${parsed.length === 1 ? "fecha" : "fechas"}` : "Agregar"}
+            {parsed.length ? (parsed.length === 1 ? t("Agregar 1 fecha") : t("Agregar {n} fechas", { n: parsed.length })) : t("Agregar")}
           </button>
         </>
       }
@@ -169,9 +170,9 @@ function LoadDialog({ subject, onClose }: { subject: Subject; onClose: () => voi
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn" disabled={!!reading} onClick={() => fileRef.current?.click()}>
             <FileUp strokeWidth={1.75} />
-            Subir archivo
+            {t("Subir archivo")}
           </button>
-          <span className="t-small text-muted">{reading ?? fileName ?? "PDF, Word, Excel, PowerPoint, CSV, texto o una foto"}</span>
+          <span className="t-small text-muted">{reading ?? fileName ?? t("PDF, Word, Excel, PowerPoint, CSV, texto o una foto")}</span>
           <input
             ref={fileRef}
             type="file"
@@ -186,26 +187,26 @@ function LoadDialog({ subject, onClose }: { subject: Subject; onClose: () => voi
         </div>
         {error && <p className="t-small text-rose">{error}</p>}
         <p className="t-small text-muted">
-          También podés arrastrar el archivo acá o pegar el texto con una fecha por línea. Detectamos la fecha y el tipo (clase, parcial, entrega, final).
+          {t("También podés arrastrar el archivo acá o pegar el texto con una fecha por línea. Detectamos la fecha y el tipo (clase, parcial, entrega, final).")}
         </p>
         <textarea
           className="input min-h-[120px] py-2 font-mono"
           autoFocus
           value={text}
-          placeholder={"14/10 Límites y continuidad\n21/10 Derivadas\n28 de octubre - Parcial 1\n11/11 Entrega TP 1"}
+          placeholder={t("14/10 Límites y continuidad\n21/10 Derivadas\n28 de octubre - Parcial 1\n11/11 Entrega TP 1")}
           onChange={(e) => setText(e.target.value)}
         />
         {hadSchedule && (
           <label className="t-small flex items-center gap-2 text-muted">
             <input type="checkbox" className="h-4 w-4 accent-primary" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
-            Reemplazar el cronograma actual ({subject.schedule!.length} {subject.schedule!.length === 1 ? "fecha" : "fechas"})
+            {subject.schedule!.length === 1 ? t("Reemplazar el cronograma actual (1 fecha)") : t("Reemplazar el cronograma actual ({n} fechas)", { n: subject.schedule!.length })}
           </label>
         )}
         {text.trim() && (
           <div className="flex flex-col">
             <p className="t-small text-faint">
-              {parsed.length} de {lines} {lines === 1 ? "línea" : "líneas"} con fecha
-              {parsed.length === 0 && ". Revisá que las fechas tengan día y mes, por ejemplo 14/10 o 14 de octubre."}
+              {lines === 1 ? t("{n} de 1 línea con fecha", { n: parsed.length }) : t("{n} de {lines} líneas con fecha", { n: parsed.length, lines })}
+              {parsed.length === 0 && `. ${t("Revisá que las fechas tengan día y mes, por ejemplo 14/10 o 14 de octubre.")}`}
             </p>
             {parsed.map((e) => (
               <div key={e.id} className="row">
@@ -227,11 +228,11 @@ function EntryRow({ subject, entry, past, onEdit }: { subject: Subject; entry: S
   const schedule = subject.schedule ?? [];
 
   const items: MenuItem[] = [
-    { label: "Editar", icon: Pencil, onSelect: onEdit },
+    { label: t("Editar"), icon: Pencil, onSelect: onEdit },
     ...(TASK_TYPE[entry.kind]
       ? [
           {
-            label: "Crear tarea",
+            label: t("Crear tarea"),
             icon: ListPlus,
             onSelect: () =>
               openTaskDialog({
@@ -245,7 +246,7 @@ function EntryRow({ subject, entry, past, onEdit }: { subject: Subject; entry: S
         ]
       : []),
     { type: "separator" },
-    { label: "Eliminar", icon: Trash2, danger: true, onSelect: () => void save(subject, schedule.filter((e) => e.id !== entry.id)) },
+    { label: t("Eliminar"), icon: Trash2, danger: true, onSelect: () => void save(subject, schedule.filter((e) => e.id !== entry.id)) },
   ];
 
   return (
@@ -255,13 +256,13 @@ function EntryRow({ subject, entry, past, onEdit }: { subject: Subject; entry: S
           type="checkbox"
           className="h-4 w-4 flex-none cursor-pointer accent-primary"
           checked={!!entry.done}
-          aria-label={`Marcar como hecho: ${entry.title}`}
+          aria-label={t("Marcar como hecho: {title}", { title: entry.title })}
           onChange={(e) => void save(subject, schedule.map((x) => (x.id === entry.id ? { ...x, done: e.target.checked } : x)))}
         />
         <span className="t-small num w-20 flex-none whitespace-nowrap text-muted">{scheduleDateLabel(entry.date)}</span>
         <span className={clsx("min-w-0 flex-1 truncate text-text", entry.done && "line-through")}>{entry.title}</span>
         {entry.kind !== "CLASE" && <span className={clsx("badge flex-none", KIND_BADGE[entry.kind])}>{SCHEDULE_KIND_LABEL[entry.kind]}</span>}
-        <button type="button" className="icon-btn opacity-0 focus:opacity-100 group-hover:opacity-100" onClick={onEdit} aria-label="Editar" title="Editar">
+        <button type="button" className="icon-btn opacity-0 focus:opacity-100 group-hover:opacity-100" onClick={onEdit} aria-label={t("Editar")} title={t("Editar")}>
           <Pencil strokeWidth={1.75} />
         </button>
       </div>
@@ -281,19 +282,19 @@ export function CronogramaSection({ subject }: { subject: Subject }) {
   return (
     <section className="flex flex-col gap-0.5">
       <div className="mb-1 flex items-center justify-between pr-1">
-        <h2 className="section-label">{list.length ? `Cronograma · ${pending} por venir` : "Cronograma"}</h2>
+        <h2 className="section-label">{list.length ? t("Cronograma · {n} por venir", { n: pending }) : t("Cronograma")}</h2>
         <div className="flex items-center gap-1">
-          <button type="button" className="icon-btn" onClick={() => setDialog("pegar")} aria-label="Subir o pegar cronograma" title="Subir o pegar cronograma">
+          <button type="button" className="icon-btn" onClick={() => setDialog("pegar")} aria-label={t("Subir o pegar cronograma")} title={t("Subir o pegar cronograma")}>
             <FileUp strokeWidth={1.75} />
           </button>
-          <button type="button" className="icon-btn" onClick={() => setDialog({})} aria-label="Agregar fecha" title="Agregar fecha">
+          <button type="button" className="icon-btn" onClick={() => setDialog({})} aria-label={t("Agregar fecha")} title={t("Agregar fecha")}>
             <Plus strokeWidth={1.75} />
           </button>
         </div>
       </div>
       {list.length === 0 ? (
         <button type="button" className="row text-left text-faint hover:text-text" onClick={() => setDialog("pegar")}>
-          Cargar el cronograma de la cátedra
+          {t("Cargar el cronograma de la cátedra")}
         </button>
       ) : (
         list.map((e) => <EntryRow key={e.id} subject={subject} entry={e} past={!!todayKey && e.date < todayKey} onEdit={() => setDialog({ entry: e })} />)

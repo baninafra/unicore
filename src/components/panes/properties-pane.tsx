@@ -8,6 +8,7 @@ import { queueBaseFilter } from "@/lib/panes/base-query";
 import { useAllNotes } from "@/lib/panes/hooks";
 import { summarizeProps } from "@/lib/panes/props";
 import { PaneEmpty } from "./pane-ui";
+import { t } from "@/lib/i18n";
 
 // Propiedades usadas en todas las notas. Clic: abre la base filtrada por esa propiedad.
 export function PropertiesPane() {
@@ -24,7 +25,7 @@ export function PropertiesPane() {
 
   return (
     <div className="p-2">
-      {props.length === 0 && <PaneEmpty>Sin propiedades</PaneEmpty>}
+      {props.length === 0 && <PaneEmpty>{t("Sin propiedades")}</PaneEmpty>}
       {props.map((p) => (
         <button
           key={p.key}
@@ -35,8 +36,8 @@ export function PropertiesPane() {
           }}
           onContextMenu={(e) =>
             ctx.open(e, [
-              { label: "Filtrar en la base", onSelect: () => showInBase(p.key) },
-              { label: "Filtrar en pestaña nueva", onSelect: () => showInBase(p.key, "tab") },
+              { label: t("Filtrar en la base"), onSelect: () => showInBase(p.key) },
+              { label: t("Filtrar en pestaña nueva"), onSelect: () => showInBase(p.key, "tab") },
             ])
           }
           className="row w-full min-w-0"

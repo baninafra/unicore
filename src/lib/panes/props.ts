@@ -3,6 +3,7 @@
 // Propiedades tipo frontmatter de las notas (note.properties).
 
 import type { Note } from "@/lib/types";
+import { intlLocale } from "@/lib/i18n";
 
 export type PropValue = string | number | boolean | string[];
 export type PropKind = "texto" | "número" | "casilla" | "lista" | "fecha" | "mixto";
@@ -66,5 +67,5 @@ export function summarizeProps(notes: Note[]): PropSummary[] {
       count: e.count,
       kind: e.kinds.size === 1 ? (Array.from(e.kinds)[0] as PropKind) : "mixto",
     }))
-    .sort((a, b) => a.key.localeCompare(b.key, "es"));
+    .sort((a, b) => a.key.localeCompare(b.key, intlLocale()));
 }

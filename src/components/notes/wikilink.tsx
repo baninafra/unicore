@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { DefaultReactSuggestionItem } from "@blocknote/react";
 import { useOpen } from "@/components/workspace/use-open";
+import { t } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import type { Note } from "@/lib/types";
 import { createNote } from "./note-utils";
@@ -23,7 +24,7 @@ export function WikilinkChip({ noteId, title, alias }: { noteId: string; title: 
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const exists = !!target;
-  const label = alias || target?.title || title || "Sin título";
+  const label = alias || target?.title || title || t("Sin título");
 
   const onEnter = (e: MouseEvent<HTMLSpanElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -104,15 +105,15 @@ export async function wikilinkMenuItems(
     .slice(0, 8);
 
   const items: DefaultReactSuggestionItem[] = found.map((n) => ({
-    title: n.title || "Sin título",
+    title: n.title || t("Sin título"),
     onItemClick: () => insertWikilink(editor, n.id, n.title),
   }));
 
   const name = query.trim();
   if (name && !all.some((n) => n.title.toLowerCase() === name.toLowerCase())) {
     items.push({
-      title: `Crear nota «${name}»`,
-      subtext: "Nota nueva",
+      title: t("Crear nota «{name}»", { name }),
+      subtext: t("Nota nueva"),
       onItemClick: () => {
         void createNote({ subjectId: ctx.subjectId, title: name, unitNumber: ctx.unitNumber }).then((id) =>
           insertWikilink(editor, id, name),

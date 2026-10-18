@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { t } from "@/lib/i18n";
 import { Plus } from "lucide-react";
 import type { ViewState } from "@/lib/workspace";
 import { InicioView } from "@/views/inicio-view";
@@ -30,7 +31,7 @@ import { AjustesView } from "@/views/ajustes-view";
 import { useWorkspace } from "@/lib/workspace";
 
 // Las vistas pesadas (editor, grafo, lienzo) se cargan recién cuando se abren.
-const Loading = () => <div className="p-6 t-small text-faint">Cargando…</div>;
+const Loading = () => <div className="p-6 t-small text-faint">{t("Cargando…")}</div>;
 const NotaView = dynamic(() => import("@/views/nota-view").then((m) => m.NotaView), { ssr: false, loading: Loading });
 const GrafoView = dynamic(() => import("@/views/grafo-view").then((m) => m.GrafoView), { ssr: false, loading: Loading });
 const CanvasView = dynamic(() => import("@/views/canvas-view").then((m) => m.CanvasView), { ssr: false, loading: Loading });
@@ -41,10 +42,10 @@ const SlidesView = dynamic(() => import("@/views/slides-view").then((m) => m.Sli
 function EmptyTab() {
   const { runCommand } = useWorkspace();
   const items = [
-    { label: "Crear nota", cmd: "nota:nueva", keys: "Ctrl N" },
-    { label: "Ir a un archivo", cmd: "selector:abrir", keys: "Ctrl O" },
-    { label: "Nota del día", cmd: "diario:hoy", keys: "Alt D" },
-    { label: "Comandos", cmd: "paleta:abrir", keys: "Ctrl P" },
+    { label: t("Crear nota"), cmd: "nota:nueva", keys: "Ctrl N" },
+    { label: t("Ir a un archivo"), cmd: "selector:abrir", keys: "Ctrl O" },
+    { label: t("Nota del día"), cmd: "diario:hoy", keys: "Alt D" },
+    { label: t("Comandos"), cmd: "paleta:abrir", keys: "Ctrl P" },
   ];
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1">

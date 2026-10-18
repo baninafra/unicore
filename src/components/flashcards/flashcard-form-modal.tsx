@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { db } from "@/lib/db";
 import type { Flashcard } from "@/lib/types";
+import { t } from "@/lib/i18n";
 import { newFlashcardRecord } from "./fsrs-card";
 
 // Alta (sin `card`) o edición de una flashcard a mano.
@@ -26,7 +27,7 @@ export function FlashcardFormModal({
     const f = front.trim();
     const b = back.trim();
     if (!f || !b) {
-      setError("Completá el frente y el dorso.");
+      setError(t("Completá el frente y el dorso."));
       return;
     }
     setSaving(true);
@@ -35,7 +36,7 @@ export function FlashcardFormModal({
       else await db.flashcards.add(newFlashcardRecord({ subjectId, front: f, back: b }));
       onClose();
     } catch {
-      setError("No pudimos guardar la flashcard. Probá de nuevo.");
+      setError(t("No pudimos guardar la flashcard. Probá de nuevo."));
       setSaving(false);
     }
   };
@@ -44,22 +45,22 @@ export function FlashcardFormModal({
     <Modal
       open
       onClose={onClose}
-      title={card ? "Editar flashcard" : "Nueva flashcard"}
+      title={card ? t("Editar flashcard") : t("Nueva flashcard")}
       width={520}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void save()}>
-            {card ? "Guardar cambios" : "Crear flashcard"}
+            {card ? t("Guardar cambios") : t("Crear flashcard")}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         <label className="field">
-          <span>Frente</span>
+          <span>{t("Frente")}</span>
           <textarea
             className={clsx("input", error && !front.trim() && "input-error")}
             rows={3}
@@ -69,7 +70,7 @@ export function FlashcardFormModal({
           />
         </label>
         <label className="field">
-          <span>Dorso</span>
+          <span>{t("Dorso")}</span>
           <textarea
             className={clsx("input", error && !back.trim() && "input-error")}
             rows={3}

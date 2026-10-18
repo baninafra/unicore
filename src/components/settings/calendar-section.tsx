@@ -3,6 +3,7 @@
 // Ajustes > Calendarios: conectar Google Calendar, Outlook, iCloud o cualquier calendario con enlace iCal.
 
 import { useRef, useState } from "react";
+import { t } from "@/lib/i18n";
 import clsx from "clsx";
 import { FileUp, Link2, RefreshCw, Trash2 } from "lucide-react";
 import { isDesktop } from "@/lib/desktop";
@@ -29,34 +30,38 @@ const PROVIDERS: { value: Provider; label: string; name: string; steps: string }
     value: "google",
     label: "Google Calendar",
     name: "Google Calendar",
-    steps:
+    steps: t(
       "Entrá a calendar.google.com, abrí Configuración y elegí tu calendario. En \"Integrar el calendario\" copiá la \"Dirección secreta en formato iCal\" y pegala acá.",
+    ),
   },
   {
     value: "outlook",
     label: "Outlook",
     name: "Outlook",
-    steps:
+    steps: t(
       "En Outlook.com abrí Configuración, Calendario, Calendarios compartidos. En \"Publicar un calendario\" elegí el calendario y \"Puede ver todos los detalles\", tocá Publicar y copiá el enlace ICS.",
+    ),
   },
   {
     value: "icloud",
     label: "Apple iCloud",
     name: "iCloud",
-    steps:
+    steps: t(
       "En icloud.com/calendar tocá el ícono de compartir junto a tu calendario, activá \"Calendario público\" y copiá el enlace (empieza con webcal://).",
+    ),
   },
   {
     value: "otro",
-    label: "Otro",
-    name: "Calendario",
-    steps:
+    label: t("Otro"),
+    name: t("Calendario"),
+    steps: t(
       "Sirve cualquier enlace que termine en .ics: el campus virtual, Moodle, el calendario de la facultad, Notion. Buscá la opción \"Exportar\" o \"Suscribirse\" y copiá el enlace.",
+    ),
   },
 ];
 
 const SYNC_OPTIONS = [
-  { value: "0", label: "A mano" },
+  { value: "0", label: t("A mano") },
   { value: "15", label: "15 min" },
   { value: "30", label: "30 min" },
   { value: "60", label: "1 h" },
@@ -65,7 +70,7 @@ const SYNC_OPTIONS = [
 
 function ColorPicker({ value, onChange }: { value: CalendarColor; onChange: (c: CalendarColor) => void }) {
   return (
-    <div className="flex gap-1" role="group" aria-label="Color">
+    <div className="flex gap-1" role="group" aria-label={t("Color")}>
       {CALENDAR_COLORS.map((c) => (
         <button
           key={c}
@@ -101,14 +106,14 @@ function CalendarCard({ cal }: { cal: CalendarSource }) {
         <div className="min-w-0">
           <p className="t-h3 truncate">{cal.name}</p>
           <p className="t-small text-muted">
-            {cal.url ? "Enlace iCal" : "Archivo .ics"}
-            {cal.eventCount !== undefined && ` · ${cal.eventCount} ${cal.eventCount === 1 ? "evento" : "eventos"}`}
-            {cal.lastSync && ` · sincronizado ${shortDateTime(cal.lastSync)}`}
+            {cal.url ? t("Enlace iCal") : t("Archivo .ics")}
+            {cal.eventCount !== undefined && (cal.eventCount === 1 ? t(" · {n} evento", { n: cal.eventCount }) : t(" · {n} eventos", { n: cal.eventCount }))}
+            {cal.lastSync && t(" · sincronizado {fecha}", { fecha: shortDateTime(cal.lastSync) })}
           </p>
         </div>
         <div className="flex flex-none items-center gap-2">
-          <span className="t-small text-muted">Visible</span>
-          <Toggle checked={cal.enabled} onChange={(v) => void db.calendars.update(cal.id, { enabled: v })} label={`Mostrar ${cal.name}`} />
+          <span className="t-small text-muted">{t("Visible")}</span>
+          <Toggle checked={cal.enabled} onChange={(v) => void db.calendars.update(cal.id, { enabled: v })} label={t("Mostrar {name}", { name: cal.name })} />
         </div>
       </div>
 
@@ -119,21 +124,21 @@ function CalendarCard({ cal }: { cal: CalendarSource }) {
         <div className="ml-auto flex items-center gap-2">
           <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void sync()}>
             <RefreshCw strokeWidth={1.75} className={clsx(busy && "animate-spin")} />
-            Sincronizar
+            {t("Sincronizar")}
           </button>
           {confirm ? (
             <>
               <button type="button" className="btn btn-sm btn-danger" onClick={() => void removeCalendar(cal.id)}>
-                Quitar
+                {t("Quitar")}
               </button>
               <button type="button" className="btn btn-sm" onClick={() => setConfirm(false)}>
-                Cancelar
+                {t("Cancelar")}
               </button>
             </>
           ) : (
-            <button type="button" className="btn btn-sm" onClick={() => setConfirm(true)} aria-label={`Quitar ${cal.name}`}>
+            <button type="button" className="btn btn-sm" onClick={() => setConfirm(true)} aria-label={t("Quitar {name}", { name: cal.name })}>
               <Trash2 strokeWidth={1.75} />
-              Quitar
+              {t("Quitar")}
             </button>
           )}
         </div>
@@ -160,7 +165,7 @@ function AddCalendar() {
   async function connect() {
     setError(undefined);
     if (!/^(https?|webcal):\/\//i.test(url.trim())) {
-      setError("Pegá el enlace completo del calendario. Empieza con https:// o webcal://.");
+      setError(t("Pegá el enlace completo del calendario. Empieza con https:// o webcal://."));
       return;
     }
     setBusy(true);
@@ -172,7 +177,7 @@ function AddCalendar() {
       await removeCalendar(cal.id);
       return;
     }
-    toast(`Conectamos ${cal.name}: ${cal.eventCount ?? 0} eventos.`);
+    toast(t("Conectamos {name}: {n} eventos.", { name: cal.name, n: cal.eventCount ?? 0 }));
     setName("");
     setUrl("");
     nextColor();
@@ -182,27 +187,27 @@ function AddCalendar() {
     setError(undefined);
     const text = await file.text();
     if (!/BEGIN:VCALENDAR/i.test(text)) {
-      setError("Ese archivo no es un calendario. Probá con un archivo .ics.");
+      setError(t("Ese archivo no es un calendario. Probá con un archivo .ics."));
       return;
     }
     const cal = await addCalendar({ name: name || file.name.replace(/\.ics$/i, ""), ics: text, color });
-    toast(`Importamos ${cal.name}: ${cal.eventCount ?? 0} eventos.`);
+    toast(t("Importamos {name}: {n} eventos.", { name: cal.name, n: cal.eventCount ?? 0 }));
     setName("");
     nextColor();
   }
 
   return (
     <div className="card space-y-3 p-4">
-      <p className="t-h3">Conectar un calendario</p>
+      <p className="t-h3">{t("Conectar un calendario")}</p>
       <Segmented value={provider} options={PROVIDERS.map((p) => ({ value: p.value, label: p.label }))} onChange={setProvider} />
       <p className="t-small text-muted">{info.steps}</p>
 
       <label className="field">
-        <span>Nombre</span>
+        <span>{t("Nombre")}</span>
         <input className="input" value={name} placeholder={info.name} onChange={(e) => setName(e.target.value)} />
       </label>
       <label className="field">
-        <span>Enlace del calendario</span>
+        <span>{t("Enlace del calendario")}</span>
         <input
           className={clsx("input", error && "input-error")}
           value={url}
@@ -212,7 +217,7 @@ function AddCalendar() {
         />
       </label>
       <div className="field">
-        <span>Color</span>
+        <span>{t("Color")}</span>
         <ColorPicker value={color} onChange={setColor} />
       </div>
       {error && <p className="t-small text-rose">{error}</p>}
@@ -220,11 +225,11 @@ function AddCalendar() {
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-primary" disabled={busy || !url.trim()} onClick={() => void connect()}>
           <Link2 strokeWidth={1.75} />
-          {busy ? "Conectando…" : "Conectar"}
+          {busy ? t("Conectando…") : t("Conectar")}
         </button>
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
           <FileUp strokeWidth={1.75} />
-          Importar archivo .ics
+          {t("Importar archivo .ics")}
         </button>
         <input
           ref={fileRef}
@@ -240,8 +245,7 @@ function AddCalendar() {
       </div>
 
       <p className="t-small text-faint">
-        El enlace da acceso a tu calendario: tratalo como una contraseña. Queda guardado sólo en este equipo. Los eventos se ven en UniCore pero se editan en el
-        calendario de origen.
+        {t("El enlace da acceso a tu calendario: tratalo como una contraseña. Queda guardado sólo en este equipo. Los eventos se ven en UniCore pero se editan en el calendario de origen.")}
       </p>
     </div>
   );
@@ -255,40 +259,39 @@ export function CalendarSection() {
     <>
       {!isDesktop() && (
         <Hint>
-          Estás en el navegador: muchos calendarios (Google, por ejemplo) no dejan leer el enlace desde acá. En la app de escritorio funciona siempre; en el navegador
-          podés importar el archivo .ics.
+          {t("Estás en el navegador: muchos calendarios (Google, por ejemplo) no dejan leer el enlace desde acá. En la app de escritorio funciona siempre; en el navegador podés importar el archivo .ics.")}
         </Hint>
       )}
 
-      <Heading>Calendarios conectados</Heading>
+      <Heading>{t("Calendarios conectados")}</Heading>
       <div className="flex flex-col gap-3">
-        {calendars.length === 0 ? <p className="t-small py-1 text-faint">Todavía no conectaste ningún calendario.</p> : calendars.map((c) => <CalendarCard key={c.id} cal={c} />)}
+        {calendars.length === 0 ? <p className="t-small py-1 text-faint">{t("Todavía no conectaste ningún calendario.")}</p> : calendars.map((c) => <CalendarCard key={c.id} cal={c} />)}
         <AddCalendar />
       </div>
 
-      <Heading>Preferencias</Heading>
-      <Row label="Sincronizar automáticamente">
+      <Heading>{t("Preferencias")}</Heading>
+      <Row label={t("Sincronizar automáticamente")}>
         <Segmented
           value={String(settings.calendarSyncMinutes)}
           options={SYNC_OPTIONS}
           onChange={(v) => update({ calendarSyncMinutes: Number(v) })}
         />
       </Row>
-      <Row label="La semana empieza el">
+      <Row label={t("La semana empieza el")}>
         <Segmented
           value={settings.weekStart}
           options={[
-            { value: "lun", label: "Lunes" },
-            { value: "dom", label: "Domingo" },
+            { value: "lun", label: t("Lunes") },
+            { value: "dom", label: t("Domingo") },
           ]}
           onChange={(weekStart) => update({ weekStart })}
         />
       </Row>
-      <Row label="Mostrar tareas hechas en el calendario">
-        <Toggle checked={settings.showDoneTasks} onChange={(v) => update({ showDoneTasks: v })} label="Mostrar tareas hechas en el calendario" />
+      <Row label={t("Mostrar tareas hechas en el calendario")}>
+        <Toggle checked={settings.showDoneTasks} onChange={(v) => update({ showDoneTasks: v })} label={t("Mostrar tareas hechas en el calendario")} />
       </Row>
-      <Row label="Mostrar el cronograma de las materias">
-        <Toggle checked={settings.showCronogramas} onChange={(v) => update({ showCronogramas: v })} label="Mostrar el cronograma de las materias" />
+      <Row label={t("Mostrar el cronograma de las materias")}>
+        <Toggle checked={settings.showCronogramas} onChange={(v) => update({ showCronogramas: v })} label={t("Mostrar el cronograma de las materias")} />
       </Row>
     </>
   );

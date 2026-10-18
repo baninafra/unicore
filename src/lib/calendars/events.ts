@@ -12,6 +12,7 @@ import { buildIcs, expandRRule, parseIcsSeries } from "./ics";
 import { CALENDAR_COLORS } from "./sync";
 import type { CalEvent, CalendarColor, CalendarSource, EventCategory, Subject, Task } from "../types";
 import { EVENT_CATEGORY_LABEL } from "../types";
+import { t } from "@/lib/i18n";
 
 // ---------- Calendarios propios ----------
 
@@ -24,7 +25,7 @@ export async function defaultCalendarId(): Promise<string> {
   const locals = (await db.calendars.orderBy("createdAt").toArray()).filter((c) => c.local);
   const visible = locals.find((c) => c.enabled) ?? locals[0];
   if (visible) return visible.id;
-  return createLocalCalendar("Personal", "primary");
+  return createLocalCalendar(t("Personal"), "primary");
 }
 
 export async function createLocalCalendar(name: string, color?: CalendarColor): Promise<string> {
@@ -32,7 +33,7 @@ export async function createLocalCalendar(name: string, color?: CalendarColor): 
   const id = newId();
   await db.calendars.add({
     id,
-    name: name.trim() || "Calendario",
+    name: name.trim() || t("Calendario"),
     local: true,
     color: color ?? CALENDAR_COLORS.find((c) => !used.has(c)) ?? "cyan",
     enabled: true,
@@ -318,7 +319,7 @@ export async function exportCalendarIcs(calendarId: string): Promise<{ name: str
   const cal = await db.calendars.get(calendarId);
   const events = await db.events.where("calendarId").equals(calendarId).toArray();
   const ics = buildIcs(
-    cal?.name ?? "Calendario",
+    cal?.name ?? t("Calendario"),
     events.map((e) => ({
       uid: `${e.id}@unicore`,
       title: e.title,
@@ -334,7 +335,7 @@ export async function exportCalendarIcs(calendarId: string): Promise<{ name: str
       status: e.status,
     })),
   );
-  return { name: cal?.name ?? "Calendario", ics };
+  return { name: cal?.name ?? t("Calendario"), ics };
 }
 
 // Copia los eventos de un .ics a un calendario propio (con sus repeticiones). Devuelve cuántos agregó.

@@ -5,6 +5,7 @@
 
 import { useEffect } from "react";
 import { format } from "date-fns";
+import { t } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import { occurrences } from "@/lib/calendars/events";
 import { toast } from "@/lib/undo";
@@ -29,11 +30,11 @@ function saveFired(s: Set<string>) {
 
 function whenText(start: Date, allDay: boolean): string {
   const min = Math.round((start.getTime() - Date.now()) / 60_000);
-  if (allDay) return `el ${format(start, "dd/MM")}`;
-  if (min <= 0) return "ahora";
-  if (min < 60) return `en ${min} min`;
-  if (min < 24 * 60) return `a las ${format(start, "HH:mm")}`;
-  return `el ${format(start, "dd/MM 'a las' HH:mm")}`;
+  if (allDay) return t("el {date}", { date: format(start, "dd/MM") });
+  if (min <= 0) return t("ahora");
+  if (min < 60) return t("en {min} min", { min });
+  if (min < 24 * 60) return t("a las {time}", { time: format(start, "HH:mm") });
+  return t("el {date}", { date: format(start, t("dd/MM 'a las' HH:mm")) });
 }
 
 export function EventReminders() {
@@ -60,7 +61,7 @@ export function EventReminders() {
             toast(text, {
               ms: 15000,
               action: {
-                label: "Ver",
+                label: t("Ver"),
                 run: () => {
                   const length = new Date(ev.end).getTime() - new Date(ev.start).getTime();
                   openEventDialog({
@@ -79,8 +80,8 @@ export function EventReminders() {
       if (changed) saveFired(fired);
     };
     void check();
-    const t = window.setInterval(() => void check(), 30_000);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => void check(), 30_000);
+    return () => window.clearInterval(timer);
   }, []);
   return null;
 }

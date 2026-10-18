@@ -9,6 +9,7 @@ import { insertBlocks } from "@/lib/nav/actions";
 import { toast } from "@/lib/undo";
 import { directions, downloadedModels, downloadModels, forgetModels, LANGS, modelsForLang, route, translate } from "@/lib/tools/translate";
 import { Select } from "@/components/ui/select";
+import { intlLocale, t } from "@/lib/i18n";
 
 const LS_PAIR = "uc-translate-pair";
 
@@ -51,17 +52,17 @@ export function TranslatorTool() {
 
   const run = async () => {
     if (!text.trim() || !steps) return;
-    setBusy(missing.length ? "Bajando el idioma…" : "Traduciendo…");
+    setBusy(missing.length ? t("Bajando el idioma…") : t("Traduciendo…"));
     setPct(missing.length ? 0 : null);
     try {
       const res = await translate(text, from, to, (p) => {
         setPct(p);
-        if (p >= 100) setBusy("Traduciendo…");
+        if (p >= 100) setBusy(t("Traduciendo…"));
       });
       setOut(res);
       setHave(downloadedModels());
     } catch (err) {
-      toast(err instanceof Error ? `No pudimos traducir: ${err.message}` : "No pudimos traducir. Revisá la conexión para bajar el idioma.", { tone: "error" });
+      toast(err instanceof Error ? t("No pudimos traducir: {message}", { message: err.message }) : t("No pudimos traducir. Revisá la conexión para bajar el idioma."), { tone: "error" });
     } finally {
       setBusy(null);
       setPct(null);
@@ -70,14 +71,14 @@ export function TranslatorTool() {
 
   const fetchLang = async (code: string) => {
     const models = modelsForLang(code);
-    setBusy(`Bajando ${LANGS.find((l) => l.code === code)?.name ?? code}…`);
+    setBusy(t("Bajando {lang}…", { lang: LANGS.find((l) => l.code === code)?.name ?? code }));
     setPct(0);
     try {
       await downloadModels(models, (p) => setPct(p));
       setHave(downloadedModels());
-      toast("Listo: ya podés traducir sin conexión");
+      toast(t("Listo: ya podés traducir sin conexión"));
     } catch {
-      toast("No pudimos bajar el idioma. Revisá la conexión y probá de nuevo.", { tone: "error" });
+      toast(t("No pudimos bajar el idioma. Revisá la conexión y probá de nuevo."), { tone: "error" });
     } finally {
       setBusy(null);
       setPct(null);
@@ -117,13 +118,13 @@ export function TranslatorTool() {
     <div className="tool-pane">
       {/* Idiomas: De ⇄ A en una sola barra */}
       <div className="flex items-center gap-1 rounded-md border border-border bg-surface p-1">
-        <Select aria-label="Idioma de origen" className="input h-8 min-w-0 flex-1 border-transparent bg-transparent" value={from} onChange={(e) => savePair(e.target.value, to === e.target.value ? from : to)}>
+        <Select aria-label={t("Idioma de origen")} className="input h-8 min-w-0 flex-1 border-transparent bg-transparent" value={from} onChange={(e) => savePair(e.target.value, to === e.target.value ? from : to)}>
           {options}
         </Select>
-        <button type="button" className="icon-btn h-8 w-8" title="Invertir idiomas" aria-label="Invertir idiomas" onClick={swap}>
+        <button type="button" className="icon-btn h-8 w-8" title={t("Invertir idiomas")} aria-label={t("Invertir idiomas")} onClick={swap}>
           <ArrowLeftRight />
         </button>
-        <Select aria-label="Idioma de destino" className="input h-8 min-w-0 flex-1 border-transparent bg-transparent" value={to} onChange={(e) => savePair(from === e.target.value ? to : from, e.target.value)}>
+        <Select aria-label={t("Idioma de destino")} className="input h-8 min-w-0 flex-1 border-transparent bg-transparent" value={to} onChange={(e) => savePair(from === e.target.value ? to : from, e.target.value)}>
           {options}
         </Select>
       </div>
@@ -132,7 +133,7 @@ export function TranslatorTool() {
       <div className="rounded-md border border-border bg-surface focus-within:border-primary">
         <textarea
           className="block min-h-[110px] w-full resize-y bg-transparent px-3 pt-2.5 text-[length:calc(14px*var(--ui-scale,1))] leading-6 text-text outline-none placeholder:text-faint"
-          placeholder={`Escribí o pegá el texto en ${langName(from).toLowerCase()}…`}
+          placeholder={t("Escribí o pegá el texto en {lang}…", { lang: langName(from).toLowerCase() })}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -140,9 +141,9 @@ export function TranslatorTool() {
           }}
         />
         <div className="flex items-center gap-1 px-2 pb-1.5">
-          <span className="t-small num text-faint">{text.length.toLocaleString("es-AR")} caracteres</span>
+          <span className="t-small num text-faint">{t("{n} caracteres", { n: text.length.toLocaleString(intlLocale()) })}</span>
           {text && (
-            <button type="button" className="icon-btn ml-auto" title="Borrar el texto" aria-label="Borrar el texto" onClick={() => (setText(""), setOut(""))}>
+            <button type="button" className="icon-btn ml-auto" title={t("Borrar el texto")} aria-label={t("Borrar el texto")} onClick={() => (setText(""), setOut(""))}>
               <X />
             </button>
           )}
@@ -150,15 +151,15 @@ export function TranslatorTool() {
       </div>
 
       {!steps ? (
-        <div className="t-small text-rose">Todavía no hay un modelo para traducir de {langName(from)} a {langName(to)}.</div>
+        <div className="t-small text-rose">{t("Todavía no hay un modelo para traducir de {from} a {to}.", { from: langName(from), to: langName(to) })}</div>
       ) : missing.length > 0 ? (
         <div className="flex flex-col gap-1.5 rounded-md border border-dashed border-border-strong p-3">
           <span className="t-small text-muted">
-            Para traducir sin conexión hay que bajar {missing.length === 1 ? "un modelo" : "los modelos"} de este idioma una sola vez (unos 100 MB).
+            {missing.length === 1 ? t("Para traducir sin conexión hay que bajar un modelo de este idioma una sola vez (unos 100 MB).") : t("Para traducir sin conexión hay que bajar los modelos de este idioma una sola vez (unos 100 MB).")}
           </span>
           <button type="button" className="btn btn-primary self-start" disabled={!!busy} onClick={() => void run()}>
             <Download />
-            Bajar y traducir
+            {t("Bajar y traducir")}
           </button>
         </div>
       ) : null}
@@ -180,16 +181,16 @@ export function TranslatorTool() {
       {/* Traducción: siempre a la vista */}
       <div className="rounded-md border border-border bg-surface-raised">
         <div className={clsx("min-h-[110px] whitespace-pre-wrap px-3 pt-2.5 text-[length:calc(14px*var(--ui-scale,1))] leading-6", out ? "text-text" : "text-faint")}>
-          {out || (busy === "Traduciendo…" ? "Traduciendo…" : `La traducción al ${langName(to).toLowerCase()} aparece acá`)}
+          {out || (busy === t("Traduciendo…") ? t("Traduciendo…") : t("La traducción al {lang} aparece acá", { lang: langName(to).toLowerCase() }))}
         </div>
         <div className="flex items-center justify-end gap-1 px-2 pb-1.5">
           <button
             type="button"
             className="icon-btn"
             disabled={!out}
-            title="Copiar la traducción"
-            aria-label="Copiar la traducción"
-            onClick={() => void navigator.clipboard.writeText(out).then(() => toast("Copiamos la traducción"))}
+            title={t("Copiar la traducción")}
+            aria-label={t("Copiar la traducción")}
+            onClick={() => void navigator.clipboard.writeText(out).then(() => toast(t("Copiamos la traducción")))}
           >
             <Copy />
           </button>
@@ -197,8 +198,8 @@ export function TranslatorTool() {
             type="button"
             className="icon-btn"
             disabled={!out}
-            title="Pegar la traducción al final de la nota abierta"
-            aria-label="Pegar en la nota"
+            title={t("Pegar la traducción al final de la nota abierta")}
+            aria-label={t("Pegar en la nota")}
             onClick={() => insertBlocks(out.split("\n").map((p) => ({ type: "paragraph", content: p })))}
           >
             <ClipboardPaste />
@@ -210,8 +211,8 @@ export function TranslatorTool() {
       <div className="border-t border-border pt-2">
         <button type="button" className="flex w-full items-center gap-2 py-1 text-[length:calc(13px*var(--ui-scale,1))] text-muted hover:text-text" onClick={() => setShowLangs((v) => !v)} aria-expanded={showLangs}>
           <ChevronDown className={clsx("h-4 w-4 transition-transform", !showLangs && "-rotate-90")} strokeWidth={1.75} />
-          Idiomas sin conexión
-          <span className="t-small ml-auto text-faint">{readyCount === 0 ? "ninguno bajado" : `${readyCount} bajado${readyCount === 1 ? "" : "s"}`}</span>
+          {t("Idiomas sin conexión")}
+          <span className="t-small ml-auto text-faint">{readyCount === 0 ? t("ninguno bajado") : t("{n} bajado{s}", { n: readyCount, s: readyCount === 1 ? "" : "s" })}</span>
         </button>
         {showLangs && (
           <div className="mt-1 flex flex-col gap-0.5">
@@ -222,22 +223,22 @@ export function TranslatorTool() {
               return (
                 <div key={l.code} className="flex min-h-8 items-center gap-2 rounded-sm px-2 hover:bg-surface-raised">
                   <span className="text-[length:calc(13px*var(--ui-scale,1))]">{l.name}</span>
-                  {oneWay && <span className="t-small text-faint">{dir.toSpanish ? "sólo al español" : "sólo desde el español"}</span>}
+                  {oneWay && <span className="t-small text-faint">{dir.toSpanish ? t("sólo al español") : t("sólo desde el español")}</span>}
                   <span className="ml-auto" />
                   {ready ? (
                     <>
                       <span className="badge badge-mint">
                         <Check className="h-3 w-3" strokeWidth={2} />
-                        Listo
+                        {t("Listo")}
                       </span>
-                      <button type="button" className="icon-btn" title="Quitar" aria-label={`Quitar ${l.name}`} onClick={() => void removeLang(l.code)}>
+                      <button type="button" className="icon-btn" title={t("Quitar")} aria-label={t("Quitar {name}", { name: l.name })} onClick={() => void removeLang(l.code)}>
                         <Trash2 />
                       </button>
                     </>
                   ) : (
                     <button type="button" className="btn btn-sm" disabled={!!busy} onClick={() => void fetchLang(l.code)}>
                       <Download />
-                      Bajar
+                      {t("Bajar")}
                     </button>
                   )}
                 </div>

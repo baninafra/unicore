@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
 import { blockOwnText, type BlockLike } from "@/lib/notes/index-note";
 import { db } from "@/lib/db";
+import { t } from "@/lib/i18n";
 import { useWorkspace } from "@/lib/workspace";
 
 interface Line {
@@ -85,10 +86,10 @@ export function SlidesView({ id }: { id: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [id, last, openView]);
 
-  if (note === undefined) return <div className="p-6 t-small text-faint">Cargando…</div>;
-  if (note === null) return <div className="p-6 t-small text-faint">Esta nota ya no existe.</div>;
+  if (note === undefined) return <div className="p-6 t-small text-faint">{t("Cargando…")}</div>;
+  if (note === null) return <div className="p-6 t-small text-faint">{t("Esta nota ya no existe.")}</div>;
   if (!slides.length) {
-    return <div className="p-6 t-small text-faint">La nota no tiene contenido.</div>;
+    return <div className="p-6 t-small text-faint">{t("La nota no tiene contenido.")}</div>;
   }
 
   const current = slides[Math.min(index, last)];
@@ -98,7 +99,7 @@ export function SlidesView({ id }: { id: string }) {
       <button
         type="button"
         className="icon-btn absolute right-3 top-3"
-        aria-label="Salir de la presentación"
+        aria-label={t("Salir de la presentación")}
         onClick={() => openView({ type: "nota", id })}
       >
         <X />

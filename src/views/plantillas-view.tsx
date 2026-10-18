@@ -15,11 +15,12 @@ import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { deleteWithUndo, toast } from "@/lib/undo";
 import { IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note } from "@/lib/types";
 import { createNote } from "@/components/notes/note-utils";
+import { t, intlLocale } from "@/lib/i18n";
 
 const SUGGESTED: { title: string; md: string }[] = [
   {
-    title: "Apunte de clase",
-    md: `**Fecha:** {{fecha}}  ·  **Tema:**
+    title: t("Apunte de clase"),
+    md: t(`**Fecha:** {{fecha}}  ·  **Tema:**
 
 ## Lo más importante
 -
@@ -32,11 +33,11 @@ const SUGGESTED: { title: string; md: string }[] = [
 
 ## Para la próxima clase
 - [ ] Leer
-- [ ] Hacer ejercicios`,
+- [ ] Hacer ejercicios`),
   },
   {
-    title: "Resumen de unidad",
-    md: `# {{titulo}}
+    title: t("Resumen de unidad"),
+    md: t(`# {{titulo}}
 
 ## Conceptos clave
 | Concepto | Definición | Ejemplo |
@@ -53,11 +54,11 @@ const SUGGESTED: { title: string; md: string }[] = [
 - ¿...? ::
 
 ## Bibliografía
-- `,
+- `),
   },
   {
-    title: "Trabajo práctico",
-    md: `**Materia:**  ·  **Entrega:**  ·  **Grupo:**
+    title: t("Trabajo práctico"),
+    md: t(`**Materia:**  ·  **Entrega:**  ·  **Grupo:**
 
 ## Consigna
 > Pegá acá la consigna
@@ -71,11 +72,11 @@ const SUGGESTED: { title: string; md: string }[] = [
 ## Desarrollo
 
 ## Fuentes
-- `,
+- `),
   },
   {
-    title: "Preparar parcial",
-    md: `**Fecha del parcial:**  ·  **Unidades que entran:**
+    title: t("Preparar parcial"),
+    md: t(`**Fecha del parcial:**  ·  **Unidades que entran:**
 
 ## Temas
 - [ ] Unidad 1
@@ -91,11 +92,11 @@ const SUGGESTED: { title: string; md: string }[] = [
 |  |  |  |
 
 ## Ejercicios de práctica
-- [ ] `,
+- [ ] `),
   },
   {
-    title: "Reunión de grupo",
-    md: `**Fecha:** {{fecha}} {{hora}}  ·  **Participantes:**
+    title: t("Reunión de grupo"),
+    md: t(`**Fecha:** {{fecha}} {{hora}}  ·  **Participantes:**
 
 ## Temas
 -
@@ -104,16 +105,16 @@ const SUGGESTED: { title: string; md: string }[] = [
 -
 
 ## Tareas
-- [ ] Quién · qué · para cuándo`,
+- [ ] Quién · qué · para cuándo`),
   },
 ];
 
 export async function addSuggestedTemplates(): Promise<number> {
-  const existing = new Set((await listTemplates()).map((t) => t.title.toLowerCase()));
+  const existing = new Set((await listTemplates()).map((tpl) => tpl.title.toLowerCase()));
   let n = 0;
-  for (const t of SUGGESTED) {
-    if (existing.has(t.title.toLowerCase())) continue;
-    await createNote({ subjectId: TEMPLATES_FOLDER, title: t.title, unitNumber: 1, content: markdownToBlocks(t.md) });
+  for (const tpl of SUGGESTED) {
+    if (existing.has(tpl.title.toLowerCase())) continue;
+    await createNote({ subjectId: TEMPLATES_FOLDER, title: tpl.title, unitNumber: 1, content: markdownToBlocks(tpl.md) });
     n++;
   }
   return n;
@@ -125,85 +126,88 @@ export function PlantillasView() {
   const open = useOpen();
   const menu = useContextMenu();
 
-  async function createFrom(t: Note, folder: string) {
-    const blocks = cloneBlocks(t.content, templateVars(new Date(), t.title));
-    const id = await addNote(folder, { title: t.title, content: blocks, plainTextCache: plainTextOf(blocks as Parameters<typeof plainTextOf>[0]) });
+  async function createFrom(tpl: Note, folder: string) {
+    const blocks = cloneBlocks(tpl.content, templateVars(new Date(), tpl.title));
+    const id = await addNote(folder, { title: tpl.title, content: blocks, plainTextCache: plainTextOf(blocks as Parameters<typeof plainTextOf>[0]) });
     open({ type: "nota", id }, { ctrlKey: true });
   }
 
   // "Usar" pregunta dónde crear la nota: materias que cursás primero, después el resto.
-  function chooseWhere(t: Note, e: React.MouseEvent) {
+  function chooseWhere(tpl: Note, e: React.MouseEvent) {
     const sorted = [...subjects].sort(
-      (a, b) => Number(b.status === "CURSANDO") - Number(a.status === "CURSANDO") || a.name.localeCompare(b.name, "es"),
+      (a, b) => Number(b.status === "CURSANDO") - Number(a.status === "CURSANDO") || a.name.localeCompare(b.name, intlLocale()),
     );
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     menu.open({ clientX: r.left, clientY: r.bottom + 4 }, [
-      { label: "Notas sueltas", icon: FilePlus, onSelect: () => void createFrom(t, LOOSE_FOLDER) },
-      { label: "Ideas", icon: FilePlus, onSelect: () => void createFrom(t, IDEAS_FOLDER) },
+      { label: t("Notas sueltas"), icon: FilePlus, onSelect: () => void createFrom(tpl, LOOSE_FOLDER) },
+      { label: t("Ideas"), icon: FilePlus, onSelect: () => void createFrom(tpl, IDEAS_FOLDER) },
       { type: "separator" },
-      ...sorted.map((s): MenuItem => ({ label: s.name, hint: s.status === "CURSANDO" ? "cursando" : undefined, onSelect: () => void createFrom(t, s.id) })),
+      ...sorted.map((s): MenuItem => ({ label: s.name, hint: s.status === "CURSANDO" ? t("cursando") : undefined, onSelect: () => void createFrom(tpl, s.id) })),
     ]);
   }
 
-  const preview = (t: Note) => t.plainTextCache.replace(/\s+/g, " ").trim().slice(0, 160);
+  const preview = (tpl: Note) => tpl.plainTextCache.replace(/\s+/g, " ").trim().slice(0, 160);
 
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-6 px-6 py-6">
       <header className="space-y-2">
         <div className="flex items-center gap-3">
           <LayoutTemplate className="h-5 w-5 text-primary-soft" strokeWidth={1.75} />
-          <h1 className="t-h1 mr-auto">Plantillas</h1>
+          <h1 className="t-h1 mr-auto">{t("Plantillas")}</h1>
           <button
             type="button"
             className="btn btn-sm"
-            onClick={async () => open({ type: "nota", id: await addNote(TEMPLATES_FOLDER, { title: "Nueva plantilla" }) })}
+            onClick={async () => open({ type: "nota", id: await addNote(TEMPLATES_FOLDER, { title: t("Nueva plantilla") }) })}
           >
             <FilePlus className="h-4 w-4" strokeWidth={1.75} />
-            Nueva plantilla
+            {t("Nueva plantilla")}
           </button>
         </div>
         <p className="t-body max-w-[680px] text-muted">
-          Son notas modelo para no empezar de cero. Tocá <b className="text-text">Usar en…</b>, elegí la materia y se crea una nota nueva con ese formato. Dentro de una nota también podés
-          insertarlas con <span className="kbd">Alt</span>+<span className="kbd">T</span>. Si escribís {"{{fecha}}"}, {"{{hora}}"} o {"{{titulo}}"}, se completan solos.
+          {t("Son notas modelo para no empezar de cero. Tocá «Usar en…», elegí la materia y se crea una nota nueva con ese formato. Dentro de una nota también podés insertarlas con Alt+T. Si escribís {fecha}, {hora} o {titulo}, se completan solos.", {
+            fecha: "{{fecha}}",
+            hora: "{{hora}}",
+            titulo: "{{titulo}}",
+          })}
         </p>
       </header>
 
 
       {templates && templates.length === 0 && (
         <div className="card flex flex-col items-start gap-3 p-5">
-          <p className="t-body">Todavía no tenés plantillas.</p>
+          <p className="t-body">{t("Todavía no tenés plantillas.")}</p>
           <button
             type="button"
             className="btn btn-ai"
             onClick={async () => {
               const n = await addSuggestedTemplates();
-              toast(`Agregamos ${n} plantillas`);
+              toast(t("Agregamos {n} plantillas", { n }));
             }}
           >
             <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-            Agregar plantillas para la facultad
+            {t("Agregar plantillas para la facultad")}
           </button>
         </div>
       )}
 
       {templates && templates.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((t) => (
-            <div key={t.id} className="card flex flex-col gap-2 p-4">
-              <p className="t-h3">{t.title}</p>
-              <p className="line-clamp-4 flex-1 text-[length:calc(12px*var(--ui-scale,1))] text-muted">{preview(t) || "Vacía"}</p>
+          {templates.map((tpl) => (
+            <div key={tpl.id} className="card flex flex-col gap-2 p-4">
+              <p className="t-h3">{tpl.title}</p>
+              <p className="line-clamp-4 flex-1 text-[length:calc(12px*var(--ui-scale,1))] text-muted">{preview(tpl) || t("Vacía")}</p>
               <div className="flex items-center gap-1">
-                <button type="button" className="btn btn-sm" onClick={(e) => chooseWhere(t, e)} aria-haspopup="menu">
-                  Usar en…
+                <button type="button" className="btn btn-sm" onClick={(e) => chooseWhere(tpl, e)} aria-haspopup="menu">
+                  {t("Usar en…")}
                 </button>
-                <button type="button" className="icon-btn" title="Editar plantilla" onClick={(e) => open({ type: "nota", id: t.id }, e)}>
+                <button type="button" className="icon-btn" title={t("Editar plantilla")} onClick={(e) => open({ type: "nota", id: tpl.id }, e)}>
                   <Pencil strokeWidth={1.75} />
                 </button>
                 <button
                   type="button"
                   className="icon-btn ml-auto"
-                  title="Eliminar plantilla"
-                  onClick={() => void deleteWithUndo(`Se eliminó «${t.title}»`, () => deleteNote(t.id))}
+                  title={t("Eliminar plantilla")}
+                  onClick={() => void deleteWithUndo(t("Se eliminó «{name}»", { name: tpl.title }), () => deleteNote(tpl.id))}
                 >
                   <Trash2 strokeWidth={1.75} />
                 </button>
@@ -212,16 +216,16 @@ export function PlantillasView() {
           ))}
         </div>
       )}
-      {templates && templates.length > 0 && SUGGESTED.some((s) => !templates.some((t) => t.title.toLowerCase() === s.title.toLowerCase())) && (
+      {templates && templates.length > 0 && SUGGESTED.some((s) => !templates.some((tpl) => tpl.title.toLowerCase() === s.title.toLowerCase())) && (
         <button
           type="button"
           className="self-start text-[length:calc(13px*var(--ui-scale,1))] text-faint underline underline-offset-2 hover:text-text"
           onClick={async () => {
             const n = await addSuggestedTemplates();
-            toast(`Agregamos ${n} plantillas`);
+            toast(t("Agregamos {n} plantillas", { n }));
           }}
         >
-          Agregar las plantillas sugeridas que falten
+          {t("Agregar las plantillas sugeridas que falten")}
         </button>
       )}
       {menu.menu}

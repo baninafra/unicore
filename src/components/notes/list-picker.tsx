@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { t } from "@/lib/i18n";
 import { Modal } from "@/components/ui/modal";
 
 export interface PickItem {
@@ -55,7 +56,7 @@ export function ListPicker({
           if (e.key === "Enter" && shown[0]) pick(shown[0]);
         }}
       />
-      {!shown.length && <p className="t-small text-faint">Sin resultados</p>}
+      {!shown.length && <p className="t-small text-faint">{t("Sin resultados")}</p>}
       <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto">
         {groups.map(([group, list]) => (
           <div key={group || "_"} className="flex flex-col gap-0.5">

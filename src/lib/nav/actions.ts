@@ -1,7 +1,7 @@
 // Acciones de navegación compartidas por el explorador, la paleta, los marcadores y los comandos.
 import { addDays, format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
 import { db, newId, nowIso } from "@/lib/db";
+import { dateLocale, intlLocale, t } from "@/lib/i18n";
 import { createNote, plainTextOf } from "@/components/notes/note-utils";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type BookmarkKind, type Note } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
@@ -25,10 +25,10 @@ export function runSafe(fn: () => Promise<unknown>): void {
 }
 
 export const FOLDER_NAME: Record<string, string> = {
-  [DAILY_FOLDER]: "Diario",
-  [LOOSE_FOLDER]: "Notas",
-  [IDEAS_FOLDER]: "Ideas",
-  [TEMPLATES_FOLDER]: "Plantillas",
+  [DAILY_FOLDER]: t("Diario"),
+  [LOOSE_FOLDER]: t("Notas"),
+  [IDEAS_FOLDER]: t("Ideas"),
+  [TEMPLATES_FOLDER]: t("Plantillas"),
 };
 
 export function isSpecialFolder(id: string) {
@@ -65,7 +65,7 @@ function textOf(blocks: unknown[]): string {
 
 export function templateVars(now: Date, title: string): Record<string, string> {
   return {
-    fecha: format(now, "d 'de' MMMM 'de' yyyy", { locale: es }),
+    fecha: format(now, t("d 'de' MMMM 'de' yyyy"), { locale: dateLocale() }),
     hora: format(now, "HH:mm"),
     titulo: title,
   };
@@ -73,7 +73,7 @@ export function templateVars(now: Date, title: string): Record<string, string> {
 
 export async function listTemplates(): Promise<Note[]> {
   const list = await db.notes.where("subjectId").equals(TEMPLATES_FOLDER).toArray();
-  return list.sort((a, b) => a.title.localeCompare(b.title, "es"));
+  return list.sort((a, b) => a.title.localeCompare(b.title, intlLocale()));
 }
 
 async function findTemplate(name: string): Promise<Note | undefined> {
@@ -113,7 +113,7 @@ export async function addNote(
 ): Promise<string> {
   const id = await createNote({
     subjectId,
-    title: opts.title ?? "Sin título",
+    title: opts.title ?? t("Sin título"),
     unitNumber: opts.unitNumber ?? 1,
     content: opts.content,
     plainTextCache: opts.plainTextCache,
@@ -125,7 +125,7 @@ export async function addNote(
 export async function addCanvas(subjectId: string): Promise<string> {
   const id = newId();
   const now = nowIso();
-  await db.canvases.add({ id, name: "Sin título", subjectId, data: { nodes: [], edges: [] }, updatedAt: now, createdAt: now });
+  await db.canvases.add({ id, name: t("Sin título"), subjectId, data: { nodes: [], edges: [] }, updatedAt: now, createdAt: now });
   return id;
 }
 
@@ -149,7 +149,7 @@ export function dayKey(day: Date): string {
 }
 
 export function dailyTitle(day: Date): string {
-  return format(day, "d 'de' MMMM 'de' yyyy", { locale: es });
+  return format(day, t("d 'de' MMMM 'de' yyyy"), { locale: dateLocale() });
 }
 
 // Abre la nota del día o la crea (con la plantilla "Diario" si existe).
@@ -204,7 +204,7 @@ export async function duplicateNote(id: string): Promise<string | undefined> {
   const copy: Note = {
     ...source,
     id: newId(),
-    title: `${source.title} (copia)`,
+    title: t("{title} (copia)", { title: source.title }),
     subjectId: source.subjectId === DAILY_FOLDER ? LOOSE_FOLDER : source.subjectId,
     content: cloneBlocks(source.content),
     createdAt: now,
@@ -270,7 +270,7 @@ export async function bookmarkTargetFor(
   switch (view.type) {
     case "nota": {
       const n = await db.notes.get(view.id);
-      return n ? { kind: "note", targetId: n.id, title: n.title || "Sin título" } : undefined;
+      return n ? { kind: "note", targetId: n.id, title: n.title || t("Sin título") } : undefined;
     }
     case "materia": {
       const s = await db.subjects.get(view.id);
@@ -278,14 +278,14 @@ export async function bookmarkTargetFor(
     }
     case "canvas": {
       const c = await db.canvases.get(view.id);
-      return c ? { kind: "canvas", targetId: c.id, title: c.name || "Sin título" } : undefined;
+      return c ? { kind: "canvas", targetId: c.id, title: c.name || t("Sin título") } : undefined;
     }
     case "pdf": {
       const d = await db.documents.get(view.id);
       return d ? { kind: "document", targetId: d.id, title: d.fileName } : undefined;
     }
     case "busqueda":
-      return view.query ? { kind: "search", targetId: view.query, title: `Buscar: ${view.query}` } : undefined;
+      return view.query ? { kind: "search", targetId: view.query, title: t("Buscar: {query}", { query: view.query }) } : undefined;
     default:
       return undefined;
   }

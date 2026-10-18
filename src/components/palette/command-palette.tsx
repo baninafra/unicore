@@ -12,6 +12,7 @@ import { LOOSE_FOLDER } from "@/lib/types";
 import { FOLDER_NAME, addNote, runSafe, type ModifierEvent } from "@/lib/nav/actions";
 import { foldText, fuzzyScore } from "@/lib/nav/fold";
 import { formatHotkey, onPaletteOpen, type PaletteItem, type PaletteOpen } from "@/lib/nav/palette-bus";
+import { t } from "@/lib/i18n";
 import { CoreCommands } from "./core-commands";
 
 const LS_RECENT = "uc-palette-recent";
@@ -56,9 +57,9 @@ export function CommandPalette() {
 }
 
 const PLACEHOLDER: Record<PaletteOpen["mode"], string> = {
-  commands: "Escribí un comando",
-  quick: "Ir a un archivo",
-  list: "Elegí una opción",
+  commands: t("Escribí un comando"),
+  quick: t("Ir a un archivo"),
+  list: t("Elegí una opción"),
 };
 
 function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () => void }) {
@@ -85,25 +86,25 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
   const quickItems = useMemo<PaletteItem[]>(() => {
     if (!files) return [];
     const subjectName = new Map(files.subjects.map((s) => [s.id, s.name]));
-    const folderOf = (sid: string) => subjectName.get(sid) ?? FOLDER_NAME[sid] ?? "Notas";
+    const folderOf = (sid: string) => subjectName.get(sid) ?? FOLDER_NAME[sid] ?? t("Notas");
     return [
       ...files.subjects.map((s): PaletteItem => ({
         id: `s:${s.id}`,
         label: s.name,
-        hint: "Materia",
+        hint: t("Materia"),
         run: (e) => open({ type: "materia", id: s.id }, e),
       })),
       ...files.notes.map((n): PaletteItem => ({
         id: `n:${n.id}`,
-        label: n.title || "Sin título",
+        label: n.title || t("Sin título"),
         hint: folderOf(n.subjectId),
         match: (n.aliases ?? []).join(" "),
         run: (e) => open({ type: "nota", id: n.id }, e),
       })),
       ...files.canvases.map((c): PaletteItem => ({
         id: `c:${c.id}`,
-        label: c.name || "Sin título",
-        hint: "Lienzo",
+        label: c.name || t("Sin título"),
+        hint: t("Lienzo"),
         run: (e) => open({ type: "canvas", id: c.id }, e),
       })),
       ...files.documents.map((d): PaletteItem => ({
@@ -142,7 +143,7 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
     const name = query.trim();
     return {
       id: "crear",
-      label: `Crear nota "${name}"`,
+      label: t("Crear nota \"{name}\"", { name }),
       hint: "Shift Enter",
       run: (e) => runSafe(async () => open({ type: "nota", id: await addNote(LOOSE_FOLDER, { title: name }) }, e)),
     };
@@ -201,7 +202,7 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
         autoFocus
         value={query}
         placeholder={detail.mode === "list" ? (detail.title ?? PLACEHOLDER.list) : PLACEHOLDER[detail.mode]}
-        aria-label="Buscar"
+        aria-label={t("Buscar")}
         onChange={(e) => {
           setQuery(e.target.value);
           setActive(0);
@@ -227,7 +228,7 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
               ))}
           </button>
         ))}
-        {!list.length && <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin resultados</p>}
+        {!list.length && <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Sin resultados")}</p>}
       </div>
     </Modal>
   );

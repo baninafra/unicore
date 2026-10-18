@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { t } from "@/lib/i18n";
 import clsx from "clsx";
 import {
   Binary,
@@ -40,7 +41,7 @@ import { CalcStack } from "@/components/tools/calc-stack";
 import { useWindowControls, WINDOW_CONTROLS_W } from "@/components/shell/window-controls";
 
 // Las herramientas se cargan recién cuando se abren (mathjs y el traductor pesan).
-const ToolLoading = () => <div className="tool-pane t-small text-faint">Cargando…</div>;
+const ToolLoading = () => <div className="tool-pane t-small text-faint">{t("Cargando…")}</div>;
 const TranslatorTool = dynamic(() => import("@/components/tools/translator").then((m) => m.TranslatorTool), { ssr: false, loading: ToolLoading });
 
 function PaneTab({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {
@@ -85,8 +86,8 @@ function ResizeHandle({ side, width, onResize, onReset }: { side: "left" | "righ
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Cambiar el ancho del panel"
-      title="Arrastrá para agrandar o achicar · doble clic para volver al tamaño original"
+      aria-label={t("Cambiar el ancho del panel")}
+      title={t("Arrastrá para agrandar o achicar · doble clic para volver al tamaño original")}
       onDoubleClick={onReset}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
@@ -124,34 +125,34 @@ function ResizeHandle({ side, width, onResize, onReset }: { side: "left" | "righ
 }
 
 const LEFT: { key: LeftView; label: string; icon: LucideIcon }[] = [
-  { key: "explorer", label: "Archivos", icon: Files },
-  { key: "search", label: "Buscar", icon: Search },
-  { key: "bookmarks", label: "Marcadores", icon: Bookmark },
+  { key: "explorer", label: t("Archivos"), icon: Files },
+  { key: "search", label: t("Buscar"), icon: Search },
+  { key: "bookmarks", label: t("Marcadores"), icon: Bookmark },
 ];
 
 const RIGHT: { key: RightView; label: string; icon: LucideIcon }[] = [
-  { key: "ia", label: "Asistente IA", icon: Sparkles },
-  { key: "backlinks", label: "Menciones", icon: Link2 },
-  { key: "outgoing", label: "Enlaces salientes", icon: SquareArrowOutUpRight },
-  { key: "outline", label: "Esquema", icon: ListTree },
-  { key: "tags", label: "Etiquetas", icon: Hash },
-  { key: "properties", label: "Propiedades", icon: Table2 },
+  { key: "ia", label: t("Asistente IA"), icon: Sparkles },
+  { key: "backlinks", label: t("Menciones"), icon: Link2 },
+  { key: "outgoing", label: t("Enlaces salientes"), icon: SquareArrowOutUpRight },
+  { key: "outline", label: t("Esquema"), icon: ListTree },
+  { key: "tags", label: t("Etiquetas"), icon: Hash },
+  { key: "properties", label: t("Propiedades"), icon: Table2 },
 ];
 
 // Herramientas sueltas, debajo de lo que tiene que ver con la nota abierta.
 // Todas las de cálculo van juntas en un solo ícono ("Cálculo"), con pestañas adentro.
 const CALC: { key: RightView; label: string; short: string; icon: LucideIcon }[] = [
-  { key: "calc", label: "Calculadora científica", short: "Calculadora", icon: Calculator },
-  { key: "plot", label: "Graficador de funciones", short: "Gráficos", icon: ChartSpline },
-  { key: "units", label: "Conversor de unidades", short: "Unidades", icon: Ruler },
-  { key: "grades", label: "Promedio y nota necesaria", short: "Promedio", icon: GraduationCap },
-  { key: "bases", label: "Bases numéricas", short: "Bases", icon: Binary },
+  { key: "calc", label: t("Calculadora científica"), short: t("Calculadora"), icon: Calculator },
+  { key: "plot", label: t("Graficador de funciones"), short: t("Gráficos"), icon: ChartSpline },
+  { key: "units", label: t("Conversor de unidades"), short: t("Unidades"), icon: Ruler },
+  { key: "grades", label: t("Promedio y nota necesaria"), short: t("Promedio"), icon: GraduationCap },
+  { key: "bases", label: t("Bases numéricas"), short: t("Bases"), icon: Binary },
 ];
 const isCalc = (k: RightView) => CALC.some((c) => c.key === k);
 const TOOLS: { key: RightView; label: string; icon: LucideIcon }[] = [
-  { key: "calc", label: "Cálculo", icon: Calculator },
-  { key: "translate", label: "Traductor", icon: Languages },
-  { key: "scanner", label: "Escáner de documentos", icon: ScanLine },
+  { key: "calc", label: t("Cálculo"), icon: Calculator },
+  { key: "translate", label: t("Traductor"), icon: Languages },
+  { key: "scanner", label: t("Escáner de documentos"), icon: ScanLine },
 ];
 
 export function LeftSidebar() {
@@ -257,7 +258,7 @@ export function RightSidebar() {
   // La barra derecha se muestra o se esconde entera (botón de arriba): un ícono sólo cambia de panel.
   const open = !railHidden;
   const pick = (key: RightView) => setRight(true, key);
-  const current = isCalc(rightView) ? { label: "Cálculo" } : [...RIGHT, ...TOOLS].find((v) => v.key === rightView);
+  const current = isCalc(rightView) ? { label: t("Cálculo") } : [...RIGHT, ...TOOLS].find((v) => v.key === rightView);
   // openScanner() (paleta, IA) abre el escáner acá.
   useEffect(() => {
     const show = () => setRight(true, "scanner");
@@ -291,7 +292,7 @@ export function RightSidebar() {
         </aside>
       )}
       {!railHidden && <nav
-        aria-label="Paneles y herramientas"
+        aria-label={t("Paneles y herramientas")}
         data-tauri-drag-region
         className={clsx("flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2", controls && "pt-11")}
       >
@@ -300,7 +301,7 @@ export function RightSidebar() {
           <>
             <RailButton
               icon={PanelRightClose}
-              label="Esconder la barra derecha"
+              label={t("Esconder la barra derecha")}
               active={false}
               onClick={() => {
                 setRight(false);
@@ -327,8 +328,8 @@ export function RightToggle() {
   if (!railHidden || controls) return null;
   return (
     <button
-      aria-label="Mostrar la barra derecha"
-      title="Mostrar la barra derecha"
+      aria-label={t("Mostrar la barra derecha")}
+      title={t("Mostrar la barra derecha")}
       onClick={() => {
         // Vuelve a abrir el panel que estaba antes de esconderla (IA, calculadora…).
         setRailHidden(false);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CaseSensitive } from "lucide-react";
+import { t } from "@/lib/i18n";
 import { useSearch, type SortMode } from "@/lib/nav/search";
 import { SearchResults, SortSelect, useOpenHit } from "@/components/search/search-results";
 
@@ -23,17 +24,17 @@ export function BusquedaView({ query = "" }: { query?: string }) {
         <input
           className="input"
           autoFocus
-          placeholder="Buscar"
-          aria-label="Buscar"
+          placeholder={t("Buscar")}
+          aria-label={t("Buscar")}
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />
         <button
           type="button"
           className="icon-btn"
-          aria-label="Distinguir mayúsculas"
+          aria-label={t("Distinguir mayúsculas")}
           aria-pressed={cs}
-          title="Distinguir mayúsculas"
+          title={t("Distinguir mayúsculas")}
           onClick={() => setCs((v) => !v)}
         >
           <CaseSensitive strokeWidth={1.75} />

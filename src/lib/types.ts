@@ -1,5 +1,7 @@
 // Modelos de datos. Espejan supabase/schema.sql para poder migrar más adelante.
 
+import { t } from "@/lib/i18n";
+
 export type DegreeColor = "primary" | "cyan";
 
 // Tipo de espacio (perfil): una carrera, un curso del colegio, un trabajo, proyectos propios o la vida personal.
@@ -31,12 +33,12 @@ export interface ScheduleEntry {
 }
 
 export const SCHEDULE_KIND_LABEL: Record<ScheduleKind, string> = {
-  CLASE: "Clase",
-  PARCIAL: "Parcial",
-  ENTREGA: "Entrega",
-  FINAL: "Final",
-  FERIADO: "Feriado",
-  OTRO: "Otro",
+  CLASE: t("Clase"),
+  PARCIAL: t("Parcial"),
+  ENTREGA: t("Entrega"),
+  FINAL: t("Final"),
+  FERIADO: t("Feriado"),
+  OTRO: t("Otro"),
 };
 
 export interface Subject {
@@ -267,27 +269,27 @@ export interface CalEvent {
 }
 
 export const EVENT_CATEGORY_LABEL: Record<EventCategory, string> = {
-  CLASE: "Clase",
-  ESTUDIO: "Estudio",
-  EXAMEN: "Examen",
-  ENTREGA: "Entrega",
-  REUNION: "Reunión",
-  PERSONAL: "Personal",
-  OTRO: "Otro",
+  CLASE: t("Clase"),
+  ESTUDIO: t("Estudio"),
+  EXAMEN: t("Examen"),
+  ENTREGA: t("Entrega"),
+  REUNION: t("Reunión"),
+  PERSONAL: t("Personal"),
+  OTRO: t("Otro"),
 };
 
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {
-  PARCIAL: "Parcial",
-  FINAL: "Final",
+  PARCIAL: t("Parcial"),
+  FINAL: t("Final"),
   TP: "TP",
-  FORO: "Foro",
-  LECTURA: "Lectura",
-  TAREA: "Tarea",
+  FORO: t("Foro"),
+  LECTURA: t("Lectura"),
+  TAREA: t("Tarea"),
 };
 
 export const SUBJECT_STATUS_LABEL: Record<SubjectStatus, string> = {
-  PENDIENTE: "Pendiente",
-  CURSANDO: "Cursando",
-  REGULAR: "Regular",
-  APROBADA: "Aprobada",
+  PENDIENTE: t("Pendiente"),
+  CURSANDO: t("Cursando"),
+  REGULAR: t("Regular"),
+  APROBADA: t("Aprobada"),
 };

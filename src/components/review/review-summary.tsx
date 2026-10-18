@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/db";
 import { plural } from "./review-utils";
+import { t } from "@/lib/i18n";
 
 // Cierre del repaso en una línea: tiempo usado y cuántas tarjetas te tocan mañana (dentro del mismo filtro).
 export function ReviewSummary({ total, minutes, subjectIds, onRestart }: { total: number; minutes: number; subjectIds: string[]; onRestart: () => void }) {
@@ -29,17 +30,17 @@ export function ReviewSummary({ total, minutes, subjectIds, onRestart }: { total
     };
   }, [subjectIds]);
 
-  const tomorrowText = tomorrow === null ? "" : tomorrow === 0 ? " · mañana no te tocan" : ` · mañana te tocan ${tomorrow}`;
+  const tomorrowText = tomorrow === null ? "" : tomorrow === 0 ? t(" · mañana no te tocan") : t(" · mañana te tocan {n}", { n: tomorrow });
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <p className="t-h2">¡Listo!</p>
+      <p className="t-h2">{t("¡Listo!")}</p>
       <p className="t-body text-muted">
-        Repasaste {plural(total, "tarjeta", "tarjetas")} en {plural(minutes, "minuto", "minutos")}
+        {t("Repasaste {tarjetas} en {minutos}", { tarjetas: plural(total, t("tarjeta"), t("tarjetas")), minutos: plural(minutes, t("minuto"), t("minutos")) })}
         {tomorrowText}
       </p>
       <button type="button" className="btn h-9 px-5" onClick={onRestart}>
-        Volver al repaso
+        {t("Volver al repaso")}
       </button>
     </div>
   );

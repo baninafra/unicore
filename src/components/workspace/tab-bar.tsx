@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Pin, Plus, X } from "lucide-react";
 import { GLYPH, TOP_BTN, TopGlyph, useWindowControls } from "@/components/shell/window-controls";
 import { useWorkspace, type Pane, type Tab } from "@/lib/workspace";
 import { useViewTitle } from "./view-title";
+import { t } from "@/lib/i18n";
 
 function TabButton({ pane, tab, active, divider }: { pane: Pane; tab: Tab; active: boolean; divider: boolean }) {
   const { activateTab, closeTab, togglePin } = useWorkspace();
@@ -32,7 +33,7 @@ function TabButton({ pane, tab, active, divider }: { pane: Pane; tab: Tab; activ
       <span className="truncate">{title}</span>
       {!tab.pinned && (
         <button
-          aria-label="Cerrar pestaña"
+          aria-label={t("Cerrar pestaña")}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => closeTab(pane.id, tab.id)}
           className={clsx(
@@ -58,7 +59,7 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
       <div className="mb-1 flex flex-none items-center">
         <button
           className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
-          aria-label="Atrás"
+          aria-label={t("Atrás")}
           disabled={!canNav || !current?.back.length}
           onClick={goBack}
         >
@@ -66,7 +67,7 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
         </button>
         <button
           className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
-          aria-label="Adelante"
+          aria-label={t("Adelante")}
           disabled={!canNav || !current?.forward.length}
           onClick={goForward}
         >
@@ -80,7 +81,7 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
           return <TabButton key={t.id} pane={pane} tab={t} active={active} divider={!active && !!next && next.id !== pane.activeTabId} />;
         })}
         <button
-          aria-label="Nueva pestaña"
+          aria-label={t("Nueva pestaña")}
           className="mb-1 flex h-7 w-7 flex-none items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
           onClick={() => {
             focusPane(pane.id);
@@ -93,8 +94,8 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
       <div className="mb-1 flex flex-none items-center">
         {panes.length > 1 ? (
           <button
-            aria-label="Cerrar panel"
-            title="Cerrar panel"
+            aria-label={t("Cerrar panel")}
+            title={t("Cerrar panel")}
             className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
             onClick={() => closePane(pane.id)}
           >
@@ -102,8 +103,8 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
           </button>
         ) : controls ? null : (
           <button
-            aria-label="Dividir a la derecha"
-            title="Dividir a la derecha"
+            aria-label={t("Dividir a la derecha")}
+            title={t("Dividir a la derecha")}
             className={TOP_BTN}
             onClick={() => current && openView(current.view, "split")}
           >

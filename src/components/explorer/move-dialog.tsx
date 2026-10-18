@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { t } from "@/lib/i18n";
 import { Modal } from "@/components/ui/modal";
 import { LOOSE_FOLDER, TEMPLATES_FOLDER, type Degree, type Subject } from "@/lib/types";
 import { foldText } from "@/lib/nav/fold";
@@ -32,8 +33,8 @@ export function MoveDialog({
 
   const all = useMemo<Destination[]>(
     () => [
-      { id: LOOSE_FOLDER, label: "Notas" },
-      { id: TEMPLATES_FOLDER, label: "Plantillas" },
+      { id: LOOSE_FOLDER, label: t("Notas") },
+      { id: TEMPLATES_FOLDER, label: t("Plantillas") },
       ...subjects.map((s) => ({ id: s.id, label: s.name, hint: degreeName[s.degreeId] })),
     ],
     [subjects, degreeName],
@@ -53,7 +54,7 @@ export function MoveDialog({
         className="input"
         autoFocus
         value={query}
-        placeholder="Buscar carpeta o materia"
+        placeholder={t("Buscar carpeta o materia")}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && shown[0]) pick(shown[0].id);
@@ -71,7 +72,7 @@ export function MoveDialog({
             {d.hint && <span className="shrink-0 text-[length:calc(12px*var(--ui-scale,1))] text-faint">{d.hint}</span>}
           </button>
         ))}
-        {!shown.length && <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin resultados</p>}
+        {!shown.length && <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">{t("Sin resultados")}</p>}
       </div>
     </Modal>
   );

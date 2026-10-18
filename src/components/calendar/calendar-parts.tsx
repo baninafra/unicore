@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { Bell, CheckSquare, Repeat, Square } from "lucide-react";
 import type { CalItem } from "@/lib/calendars/events";
 import type { CalendarColor } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export const TINT: Record<CalendarColor, string> = {
   primary: "bg-primary-tint",
@@ -39,8 +40,8 @@ export const ITEM_MIME = "application/x-uc-cal-item";
 export const editable = (it: CalItem) => it.kind === "event" || it.kind === "task";
 
 export function itemTooltip(it: CalItem): string {
-  const when = it.allDay ? "Todo el día" : `${format(it.start, "HH:mm")} – ${format(it.end, "HH:mm")}`;
-  return [it.title, when, it.location, it.kind === "task" ? "Tarea" : it.calendarName].filter(Boolean).join("\n");
+  const when = it.allDay ? t("Todo el día") : `${format(it.start, "HH:mm")} – ${format(it.end, "HH:mm")}`;
+  return [it.title, when, it.location, it.kind === "task" ? t("Tarea") : it.calendarName].filter(Boolean).join("\n");
 }
 
 // Ícono chiquito según lo que es: casilla para tareas (clic para marcar hecha), repetición, recordatorio.
@@ -50,7 +51,7 @@ export function ItemIcons({ it, onToggleTask }: { it: CalItem; onToggleTask?: (i
       {it.kind === "task" && (
         <button
           type="button"
-          aria-label={it.done ? "Marcar como pendiente" : "Marcar como hecha"}
+          aria-label={it.done ? t("Marcar como pendiente") : t("Marcar como hecha")}
           className="flex-none text-faint hover:text-text"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {

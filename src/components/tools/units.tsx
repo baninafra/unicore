@@ -6,22 +6,23 @@ import { useMemo, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import { unit } from "mathjs";
 import { Select } from "@/components/ui/select";
+import { t } from "@/lib/i18n";
 
 type U = [id: string, label: string];
 
 const GROUPS: { name: string; units: U[] }[] = [
-  { name: "Longitud", units: [["mm", "milímetros"], ["cm", "centímetros"], ["m", "metros"], ["km", "kilómetros"], ["inch", "pulgadas"], ["ft", "pies"], ["yd", "yardas"], ["mi", "millas"], ["nmi", "millas náuticas"]] },
-  { name: "Masa", units: [["mg", "miligramos"], ["g", "gramos"], ["kg", "kilogramos"], ["tonne", "toneladas"], ["oz", "onzas"], ["lb", "libras"]] },
-  { name: "Temperatura", units: [["degC", "°C"], ["degF", "°F"], ["K", "kelvin"]] },
-  { name: "Tiempo", units: [["ms", "milisegundos"], ["s", "segundos"], ["min", "minutos"], ["h", "horas"], ["day", "días"], ["week", "semanas"], ["year", "años"]] },
-  { name: "Superficie", units: [["mm2", "mm²"], ["cm2", "cm²"], ["m2", "m²"], ["hectare", "hectáreas"], ["km2", "km²"], ["sqft", "pies²"], ["acre", "acres"]] },
-  { name: "Volumen", units: [["ml", "mililitros"], ["l", "litros"], ["m3", "m³"], ["cm3", "cm³"], ["gallon", "galones (EE. UU.)"], ["cup", "tazas"], ["floz", "onzas líquidas"]] },
-  { name: "Velocidad", units: [["m/s", "m/s"], ["km/h", "km/h"], ["mi/h", "mi/h"], ["knot", "nudos"]] },
-  { name: "Energía", units: [["J", "joules"], ["kJ", "kilojoules"], ["cal", "calorías"], ["kcal", "kilocalorías"], ["Wh", "Wh"], ["kWh", "kWh"], ["eV", "electronvoltios"]] },
-  { name: "Potencia", units: [["W", "watts"], ["kW", "kilowatts"], ["hp", "caballos de fuerza"]] },
-  { name: "Presión", units: [["Pa", "pascales"], ["kPa", "kilopascales"], ["bar", "bar"], ["atm", "atmósferas"], ["mmHg", "mmHg"], ["psi", "psi"]] },
-  { name: "Ángulo", units: [["deg", "grados"], ["rad", "radianes"], ["grad", "gradianes"]] },
-  { name: "Datos", units: [["b", "bits"], ["B", "bytes"], ["kB", "kilobytes"], ["MB", "megabytes"], ["GB", "gigabytes"], ["TB", "terabytes"], ["KiB", "kibibytes"], ["MiB", "mebibytes"], ["GiB", "gibibytes"]] },
+  { name: t("Longitud"), units: [["mm", t("milímetros")], ["cm", t("centímetros")], ["m", t("metros")], ["km", t("kilómetros")], ["inch", t("pulgadas")], ["ft", t("pies")], ["yd", t("yardas")], ["mi", t("millas")], ["nmi", t("millas náuticas")]] },
+  { name: t("Masa"), units: [["mg", t("miligramos")], ["g", t("gramos")], ["kg", t("kilogramos")], ["tonne", t("toneladas")], ["oz", t("onzas")], ["lb", t("libras")]] },
+  { name: t("Temperatura"), units: [["degC", "°C"], ["degF", "°F"], ["K", t("kelvin")]] },
+  { name: t("Tiempo"), units: [["ms", t("milisegundos")], ["s", t("segundos")], ["min", t("minutos")], ["h", t("horas")], ["day", t("días")], ["week", t("semanas")], ["year", t("años")]] },
+  { name: t("Superficie"), units: [["mm2", "mm²"], ["cm2", "cm²"], ["m2", "m²"], ["hectare", t("hectáreas")], ["km2", "km²"], ["sqft", t("pies²")], ["acre", t("acres")]] },
+  { name: t("Volumen"), units: [["ml", t("mililitros")], ["l", t("litros")], ["m3", "m³"], ["cm3", "cm³"], ["gallon", t("galones (EE. UU.)")], ["cup", t("tazas")], ["floz", t("onzas líquidas")]] },
+  { name: t("Velocidad"), units: [["m/s", "m/s"], ["km/h", "km/h"], ["mi/h", "mi/h"], ["knot", t("nudos")]] },
+  { name: t("Energía"), units: [["J", t("joules")], ["kJ", t("kilojoules")], ["cal", t("calorías")], ["kcal", t("kilocalorías")], ["Wh", "Wh"], ["kWh", "kWh"], ["eV", t("electronvoltios")]] },
+  { name: t("Potencia"), units: [["W", t("watts")], ["kW", t("kilowatts")], ["hp", t("caballos de fuerza")]] },
+  { name: t("Presión"), units: [["Pa", t("pascales")], ["kPa", t("kilopascales")], ["bar", "bar"], ["atm", t("atmósferas")], ["mmHg", "mmHg"], ["psi", "psi"]] },
+  { name: t("Ángulo"), units: [["deg", t("grados")], ["rad", t("radianes")], ["grad", t("gradianes")]] },
+  { name: t("Datos"), units: [["b", t("bits")], ["B", t("bytes")], ["kB", t("kilobytes")], ["MB", t("megabytes")], ["GB", t("gigabytes")], ["TB", t("terabytes")], ["KiB", t("kibibytes")], ["MiB", t("mebibytes")], ["GiB", t("gibibytes")]] },
 ];
 
 const parse = (s: string) => Number(s.replace(/\s/g, "").replace(",", "."));
@@ -66,12 +67,12 @@ export function UnitsTool() {
         ))}
       </div>
       <label className="field">
-        <span>Valor</span>
+        <span>{t("Valor")}</span>
         <input className="input num" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
       </label>
       <div className="flex items-end gap-1.5">
         <label className="field min-w-0 flex-1">
-          <span>De</span>
+          <span>{t("De")}</span>
           <Select value={from} onChange={(e) => setFrom(e.target.value)}>
             {opts}
           </Select>
@@ -79,8 +80,8 @@ export function UnitsTool() {
         <button
           type="button"
           className="btn btn-ghost btn-icon mb-0.5"
-          aria-label="Invertir unidades"
-          title="Invertir unidades"
+          aria-label={t("Invertir unidades")}
+          title={t("Invertir unidades")}
           onClick={() => {
             setFrom(to);
             setTo(from);
@@ -89,7 +90,7 @@ export function UnitsTool() {
           <ArrowLeftRight className="h-4 w-4" strokeWidth={1.75} />
         </button>
         <label className="field min-w-0 flex-1">
-          <span>A</span>
+          <span>{t("A")}</span>
           <Select value={to} onChange={(e) => setTo(e.target.value)}>
             {opts}
           </Select>

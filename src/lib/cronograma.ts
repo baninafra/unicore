@@ -2,8 +2,8 @@
 
 import * as chrono from "chrono-node";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { newId, nowIso } from "./db";
+import { dateLocale, t } from "@/lib/i18n";
 import { type CalendarColor, type CalendarEvent, type Note, type ScheduleEntry, type ScheduleKind, type Subject, SCHEDULE_KIND_LABEL } from "./types";
 
 export const dayStart = (date: string) => {
@@ -16,7 +16,7 @@ export function sortSchedule(list: ScheduleEntry[]): ScheduleEntry[] {
 }
 
 export function scheduleDateLabel(date: string): string {
-  return format(dayStart(date), "EEE d/M", { locale: es });
+  return format(dayStart(date), "EEE d/M", { locale: dateLocale() });
 }
 
 const KIND_COLOR: Record<ScheduleKind, CalendarColor> = {
@@ -30,16 +30,16 @@ const KIND_COLOR: Record<ScheduleKind, CalendarColor> = {
 export const scheduleColor = (kind: ScheduleKind) => KIND_COLOR[kind];
 
 function guessKind(text: string): ScheduleKind {
-  const t = text.toLowerCase();
-  if (/\bfinal(es)?\b/.test(t)) return "FINAL";
-  if (/parcial|examen|evaluaci[oó]n|recuperatorio|\bpp\b/.test(t)) return "PARCIAL";
-  if (/entrega|\btp\b|trabajo pr[aá]ctico|informe/.test(t)) return "ENTREGA";
-  if (/feriado|asueto|sin clase|no hay clase/.test(t)) return "FERIADO";
+  const low = text.toLowerCase();
+  if (/\bfinal(es)?\b/.test(low)) return "FINAL";
+  if (/parcial|examen|evaluaci[oó]n|recuperatorio|\bpp\b/.test(low)) return "PARCIAL";
+  if (/entrega|\btp\b|trabajo pr[aá]ctico|informe/.test(low)) return "ENTREGA";
+  if (/feriado|asueto|sin clase|no hay clase/.test(low)) return "FERIADO";
   return "CLASE";
 }
 
-const tidy = (t: string) =>
-  t
+const tidy = (str: string) =>
+  str
     .replace(/[()\[\]]/g, " ")
     .replace(/^[\s\-–—:·|,.]+|[\s\-–—:·|,.]+$/g, "")
     .replace(/\s{2,}/g, " ")
@@ -112,7 +112,7 @@ export function scheduleEvents(subjects: Subject[]): (CalendarEvent & { color: C
         allDay: true,
         description: SCHEDULE_KIND_LABEL[e.kind],
         color: KIND_COLOR[e.kind],
-        calendarName: `Cronograma · ${s.name}`,
+        calendarName: t("Cronograma · {name}", { name: s.name }),
       };
     }),
   );
@@ -125,12 +125,12 @@ export function scheduleNote(subject: Subject): Note | null {
   return {
     id: `cronograma-${subject.id}`,
     subjectId: subject.id,
-    title: "Cronograma",
+    title: t("Cronograma"),
     unitNumber: 0,
     content: sortSchedule(subject.schedule).map((e) => ({
       type: "bulletListItem",
       props: {},
-      content: [{ type: "text", text: `${format(dayStart(e.date), "EEE d/M/yyyy", { locale: es })} · ${SCHEDULE_KIND_LABEL[e.kind]} · ${e.title}${e.done ? " (hecho)" : ""}`, styles: {} }],
+      content: [{ type: "text", text: `${format(dayStart(e.date), "EEE d/M/yyyy", { locale: dateLocale() })} · ${SCHEDULE_KIND_LABEL[e.kind]} · ${e.title}${e.done ? t(" (hecho)") : ""}`, styles: {} }],
       children: [],
     })),
     plainTextCache: "",

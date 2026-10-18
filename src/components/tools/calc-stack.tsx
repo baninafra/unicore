@@ -7,9 +7,10 @@ import { PROFILES, useProfiles } from "@/lib/profiles";
 import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
+import { t } from "@/lib/i18n";
 import { Binary, Calculator, ChartSpline, ChevronDown, GraduationCap, Pin, PinOff, Ruler, type LucideIcon } from "lucide-react";
 
-const ToolLoading = () => <div className="px-4 py-3 t-small text-faint">Cargando…</div>;
+const ToolLoading = () => <div className="px-4 py-3 t-small text-faint">{t("Cargando…")}</div>;
 const CalculatorTool = dynamic(() => import("./calculator").then((m) => m.CalculatorTool), { ssr: false, loading: ToolLoading });
 const PlotTool = dynamic(() => import("./plotter").then((m) => m.PlotTool), { ssr: false, loading: ToolLoading });
 const UnitsTool = dynamic(() => import("./units").then((m) => m.UnitsTool), { ssr: false, loading: ToolLoading });
@@ -18,11 +19,11 @@ const BasesTool = dynamic(() => import("./bases").then((m) => m.BasesTool), { ss
 
 type Key = "calc" | "plot" | "units" | "grades" | "bases";
 const TOOLS: { key: Key; label: string; icon: LucideIcon; node: () => ReactNode }[] = [
-  { key: "calc", label: "Calculadora científica", icon: Calculator, node: () => <CalculatorTool /> },
-  { key: "plot", label: "Gráficos de funciones", icon: ChartSpline, node: () => <PlotTool /> },
-  { key: "units", label: "Conversor de unidades", icon: Ruler, node: () => <UnitsTool /> },
-  { key: "grades", label: "Promedio y nota necesaria", icon: GraduationCap, node: () => <GradesTool /> },
-  { key: "bases", label: "Bases numéricas", icon: Binary, node: () => <BasesTool /> },
+  { key: "calc", label: t("Calculadora científica"), icon: Calculator, node: () => <CalculatorTool /> },
+  { key: "plot", label: t("Gráficos de funciones"), icon: ChartSpline, node: () => <PlotTool /> },
+  { key: "units", label: t("Conversor de unidades"), icon: Ruler, node: () => <UnitsTool /> },
+  { key: "grades", label: t("Promedio y nota necesaria"), icon: GraduationCap, node: () => <GradesTool /> },
+  { key: "bases", label: t("Bases numéricas"), icon: Binary, node: () => <BasesTool /> },
 ];
 
 const LS = "uc-calc-stack";
@@ -59,51 +60,51 @@ export function CalcStack() {
   const { activeKinds } = useProfiles();
   const studying = activeKinds.some((k) => PROFILES[k].study);
   // El promedio de notas sólo tiene sentido en perfiles de estudio.
-  const visible = (t: (typeof TOOLS)[number]) => t.key !== "grades" || studying;
+  const visible = (tool: (typeof TOOLS)[number]) => tool.key !== "grades" || studying;
   const ordered = [
-    ...state.pinned.map((k) => TOOLS.find((t) => t.key === k)!).filter(Boolean),
-    ...TOOLS.filter((t) => !state.pinned.includes(t.key)),
+    ...state.pinned.map((k) => TOOLS.find((tool) => tool.key === k)!).filter(Boolean),
+    ...TOOLS.filter((tool) => !state.pinned.includes(tool.key)),
   ].filter(visible);
 
   return (
     <div className="flex flex-col">
-      {ordered.map((t) => {
-        const open = !state.closed.includes(t.key);
-        const pinned = state.pinned.includes(t.key);
+      {ordered.map((tool) => {
+        const open = !state.closed.includes(tool.key);
+        const pinned = state.pinned.includes(tool.key);
         return (
-          <section key={t.key} className="border-b border-border">
+          <section key={tool.key} className="border-b border-border">
             <div className="group flex h-10 items-center gap-2 px-4">
               <button
                 type="button"
                 className="flex min-w-0 flex-1 items-center gap-2 text-left text-[length:calc(13px*var(--ui-scale,1))] font-medium text-text"
                 aria-expanded={open}
-                onClick={() => toggle(t.key)}
+                onClick={() => toggle(tool.key)}
               >
-                <t.icon className="h-4 w-4 flex-none text-faint" strokeWidth={1.75} />
-                <span className="truncate">{t.label}</span>
+                <tool.icon className="h-4 w-4 flex-none text-faint" strokeWidth={1.75} />
+                <span className="truncate">{tool.label}</span>
               </button>
               <button
                 type="button"
                 className={clsx("icon-btn", pinned ? "text-primary-soft" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100")}
-                title={pinned ? "Desanclar" : "Anclar arriba"}
-                aria-label={pinned ? `Desanclar ${t.label}` : `Anclar ${t.label} arriba`}
+                title={pinned ? t("Desanclar") : t("Anclar arriba")}
+                aria-label={pinned ? t("Desanclar {name}", { name: tool.label }) : t("Anclar {name} arriba", { name: tool.label })}
                 aria-pressed={pinned}
-                onClick={() => pin(t.key)}
+                onClick={() => pin(tool.key)}
               >
                 {pinned ? <PinOff /> : <Pin />}
               </button>
               <button
                 type="button"
                 className="icon-btn"
-                title={open ? "Minimizar" : "Abrir"}
-                aria-label={open ? `Minimizar ${t.label}` : `Abrir ${t.label}`}
-                onClick={() => toggle(t.key)}
+                title={open ? t("Minimizar") : t("Abrir")}
+                aria-label={open ? t("Minimizar {name}", { name: tool.label }) : t("Abrir {name}", { name: tool.label })}
+                onClick={() => toggle(tool.key)}
               >
                 <ChevronDown className={clsx("transition-transform", !open && "-rotate-90")} />
               </button>
             </div>
             {/* Dentro de la pila cada herramienta va arriba (no centrada a lo alto). */}
-            {open && <div className="pb-2 [&_.tool-pane]:my-0 [&_.tool-pane]:pt-0">{t.node()}</div>}
+            {open && <div className="pb-2 [&_.tool-pane]:my-0 [&_.tool-pane]:pt-0">{tool.node()}</div>}
           </section>
         );
       })}

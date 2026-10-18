@@ -2,6 +2,7 @@
 
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import type { CanvasDoc } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 // Tipos del lienzo. Los nodos de React Flow se guardan tal cual en `CanvasDoc.data`.
 
@@ -27,13 +28,13 @@ export type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
 export type CanvasEdge = Edge;
 
 export const CARD_COLORS: { key: CardColor; label: string; bg: string; border: string }[] = [
-  { key: "", label: "Sin color", bg: "", border: "" },
-  { key: "rojo", label: "Rojo", bg: "rgba(251,113,133,0.16)", border: "rgba(251,113,133,0.55)" },
-  { key: "ambar", label: "Ámbar", bg: "rgba(251,191,36,0.16)", border: "rgba(251,191,36,0.55)" },
-  { key: "verde", label: "Verde", bg: "rgba(125,211,192,0.16)", border: "rgba(125,211,192,0.55)" },
-  { key: "cian", label: "Cian", bg: "rgba(103,232,249,0.14)", border: "rgba(103,232,249,0.5)" },
-  { key: "violeta", label: "Violeta", bg: "rgba(129,140,248,0.18)", border: "rgba(129,140,248,0.6)" },
-  { key: "rosa", label: "Rosa", bg: "rgba(244,114,182,0.16)", border: "rgba(244,114,182,0.55)" },
+  { key: "", label: t("Sin color"), bg: "", border: "" },
+  { key: "rojo", label: t("Rojo"), bg: "rgba(251,113,133,0.16)", border: "rgba(251,113,133,0.55)" },
+  { key: "ambar", label: t("Ámbar"), bg: "rgba(251,191,36,0.16)", border: "rgba(251,191,36,0.55)" },
+  { key: "verde", label: t("Verde"), bg: "rgba(125,211,192,0.16)", border: "rgba(125,211,192,0.55)" },
+  { key: "cian", label: t("Cian"), bg: "rgba(103,232,249,0.14)", border: "rgba(103,232,249,0.5)" },
+  { key: "violeta", label: t("Violeta"), bg: "rgba(129,140,248,0.18)", border: "rgba(129,140,248,0.6)" },
+  { key: "rosa", label: t("Rosa"), bg: "rgba(244,114,182,0.16)", border: "rgba(244,114,182,0.55)" },
 ];
 
 export function cardColorStyle(color: CardColor | undefined): React.CSSProperties {

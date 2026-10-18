@@ -6,18 +6,19 @@ import { createReactBlockSpec, createReactInlineContentSpec, getDefaultReactSlas
 import { Info, Lightbulb, NotebookPen, Quote, Star, TriangleAlert, CircleHelp, Heading2, MonitorPlay } from "lucide-react";
 import { WikilinkChip } from "./wikilink";
 import { VideoEmbedView } from "./video-embed";
+import { t } from "@/lib/i18n";
 
 // Tipos de callout (como los admoniciones de Obsidian). Cada uno tiene ícono y color suave.
 export const CALLOUT_TIPOS = ["nota", "info", "aviso", "importante", "pregunta", "cita"] as const;
 export type CalloutTipo = (typeof CALLOUT_TIPOS)[number];
 
 const CALLOUT_META: Record<CalloutTipo, { label: string; icon: typeof Info; color: string }> = {
-  nota: { label: "Nota", icon: NotebookPen, color: "var(--primary-soft)" },
-  info: { label: "Información", icon: Info, color: "var(--cyan)" },
-  aviso: { label: "Aviso", icon: TriangleAlert, color: "var(--amber)" },
-  importante: { label: "Importante", icon: Star, color: "var(--rose)" },
-  pregunta: { label: "Pregunta", icon: CircleHelp, color: "var(--mint)" },
-  cita: { label: "Cita", icon: Quote, color: "var(--text-muted)" },
+  nota: { label: t("Nota"), icon: NotebookPen, color: "var(--primary-soft)" },
+  info: { label: t("Información"), icon: Info, color: "var(--cyan)" },
+  aviso: { label: t("Aviso"), icon: TriangleAlert, color: "var(--amber)" },
+  importante: { label: t("Importante"), icon: Star, color: "var(--rose)" },
+  pregunta: { label: t("Pregunta"), icon: CircleHelp, color: "var(--mint)" },
+  cita: { label: t("Cita"), icon: Quote, color: "var(--text-muted)" },
 };
 
 interface CalloutBlockShape {
@@ -53,7 +54,7 @@ function CalloutView({
         contentEditable={false}
         onMouseDown={(e) => e.preventDefault()}
         onClick={next}
-        aria-label={`Tipo de bloque: ${meta.label}`}
+        aria-label={t("Tipo de bloque: {label}", { label: meta.label })}
       >
         <Icon className="h-4 w-4" strokeWidth={1.75} />
       </button>
@@ -137,7 +138,7 @@ export function slashMenuItems(editor: NoteBlockEditor): DefaultReactSuggestionI
     {
       title: "Callout",
       aliases: ["nota", "info", "aviso", "importante", "pregunta", "cita", "alerta", "destacado"],
-      subtext: "Bloque destacado con ícono",
+      subtext: t("Bloque destacado con ícono"),
       icon: <Lightbulb className="h-4 w-4" strokeWidth={1.75} />,
       onItemClick: () => {
         insertOrUpdateBlockForSlashMenu(editor, { type: "callout" });
@@ -146,16 +147,16 @@ export function slashMenuItems(editor: NoteBlockEditor): DefaultReactSuggestionI
     {
       title: "Video (YouTube, Drive)",
       aliases: ["youtube", "vimeo", "drive", "video", "embed", "link"],
-      subtext: "Pegá el link y se ve en la nota",
+      subtext: t("Pegá el link y se ve en la nota"),
       icon: <MonitorPlay className="h-4 w-4" strokeWidth={1.75} />,
       onItemClick: () => {
         insertOrUpdateBlockForSlashMenu(editor, { type: "videoEmbed" });
       },
     },
     {
-      title: "Título plegable",
+      title: t("Título plegable"),
       aliases: ["toggle", "desplegable", "plegable", "colapsable"],
-      subtext: "Se pliega y despliega",
+      subtext: t("Se pliega y despliega"),
       icon: <Heading2 className="h-4 w-4" strokeWidth={1.75} />,
       onItemClick: () => {
         insertOrUpdateBlockForSlashMenu(editor, { type: "heading", props: { level: 2, isToggleable: true } });

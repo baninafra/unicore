@@ -10,6 +10,7 @@
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import type { Room } from "trystero";
+import { t } from "@/lib/i18n";
 
 export type ShareRole = "anfitrion" | "invitado";
 
@@ -67,7 +68,7 @@ export function shareUser(role?: ShareRole): { name: string; color: string } {
   } catch {}
   let hash = 0;
   for (const ch of name || "x") hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return { name: name || (role === "anfitrion" ? "Anfitrión" : role === "invitado" ? "Invitado" : ""), color: COLORS[hash % COLORS.length] };
+  return { name: name || (role === "anfitrion" ? t("Anfitrión") : role === "invitado" ? t("Invitado") : ""), color: COLORS[hash % COLORS.length] };
 }
 
 export function setShareName(name: string) {

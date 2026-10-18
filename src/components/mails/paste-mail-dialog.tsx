@@ -7,6 +7,7 @@ import { db, newId, nowIso } from "@/lib/db";
 import { useAllSubjects } from "@/lib/hooks";
 import type { Task } from "@/lib/types";
 import { stripUndefined } from "@/components/tasks/task-meta";
+import { t } from "@/lib/i18n";
 
 // Carga a mano un mail de la facultad. Se monta sólo cuando está abierto (state limpio cada vez).
 export function PasteMailDialog({ onClose }: { onClose: () => void }) {
@@ -19,7 +20,7 @@ export function PasteMailDialog({ onClose }: { onClose: () => void }) {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!body.trim() && !subject.trim()) {
-      setError("Pegá el texto del mail para poder cargarlo.");
+      setError(t("Pegá el texto del mail para poder cargarlo."));
       return;
     }
     const parsed = parseEmail({ from, subject, body, subjects });
@@ -41,7 +42,7 @@ export function PasteMailDialog({ onClose }: { onClose: () => void }) {
       await db.tasks.add(task);
       onClose();
     } catch {
-      setError("No pudimos guardar el mail. Probá de nuevo.");
+      setError(t("No pudimos guardar el mail. Probá de nuevo."));
     }
   }
 
@@ -49,36 +50,36 @@ export function PasteMailDialog({ onClose }: { onClose: () => void }) {
     <Modal
       open
       onClose={onClose}
-      title="Pegar mail"
+      title={t("Pegar mail")}
       width={560}
       footer={
         <>
           <button className="btn" type="button" onClick={onClose}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button className="btn btn-primary" type="submit" form="paste-mail-form">
-            Cargar mail
+            {t("Cargar mail")}
           </button>
         </>
       }
     >
       <form id="paste-mail-form" className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
         <label className="field">
-          <span>Remitente</span>
+          <span>{t("Remitente")}</span>
           <input className="input" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="catedra.algebra@..." />
         </label>
         <label className="field">
-          <span>Asunto</span>
-          <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Cambio de fecha del parcial" />
+          <span>{t("Asunto")}</span>
+          <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("Cambio de fecha del parcial")} />
         </label>
         <label className="field">
-          <span>Cuerpo del mail</span>
+          <span>{t("Cuerpo del mail")}</span>
           <textarea
             className={`input ${error ? "input-error" : ""}`}
             rows={8}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Pegá acá el texto del mail"
+            placeholder={t("Pegá acá el texto del mail")}
           />
         </label>
         {error && <p className="t-small text-rose">{error}</p>}

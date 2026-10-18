@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { PdfHighlight } from "@/lib/types";
 import { HL_COLORS } from "./pdf-engine";
+import { t } from "@/lib/i18n";
 
 interface Props {
   highlights: PdfHighlight[];
@@ -26,12 +27,12 @@ export function PdfHighlightsPanel({ highlights, onGoTo, onNote, onDelete, editI
 
   return (
     <div className="flex flex-col gap-1 p-2">
-      <div className="section-label">Resaltados · {highlights.length}</div>
-      {groups.length === 0 && <div className="px-2 py-2 t-small text-faint">Sin resaltados</div>}
+      <div className="section-label">{t("Resaltados · {n}", { n: highlights.length })}</div>
+      {groups.length === 0 && <div className="px-2 py-2 t-small text-faint">{t("Sin resaltados")}</div>}
       {groups.map((g) => (
         <div key={g.page} className="flex flex-col">
           <button type="button" className="row h-6 justify-start text-[length:calc(12px*var(--ui-scale,1))] text-faint" onClick={() => onGoTo(g.page)}>
-            Página {g.page}
+            {t("Página {page}", { page: g.page })}
           </button>
           {g.items.map((h) => (
             <HighlightItem
@@ -78,7 +79,7 @@ function HighlightItem({
 
   return (
     <div className="group flex flex-col gap-1 border-l-2 py-1.5 pl-2" style={{ borderLeftColor: HL_COLORS[h.color].solid }}>
-      <button type="button" className="line-clamp-3 text-left text-[length:calc(13px*var(--ui-scale,1))] leading-snug text-text" onClick={onGoTo} title="Ir a la página">
+      <button type="button" className="line-clamp-3 text-left text-[length:calc(13px*var(--ui-scale,1))] leading-snug text-text" onClick={onGoTo} title={t("Ir a la página")}>
         {h.text}
       </button>
 
@@ -87,7 +88,7 @@ function HighlightItem({
           autoFocus
           className="input min-h-[60px] text-[length:calc(12px*var(--ui-scale,1))]"
           value={draft}
-          placeholder="Escribí una nota"
+          placeholder={t("Escribí una nota")}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {
             finish(!discard.current);
@@ -119,12 +120,12 @@ function HighlightItem({
             setEditingNow(true);
           }}
         >
-          Agregar nota
+          {t("Agregar nota")}
         </button>
       )}
 
       <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
-        <button type="button" className="icon-btn h-6 w-6" onClick={onDelete} aria-label="Borrar resaltado" title="Borrar resaltado">
+        <button type="button" className="icon-btn h-6 w-6" onClick={onDelete} aria-label={t("Borrar resaltado")} title={t("Borrar resaltado")}>
           <Trash2 strokeWidth={1.75} />
         </button>
       </div>

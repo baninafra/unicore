@@ -1,6 +1,7 @@
 "use client";
 
 import { DAILY_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Note, type Subject } from "@/lib/types";
+import { intlLocale, t } from "@/lib/i18n";
 
 // Modelo del grafo de notas: nodos, aristas y grupos. Es puro (sin React ni Dexie).
 
@@ -64,8 +65,8 @@ export const DEFAULT_GRAPH_OPTIONS: GraphOptions = {
 export const GROUP_PALETTE = ["#7dd3c0", "#fbbf24", "#fb7185", "#67e8f9", "#a5b4fc", "#f0abfc", "#86efac", "#fdba74"];
 
 const SPECIAL_LABEL: Record<string, string> = {
-  [DAILY_FOLDER]: "Diario",
-  [LOOSE_FOLDER]: "Notas sueltas",
+  [DAILY_FOLDER]: t("Diario"),
+  [LOOSE_FOLDER]: t("Notas sueltas"),
 };
 
 const norm = (s: string) => s.toLocaleLowerCase("es");
@@ -133,7 +134,7 @@ export function buildGraph(notes: Note[], subjects: Subject[], opts: GraphOption
     nodes.set(n.id, {
       id: n.id,
       kind: "nota",
-      label: n.title?.trim() || "Sin título",
+      label: n.title?.trim() || t("Sin título"),
       degree: 0,
       noteId: n.id,
       group: n.subjectId,
@@ -163,7 +164,7 @@ export function buildGraph(notes: Note[], subjects: Subject[], opts: GraphOption
         nodes.set(id, {
           id,
           kind: "materia",
-          label: SPECIAL_LABEL[sid] ?? subjectName.get(sid) ?? "Sin materia",
+          label: SPECIAL_LABEL[sid] ?? subjectName.get(sid) ?? t("Sin materia"),
           degree: 0,
           subjectId: sid,
           group: sid,
@@ -184,11 +185,11 @@ export function buildGraph(notes: Note[], subjects: Subject[], opts: GraphOption
   const groupKeys = new Map<string, string>();
   for (const node of nodes.values()) {
     if (node.group && !groupKeys.has(node.group)) {
-      groupKeys.set(node.group, SPECIAL_LABEL[node.group] ?? subjectName.get(node.group) ?? "Sin materia");
+      groupKeys.set(node.group, SPECIAL_LABEL[node.group] ?? subjectName.get(node.group) ?? t("Sin materia"));
     }
   }
   const groups: GraphGroup[] = [...groupKeys.entries()]
-    .sort((a, b) => a[1].localeCompare(b[1], "es"))
+    .sort((a, b) => a[1].localeCompare(b[1], intlLocale()))
     .map(([key, label], i) => ({ key, label, color: GROUP_PALETTE[i % GROUP_PALETTE.length] }));
 
   return { nodes: [...nodes.values()], edges, groups };

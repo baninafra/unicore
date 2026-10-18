@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { t, intlLocale } from "@/lib/i18n";
 import { mentionLine, mentionsPhrase } from "@/lib/panes/note-data";
 import { useActiveNoteId, useAllNotes, useNote } from "@/lib/panes/hooks";
 import type { Note } from "@/lib/types";
@@ -39,16 +40,16 @@ export function BacklinksPane() {
         unlinked.push({ note: other, line: lineFor() });
       }
     }
-    const byTitle = (a: Hit, b: Hit) => a.note.title.localeCompare(b.note.title, "es");
+    const byTitle = (a: Hit, b: Hit) => a.note.title.localeCompare(b.note.title, intlLocale());
     return { linked: linked.sort(byTitle), unlinked: unlinked.sort(byTitle) };
   }, [note, notes]);
 
-  if (!note) return <PaneBlank>Abrí una nota para ver quién la menciona</PaneBlank>;
+  if (!note) return <PaneBlank>{t("Abrí una nota para ver quién la menciona")}</PaneBlank>;
 
   return (
     <div className="p-2">
-      <PaneSection title="Enlazadas" count={linked.length}>
-        {linked.length === 0 && <PaneEmpty>Sin menciones</PaneEmpty>}
+      <PaneSection title={t("Enlazadas")} count={linked.length}>
+        {linked.length === 0 && <PaneEmpty>{t("Sin menciones")}</PaneEmpty>}
         {linked.map((h) => (
           <NoteRow
             key={h.note.id}
@@ -59,8 +60,8 @@ export function BacklinksPane() {
           />
         ))}
       </PaneSection>
-      <PaneSection title="Sin enlazar" count={unlinked.length}>
-        {unlinked.length === 0 && <PaneEmpty>Sin menciones</PaneEmpty>}
+      <PaneSection title={t("Sin enlazar")} count={unlinked.length}>
+        {unlinked.length === 0 && <PaneEmpty>{t("Sin menciones")}</PaneEmpty>}
         {unlinked.map((h) => (
           <NoteRow
             key={h.note.id}

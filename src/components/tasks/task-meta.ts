@@ -1,5 +1,6 @@
 import { Award, BookOpen, CheckSquare, FileText, Flame, MessagesSquare, type LucideIcon } from "lucide-react";
 import type { Task, TaskPriority, TaskStatus, TaskType } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 export const TASK_TYPE_ICON: Record<TaskType, LucideIcon> = {
   PARCIAL: Flame,
@@ -11,16 +12,16 @@ export const TASK_TYPE_ICON: Record<TaskType, LucideIcon> = {
 };
 
 export const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  LOW: "Baja",
-  MEDIUM: "Media",
-  HIGH: "Alta",
+  LOW: t("Baja"),
+  MEDIUM: t("Media"),
+  HIGH: t("Alta"),
 };
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
-  INBOX_EMAIL: "En el inbox",
-  TODO: "Por hacer",
-  IN_PROGRESS: "En curso",
-  DONE: "Hecho",
+  INBOX_EMAIL: t("En el inbox"),
+  TODO: t("Por hacer"),
+  IN_PROGRESS: t("En curso"),
+  DONE: t("Hecho"),
 };
 
 // Hora por defecto cuando una tarea tiene fecha pero no hora.

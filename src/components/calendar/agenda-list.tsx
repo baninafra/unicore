@@ -4,15 +4,15 @@
 
 import clsx from "clsx";
 import { format, isToday, isTomorrow, startOfDay } from "date-fns";
-import { es } from "date-fns/locale";
 import { MapPin } from "lucide-react";
 import type { CalItem } from "@/lib/calendars/events";
+import { t, dateLocale } from "@/lib/i18n";
 import { DOT, ItemIcons } from "./calendar-parts";
 import type { GridHandlers } from "./time-grid";
 
 function dayTitle(d: Date) {
-  const base = format(d, "EEEE d 'de' MMMM", { locale: es });
-  const label = isToday(d) ? `Hoy · ${base}` : isTomorrow(d) ? `Mañana · ${base}` : base;
+  const base = format(d, t("EEEE d 'de' MMMM"), { locale: dateLocale() });
+  const label = isToday(d) ? t("Hoy · {base}", { base }) : isTomorrow(d) ? t("Mañana · {base}", { base }) : base;
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
@@ -43,7 +43,7 @@ export function AgendaList({ items, h, empty }: { items: CalItem[]; h: GridHandl
               onContextMenu={(e) => h.onContext(e, it)}
               className={clsx("row min-h-9 items-center gap-3", (it.done || it.cancelled) && "line-through opacity-60")}
             >
-              <span className="num w-24 flex-none text-[length:calc(12px*var(--ui-scale,1))] text-faint">{it.allDay ? "Todo el día" : `${format(it.start, "HH:mm")}${it.kind === "task" ? "" : ` – ${format(it.end, "HH:mm")}`}`}</span>
+              <span className="num w-24 flex-none text-[length:calc(12px*var(--ui-scale,1))] text-faint">{it.allDay ? t("Todo el día") : `${format(it.start, "HH:mm")}${it.kind === "task" ? "" : ` – ${format(it.end, "HH:mm")}`}`}</span>
               <span className={clsx("h-2 w-2 flex-none rounded-full", DOT[it.color])} />
               <ItemIcons it={it} onToggleTask={h.onToggleTask} />
               <span className="min-w-0 flex-1 truncate text-text">{it.title}</span>

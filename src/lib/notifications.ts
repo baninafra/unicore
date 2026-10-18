@@ -10,6 +10,7 @@ import { useSettings } from "@/components/settings/apply-settings";
 import { db } from "./db";
 import { shortDateTime } from "./format";
 import { TASK_TYPE_LABEL, type Task } from "./types";
+import { t } from "./i18n";
 
 export type NotifLevel = "vencida" | "hoy" | "manana" | "semana" | "repaso";
 
@@ -118,7 +119,7 @@ export function useNotifications(): { items: Notif[]; unread: number } {
           id: `ev:${e.id}:${level}`,
           level,
           title: e.title,
-          detail: [e.calendarName, e.allDay ? "Todo el día" : format(start, "HH:mm"), e.location].filter(Boolean).join(" · "),
+          detail: [e.calendarName, e.allDay ? t("Todo el día") : format(start, "HH:mm"), e.location].filter(Boolean).join(" · "),
         });
       }
     }
@@ -127,8 +128,8 @@ export function useNotifications(): { items: Notif[]; unread: number } {
       items.push({
         id: `repaso:${key}`,
         level: "repaso",
-        title: `${data.dueCards} ${data.dueCards === 1 ? "flashcard para repasar" : "flashcards para repasar"}`,
-        detail: "Repaso de hoy",
+        title: data.dueCards === 1 ? t("{n} flashcard para repasar", { n: data.dueCards }) : t("{n} flashcards para repasar", { n: data.dueCards }),
+        detail: t("Repaso de hoy"),
       });
     }
   }
@@ -139,9 +140,9 @@ export function useNotifications(): { items: Notif[]; unread: number } {
 }
 
 export const LEVEL_LABEL: Record<NotifLevel, string> = {
-  vencida: "Vencidas",
-  hoy: "Hoy",
-  manana: "Mañana",
-  semana: "Próximos días",
-  repaso: "Repaso",
+  vencida: t("Vencidas"),
+  hoy: t("Hoy"),
+  manana: t("Mañana"),
+  semana: t("Próximos días"),
+  repaso: t("Repaso"),
 };

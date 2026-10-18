@@ -5,6 +5,7 @@
 
 import { db } from "../db";
 import type { Note, Task } from "../types";
+import { t } from "@/lib/i18n";
 
 export const isClassNote = (n: Pick<Note, "properties">) => n.properties?.tipo === "clase";
 export const classDate = (n: Pick<Note, "properties">) => (typeof n.properties?.fecha === "string" ? n.properties.fecha : undefined);
@@ -36,7 +37,7 @@ export async function taskFromNote(note: Note): Promise<Partial<Task>> {
     }
   }
   return {
-    title: isClassNote(note) ? `Tarea de ${note.title.replace(/^Clase \d+ · \d{2}\/\d{2} · /, "")}` : "",
+    title: isClassNote(note) ? t("Tarea de {title}", { title: note.title.replace(/^Clase \d+ · \d{2}\/\d{2} · /, "") }) : "",
     type: "TAREA",
     subjectId: subject?.id,
     degreeId: subject?.degreeId,

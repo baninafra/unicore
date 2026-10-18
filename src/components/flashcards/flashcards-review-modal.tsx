@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { db } from "@/lib/db";
 import type { FlashcardDraft } from "@/lib/ai/prompts";
 import { newFlashcardRecord } from "./fsrs-card";
+import { t } from "@/lib/i18n";
 
 interface Row extends FlashcardDraft {
   keep: boolean;
@@ -46,7 +47,7 @@ export function FlashcardsReviewModal({
       await db.flashcards.bulkAdd(cards);
       onSaved(cards.length);
     } catch {
-      setError("No pudimos guardar las flashcards. Probá de nuevo.");
+      setError(t("No pudimos guardar las flashcards. Probá de nuevo."));
       setSaving(false);
     }
   };
@@ -55,15 +56,15 @@ export function FlashcardsReviewModal({
     <Modal
       open
       onClose={onClose}
-      title="Revisá las flashcards"
+      title={t("Revisá las flashcards")}
       width={640}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>
-            Descartar
+            {t("Descartar")}
           </button>
           <button type="button" className="btn btn-primary" disabled={!count || saving} onClick={() => void save()}>
-            {count === 1 ? "Guardar 1 tarjeta" : `Guardar ${count} tarjetas`}
+            {count === 1 ? t("Guardar 1 tarjeta") : t("Guardar {n} tarjetas", { n: count })}
           </button>
         </>
       }
@@ -79,11 +80,11 @@ export function FlashcardsReviewModal({
               className="mt-2 h-4 w-4 shrink-0 accent-primary"
               checked={row.keep}
               onChange={(e) => update(i, { keep: e.target.checked })}
-              aria-label={`Incluir la tarjeta ${i + 1}`}
+              aria-label={t("Incluir la tarjeta {n}", { n: i + 1 })}
             />
             <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
               <label className="field">
-                <span>Frente</span>
+                <span>{t("Frente")}</span>
                 <textarea
                   className="input"
                   rows={2}
@@ -93,7 +94,7 @@ export function FlashcardsReviewModal({
                 />
               </label>
               <label className="field">
-                <span>Dorso</span>
+                <span>{t("Dorso")}</span>
                 <textarea
                   className="input"
                   rows={2}

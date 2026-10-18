@@ -7,20 +7,21 @@ import type { Degree, DegreeColor, ProfileKind } from "@/lib/types";
 import { kindOf, nuevo, PROFILE_KINDS, PROFILES, profileOfDegree, useProfiles } from "@/lib/profiles";
 import { saveDegree, type DegreeInput } from "./actions";
 import { FormField } from "./form-field";
+import { t } from "@/lib/i18n";
 
 type Errors = Partial<Record<"name" | "shortName" | "totalYears", string>>;
 
 const PLACEHOLDER: Record<ProfileKind, string> = {
-  universidad: "Tecnicatura en Administración",
-  colegio: "5.º año B",
-  trabajo: "Estudio Contable Pérez",
-  proyectos: "Freelance",
-  personal: "Personal",
+  universidad: t("Tecnicatura en Administración"),
+  colegio: t("5.º año B"),
+  trabajo: t("Estudio Contable Pérez"),
+  proyectos: t("Freelance"),
+  personal: t("Personal"),
 };
 
 const COLORS: { value: DegreeColor; label: string; accent: string }[] = [
-  { value: "primary", label: "Blurple", accent: "var(--primary)" },
-  { value: "cyan", label: "Cian", accent: "var(--cyan)" },
+  { value: "primary", label: t("Blurple"), accent: "var(--primary)" },
+  { value: "cyan", label: t("Cian"), accent: "var(--cyan)" },
 ];
 
 // Se monta sólo cuando está abierto: el estado inicial sale de `degree`.
@@ -30,7 +31,7 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
   const initialProfile = degree ? profileOfDegree(profiles, degree) : (activeProfile ?? profiles.find((p) => PROFILES[p.kind].study));
   const [profileId, setProfileId] = useState(initialProfile?.id ?? "");
   const [kind, setKind] = useState<ProfileKind>(degree ? kindOf(degree) : (initialProfile?.kind ?? activeKinds[0] ?? "universidad"));
-  const t = PROFILES[kind];
+  const profile = PROFILES[kind];
   // Sin perfiles creados se elige directamente el tipo.
   // Sólo los perfiles de estudio suman espacios (los demás tienen uno solo, el propio perfil).
   const studyProfiles = profiles.filter((p) => PROFILES[p.kind].study || p.id === initialProfile?.id);
@@ -50,12 +51,12 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
     const next: Errors = {};
     const cleanName = name.trim();
     const cleanShort = shortName.trim().toLocaleUpperCase("es-AR");
-    const years = t.study ? Number(totalYears) : degree?.totalYears ?? 1;
+    const years = profile.study ? Number(totalYears) : degree?.totalYears ?? 1;
 
-    if (!cleanName) next.name = `Ponele un nombre ${t.space.f ? "a la" : "al"} ${t.space.one}.`;
-    if (cleanShort.length < 2 || cleanShort.length > 8) next.shortName = "La sigla tiene que tener entre 2 y 8 letras.";
+    if (!cleanName) next.name = profile.space.f ? t("Ponele un nombre a la {space}.", { space: profile.space.one }) : t("Ponele un nombre al {space}.", { space: profile.space.one });
+    if (cleanShort.length < 2 || cleanShort.length > 8) next.shortName = t("La sigla tiene que tener entre 2 y 8 letras.");
     if (!Number.isInteger(years) || years < 1 || years > 10) {
-      next.totalYears = "Los años tienen que ser un número entre 1 y 10.";
+      next.totalYears = t("Los años tienen que ser un número entre 1 y 10.");
     }
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -75,7 +76,7 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
       await saveDegree(input, degree);
       onClose();
     } catch {
-      setSaveError(`No pudimos guardar ${t.space.f ? "la" : "el"} ${t.space.one}. Probá de nuevo.`);
+      setSaveError(profile.space.f ? t("No pudimos guardar la {space}. Probá de nuevo.", { space: profile.space.one }) : t("No pudimos guardar el {space}. Probá de nuevo.", { space: profile.space.one }));
       setSaving(false);
     }
   }
@@ -84,14 +85,14 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
     <Modal
       open
       onClose={onClose}
-      title={degree ? `Editar ${t.space.one}` : nuevo(t.space)}
+      title={degree ? t("Editar {space}", { space: profile.space.one }) : nuevo(profile.space)}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose} disabled={saving}>
-            Cancelar
+            {t("Cancelar")}
           </button>
           <button type="submit" form="degree-form" className="btn btn-primary" disabled={saving}>
-            Guardar
+            {t("Guardar")}
           </button>
         </>
       }
@@ -99,7 +100,7 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
       <form id="degree-form" onSubmit={submit} className="flex flex-col gap-4" noValidate>
         {options.length > 1 && (
           <div className="flex flex-col gap-1.5">
-            <span className="t-small font-medium text-muted">Perfil</span>
+            <span className="t-small font-medium text-muted">{t("Perfil")}</span>
             <div className="flex flex-wrap gap-1.5">
               {options.map((p) => {
                 const def = PROFILES[p.kind];
@@ -124,7 +125,7 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
           </div>
         )}
 
-        <FormField label="Nombre" error={errors.name}>
+        <FormField label={t("Nombre")} error={errors.name}>
           <input
             className={clsx("input", errors.name && "input-error")}
             value={name}
@@ -143,7 +144,7 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
         </FormField>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Sigla" error={errors.shortName}>
+          <FormField label={t("Sigla")} error={errors.shortName}>
             <input
               className={clsx("input", errors.shortName && "input-error")}
               value={shortName}
@@ -157,7 +158,7 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
             />
           </FormField>
 
-          {t.study && <FormField label="Años totales" error={errors.totalYears}>
+          {profile.study && <FormField label={t("Años totales")} error={errors.totalYears}>
             <input
               className={clsx("input", errors.totalYears && "input-error")}
               value={totalYears}
@@ -169,17 +170,17 @@ export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: ()
           </FormField>}
         </div>
 
-        <FormField label={kind === "trabajo" ? "Empresa u organización" : kind === "universidad" || kind === "colegio" ? "Institución" : "Detalle"}>
+        <FormField label={kind === "trabajo" ? t("Empresa u organización") : kind === "universidad" || kind === "colegio" ? t("Institución") : t("Detalle")}>
           <input
             className="input"
             value={institution}
             onChange={(e) => setInstitution(e.target.value)}
-            placeholder="Opcional"
+            placeholder={t("Opcional")}
           />
         </FormField>
 
         <div className="flex flex-col gap-1.5">
-          <span className="t-small font-medium text-muted">Color</span>
+          <span className="t-small font-medium text-muted">{t("Color")}</span>
           <div className="grid grid-cols-2 gap-2">
             {COLORS.map((c) => {
               const active = color === c.value;

@@ -695,13 +695,8 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
   // Primera vez: toda la ventana, con los pasos a la izquierda y el formulario centrado a la derecha.
   return (
     <div className="flex h-full min-h-0 w-full">
-      <aside data-tauri-drag-region className="relative hidden w-[min(36%,440px)] flex-none flex-col justify-between overflow-hidden border-r border-border bg-surface px-10 py-12 lg:flex">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full opacity-30 blur-3xl"
-          style={{ background: "radial-gradient(circle, var(--primary), transparent 70%)" }}
-        />
-        <div className="relative flex flex-col gap-10">
+      <aside data-tauri-drag-region className="hidden w-[min(36%,440px)] flex-none flex-col justify-between border-r border-border bg-surface px-10 py-12 lg:flex">
+        <div className="flex flex-col gap-10">
           <div className="flex items-center gap-3">
             <LogoMark size={36} />
             <span className="t-h2 font-semibold">UniCore</span>
@@ -726,7 +721,7 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
             })}
           </ol>
         </div>
-        <p className="t-small relative text-faint">Todo se guarda en este equipo. No hace falta crear una cuenta.</p>
+        <p className="t-small text-faint">Todo se guarda en este equipo. No hace falta crear una cuenta.</p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

@@ -80,14 +80,14 @@ export function ItemPicker({
           {filteredNotes.map((n) => (
             <button key={n.id} type="button" className="row w-full text-left" onClick={() => pick({ kind: "nota", id: n.id, name: n.title || "Sin título" })}>
               <span className="flex-1 truncate">{n.title?.trim() || "Sin título"}</span>
-              <span className="truncate text-[12px] text-faint">{subjectName[n.subjectId] ?? ""}</span>
+              <span className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{subjectName[n.subjectId] ?? ""}</span>
             </button>
           ))}
           {filteredDocs.length > 0 && <div className="section-label pt-2">PDF</div>}
           {filteredDocs.map((d) => (
             <button key={d.id} type="button" className="row w-full text-left" onClick={() => pick({ kind: "pdf", id: d.id, name: d.fileName })}>
               <span className="flex-1 truncate">{d.fileName}</span>
-              <span className="truncate text-[12px] text-faint">{subjectName[d.subjectId] ?? ""}</span>
+              <span className="truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{subjectName[d.subjectId] ?? ""}</span>
             </button>
           ))}
           {filteredNotes.length === 0 && filteredDocs.length === 0 && (

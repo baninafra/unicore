@@ -140,7 +140,7 @@ function ReadOnlyEvent({ item, onClose }: { item: CalItem; onClose: () => void }
         </>
       }
     >
-      <div className="flex flex-col gap-2 text-[13px]">
+      <div className="flex flex-col gap-2 text-[length:calc(13px*var(--ui-scale,1))]">
         <div className={clsx("border-l-2 pl-2 text-muted", CALENDAR_BORDER_L[item.color])}>{item.calendarName}</div>
         <div>{item.allDay ? `Todo el día · ${format(item.start, "dd/MM/yyyy")}` : when}</div>
         {item.location && (
@@ -349,7 +349,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
             </Select>
           </Prop>
           <Prop label="Todo el día">
-            <label className="flex h-7 items-center gap-2 px-2 text-[13px]">
+            <label className="flex h-7 items-center gap-2 px-2 text-[length:calc(13px*var(--ui-scale,1))]">
               <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="accent-[var(--primary)]" />
               Dura el día entero
             </label>
@@ -386,7 +386,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
             {rec.freq !== "NONE" && <Repeat className="h-3.5 w-3.5 text-faint" />}
           </Prop>
           {rec.freq !== "NONE" && (
-            <div className="ml-[148px] flex flex-col gap-2 rounded-md border border-border p-2.5 text-[13px]">
+            <div className="ml-[148px] flex flex-col gap-2 rounded-md border border-border p-2.5 text-[length:calc(13px*var(--ui-scale,1))]">
               <div className="flex flex-wrap items-center gap-2">
                 Cada
                 <input type="number" min={1} max={99} className="input h-7 w-16" value={rec.interval} onChange={(e) => setRec({ ...rec, interval: Math.max(1, Number(e.target.value) || 1) })} />
@@ -399,7 +399,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
                       key={d}
                       type="button"
                       aria-pressed={rec.byDay.includes(d)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-[12px] aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft"
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-[length:calc(12px*var(--ui-scale,1))] aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft"
                       onClick={() => setRec({ ...rec, byDay: rec.byDay.includes(d) ? rec.byDay.filter((x) => x !== d) : [...rec.byDay, d] })}
                     >
                       {DAY_SHORT[d]}
@@ -493,7 +493,7 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
             {taskId && (
               <button
                 type="button"
-                className="text-[12px] text-primary-soft hover:underline"
+                className="text-[length:calc(12px*var(--ui-scale,1))] text-primary-soft hover:underline"
                 onClick={async () => {
                   const t = await db.tasks.get(taskId);
                   if (t) openTaskDialog(t);

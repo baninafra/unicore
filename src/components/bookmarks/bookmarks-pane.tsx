@@ -45,7 +45,7 @@ export function BookmarksPane() {
   };
 
   if (items === undefined) return null;
-  if (!items.length) return <p className="px-3 py-3 text-[13px] text-faint">Sin marcadores</p>;
+  if (!items.length) return <p className="px-3 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin marcadores</p>;
 
   return (
     <div className="flex flex-col gap-px p-1">

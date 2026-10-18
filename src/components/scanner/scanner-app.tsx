@@ -1,7 +1,7 @@
 "use client";
 
-// Escáner de documentos a pantalla completa (se abre desde Herramientas o con la paleta de comandos).
-// Sacás fotos con la cámara o las subís, la app encuentra la hoja, la endereza y la limpia; podés
+// Escáner de documentos en la barra derecha (se abre desde su ícono o con la paleta de comandos).
+// Subís fotos (o las pegás con Ctrl+V), la app encuentra la hoja, la endereza y la limpia; podés
 // corregir las esquinas, cambiar el filtro, rotar y ordenar las páginas. Después reconoce el texto
 // (OCR) y lo guarda como PDF buscable, en la bibliografía de una materia o como nota.
 
@@ -10,7 +10,6 @@ import clsx from "clsx";
 import {
   ArrowLeft,
   BookOpen,
-  Camera,
   Check,
   ChevronDown,
   Copy,
@@ -26,7 +25,6 @@ import {
   ScanText,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import { db, newId, nowIso, saveFile } from "@/lib/db";
 import {
@@ -57,12 +55,15 @@ import { saveBlob, safeFileName } from "@/lib/export/save";
 import { toast } from "@/lib/undo";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { CornerEditor } from "./corner-editor";
-import { ScannerCamera } from "./camera";
 
-const EVENT = "uc:scanner";
+export const SCANNER_EVENT = "uc:scanner";
+// Si la barra derecha estaba cerrada, el escáner todavía no existe: el pedido de elegir fotos queda acá.
+let pendingPick = false;
 
-export function openScanner(mode: "camera" | "files" = "camera") {
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: { mode } }));
+// Abre el escáner en la barra derecha; con pick, además abre el selector de fotos.
+export function openScanner(pick = false) {
+  pendingPick = pick;
+  window.dispatchEvent(new CustomEvent(SCANNER_EVENT));
 }
 
 interface Page {
@@ -101,9 +102,8 @@ function pickImages(onPick: (files: File[]) => void) {
   input.click();
 }
 
-export function ScannerApp() {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"camera" | "pages" | "edit">("pages");
+export function ScannerApp({ visible }: { visible: boolean }) {
+  const [mode, setMode] = useState<"pages" | "edit">("pages");
   const [pages, setPages] = useState<Page[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ corners: Pt[]; filter: ScanFilter; rotation: number } | null>(null);
@@ -181,25 +181,31 @@ export function ScannerApp() {
     [process],
   );
 
-  const onCapture = useCallback((blob: Blob, corners: Pt[] | null) => void addPhotos([{ blob, corners }]), [addPhotos]);
+  const upload = useCallback(() => pickImages((files) => void addPhotos(files.map((blob) => ({ blob })))), [addPhotos]);
+
+  // Se prepara la primera vez que se muestra.
+  const warmed = useRef(false);
+  useEffect(() => {
+    if (!visible || warmed.current) return;
+    warmed.current = true;
+    void warmUpScanner().catch((err: unknown) => toast(err instanceof Error ? err.message : "No se pudo iniciar el escáner.", { tone: "error" }));
+  }, [visible]);
 
   useEffect(() => {
-    const onOpen = (e: Event) => {
-      const want = (e as CustomEvent<{ mode: "camera" | "files" }>).detail.mode;
-      setOpen(true);
-      void warmUpScanner().catch((err: unknown) => toast(err instanceof Error ? err.message : "No se pudo iniciar el escáner.", { tone: "error" }));
-      if (want === "files") {
-        setMode("pages");
-        pickImages((files) => void addPhotos(files.map((blob) => ({ blob }))));
-      } else setMode("camera");
+    const onOpen = () => {
+      if (!pendingPick) return;
+      pendingPick = false;
+      setMode("pages");
+      upload();
     };
-    window.addEventListener(EVENT, onOpen);
-    return () => window.removeEventListener(EVENT, onOpen);
-  }, [addPhotos]);
+    onOpen();
+    window.addEventListener(SCANNER_EVENT, onOpen);
+    return () => window.removeEventListener(SCANNER_EVENT, onOpen);
+  }, [upload]);
 
   // Pegar una imagen (Ctrl+V) agrega una página.
   useEffect(() => {
-    if (!open) return;
+    if (!visible) return;
     const onPaste = (e: ClipboardEvent) => {
       const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
       if (!files.length) return;
@@ -210,7 +216,7 @@ export function ScannerApp() {
     };
     window.addEventListener("paste", onPaste, true);
     return () => window.removeEventListener("paste", onPaste, true);
-  }, [open, addPhotos]);
+  }, [visible, addPhotos]);
 
   // El texto junto se arma solo mientras el usuario no lo haya editado.
   const ocrText = pages
@@ -238,10 +244,9 @@ export function ScannerApp() {
     void stopOcr();
   };
 
-  const close = () => {
+  const discard = () => {
     if (pagesRef.current.length && !window.confirm("¿Descartar las páginas escaneadas sin guardar?")) return;
     reset();
-    setOpen(false);
   };
 
   // Reconoce el texto de las páginas que todavía no lo tienen.
@@ -294,7 +299,6 @@ export function ScannerApp() {
 
   const finish = (view: Parameters<typeof openView>[0]) => {
     reset();
-    setOpen(false);
     openView(view, "tab");
   };
 
@@ -451,11 +455,9 @@ export function ScannerApp() {
     for (const p of pagesRef.current) if (p.filter !== filter) void process(p, p.corners, filter, p.rotation);
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-bg">
-      <div className="flex h-10 flex-none items-center gap-2 border-b border-border px-3">
+    <div className="flex h-full flex-col bg-bg" hidden={!visible}>
+      <div className="flex min-h-10 flex-none flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
         {mode === "edit" ? (
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => (setMode("pages"), setEditing(null), setDraft(null))}>
             <ArrowLeft />
@@ -464,8 +466,7 @@ export function ScannerApp() {
         ) : (
           <ScanLine className="h-4 w-4 text-primary-soft" strokeWidth={1.75} />
         )}
-        <span className="t-label text-muted">Escáner</span>
-        {mode !== "camera" && pages.length > 0 && <span className="t-small text-faint">{pages.length === 1 ? "1 página" : `${pages.length} páginas`}</span>}
+        {pages.length > 0 && <span className="t-small text-faint">{pages.length === 1 ? "1 página" : `${pages.length} páginas`}</span>}
         {working && (
           <span className="t-small flex items-center gap-1.5 text-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -475,14 +476,14 @@ export function ScannerApp() {
         <div className="ml-auto flex items-center gap-1.5">
           {mode === "pages" && (
             <>
-              <button type="button" className="btn btn-sm" onClick={() => setMode("camera")}>
-                <Camera />
-                Cámara
-              </button>
-              <button type="button" className="btn btn-sm" onClick={() => pickImages((files) => void addPhotos(files.map((blob) => ({ blob }))))}>
+              <button type="button" className="btn btn-sm btn-icon" aria-label="Subir fotos" title="Subir fotos" onClick={upload}>
                 <ImagePlus />
-                Subir fotos
               </button>
+              {pages.length > 0 && (
+                <button type="button" className="btn btn-ghost btn-sm btn-icon hover:text-rose" aria-label="Descartar todo" title="Descartar todo" onClick={discard}>
+                  <Trash2 />
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
@@ -504,18 +505,13 @@ export function ScannerApp() {
               Aplicar
             </button>
           )}
-          <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label="Cerrar el escáner" title="Cerrar" onClick={close}>
-            <X />
-          </button>
         </div>
       </div>
 
       <div className="min-h-0 flex-1">
-        {mode === "camera" && <ScannerCamera count={pages.length} onCapture={onCapture} onClose={() => setMode("pages")} />}
-
         {mode === "edit" && edited && draft && (
           <div className="flex h-full flex-col">
-            <div className="min-h-0 flex-1 p-6">
+            <div className="min-h-0 flex-1 p-3">
               <CornerEditor url={edited.sourceUrl} width={edited.sw} height={edited.sh} corners={draft.corners} onChange={(corners) => setDraft({ ...draft, corners })} />
             </div>
             <div className="flex flex-none flex-wrap items-center justify-center gap-2 border-t border-border px-4 py-3">
@@ -556,26 +552,20 @@ export function ScannerApp() {
         )}
 
         {mode === "pages" && (
-          <div className="flex h-full min-h-0">
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="h-full min-h-0 overflow-y-auto">
+            <div className={clsx("p-3", pages.length === 0 && "h-full")}>
               {pages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                   <ScanLine className="h-10 w-10 text-faint" strokeWidth={1.5} />
                   <div className="t-h3">Escaneá apuntes, fotocopias o pizarrones</div>
-                  <div className="t-small max-w-md text-muted">Sacá fotos con la cámara o subilas (también podés pegar una con Ctrl+V). La app encuentra la hoja, la endereza y la deja legible.</div>
-                  <div className="mt-2 flex gap-2">
-                    <button type="button" className="btn btn-primary" onClick={() => setMode("camera")}>
-                      <Camera />
-                      Usar la cámara
-                    </button>
-                    <button type="button" className="btn" onClick={() => pickImages((files) => void addPhotos(files.map((blob) => ({ blob }))))}>
-                      <ImagePlus />
-                      Subir fotos
-                    </button>
-                  </div>
+                  <div className="t-small max-w-md text-muted">Subí fotos JPG o PNG (o pegá una con Ctrl+V). La app encuentra la hoja, la endereza y la deja legible.</div>
+                  <button type="button" className="btn btn-primary mt-2" onClick={upload}>
+                    <ImagePlus />
+                    Subir fotos
+                  </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">
                   {pages.map((p, i) => (
                     <div
                       key={p.id}
@@ -606,7 +596,7 @@ export function ScannerApp() {
                             <Loader2 className="h-6 w-6 animate-spin text-primary-soft" />
                           </span>
                         )}
-                        {p.error && <span className="absolute inset-x-2 bottom-2 rounded bg-rose-tint px-2 py-1 text-[11px] text-rose">{p.error}</span>}
+                        {p.error && <span className="absolute inset-x-2 bottom-2 rounded bg-rose-tint px-2 py-1 text-[length:calc(11px*var(--ui-scale,1))] text-rose">{p.error}</span>}
                       </button>
                       <div className="flex items-center gap-1">
                         <span className="num t-small text-muted">{i + 1}</span>
@@ -627,10 +617,10 @@ export function ScannerApp() {
                   ))}
                   <button
                     type="button"
-                    onClick={() => setMode("camera")}
+                    onClick={upload}
                     className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border-strong text-faint hover:border-primary hover:text-text"
                   >
-                    <Camera className="h-6 w-6" strokeWidth={1.5} />
+                    <ImagePlus className="h-6 w-6" strokeWidth={1.5} />
                     <span className="t-small">Otra página</span>
                   </button>
                 </div>
@@ -638,7 +628,7 @@ export function ScannerApp() {
             </div>
 
             {pages.length > 0 && (
-              <aside className="flex w-[340px] flex-none flex-col gap-3 overflow-y-auto border-l border-border p-4">
+              <section className="flex flex-col gap-3 border-t border-border p-3">
                 <label className="field">
                   <span>Nombre</span>
                   <input className="input" value={title} placeholder="Escaneo" onChange={(e) => setTitle(e.target.value)} />
@@ -669,14 +659,14 @@ export function ScannerApp() {
                     ))}
                   </div>
                 </div>
-                <div className="field min-h-0 flex-1">
+                <div className="field">
                   <span className="flex items-center gap-2">
                     Texto
                     {textEdited && <span className="badge">Editado</span>}
                   </span>
                   {text ? (
                     <textarea
-                      className="input min-h-[220px] flex-1 font-mono text-[12px]"
+                      className="input min-h-[180px] font-mono text-[length:calc(12px*var(--ui-scale,1))]"
                       value={text}
                       onChange={(e) => {
                         setText(e.target.value);
@@ -714,7 +704,7 @@ export function ScannerApp() {
                     )}
                   </div>
                 </div>
-              </aside>
+              </section>
             )}
           </div>
         )}

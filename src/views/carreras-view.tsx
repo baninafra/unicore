@@ -14,6 +14,8 @@ import { DegreeHeader } from "@/components/careers/degree-header";
 import { PlanTable } from "@/components/careers/plan-table";
 import { SubjectDialog } from "@/components/careers/subject-dialog";
 import { deleteDegreeCascade, deleteSubjectCascade } from "@/components/careers/actions";
+import { ItemList } from "@/components/careers/item-list";
+import { cap, kindOf, PROFILES, useProfiles } from "@/lib/profiles";
 
 // React Flow toca window: se carga sólo en el cliente.
 const PlanMap = dynamic(() => import("@/components/careers/plan-map").then((m) => m.PlanMap), {
@@ -26,6 +28,7 @@ type Mode = "tabla" | "mapa";
 // Mis carreras: una sección por carrera. Tabla por cuatrimestre o mapa de correlativas.
 export function CarrerasView() {
   const { degreeFilter, setDegreeFilter } = useAppState();
+  const { terms, inScope, termsFor } = useProfiles();
   // undefined mientras carga: así no mostramos nada por un instante.
   const degrees = useLiveQuery(() => db.degrees.orderBy("createdAt").toArray(), []);
   const subjects = useAllSubjects();
@@ -38,7 +41,12 @@ export function CarrerasView() {
 
   if (degrees === undefined) return null;
 
-  const visible = degreeFilter === "all" ? degrees : degrees.filter((d) => d.id === degreeFilter);
+  const scoped = degrees.filter((d) => inScope(d.id));
+  const visible = degreeFilter === "all" ? scoped : scoped.filter((d) => d.id === degreeFilter);
+  // El mapa de correlativas sólo tiene sentido para lo que se estudia.
+  const studyVisible = visible.filter((d) => PROFILES[kindOf(d)].study);
+  const showMode = studyVisible.length > 0;
+  const currentMode = showMode ? mode : "tabla";
   const subjectsOf = (degreeId: string) => subjects.filter((s) => s.degreeId === degreeId);
 
   async function confirmDeleteDegree() {
@@ -57,35 +65,41 @@ export function CarrerasView() {
   return (
     <div className="view-wide mx-auto flex max-w-[1040px] flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-1" role="group" aria-label="Vista del plan">
+        <div className={showMode ? "flex gap-1" : "invisible flex gap-1"} role="group" aria-label="Vista del plan">
           {(["tabla", "mapa"] as const).map((m) => (
             <button
               key={m}
               type="button"
-              aria-pressed={mode === m}
+              aria-pressed={currentMode === m}
               onClick={() => setMode(m)}
               className="btn btn-sm aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft"
             >
-              {m === "tabla" ? "Tabla" : "Mapa"}
+              {m === "tabla" ? "Tabla" : "Correlativas"}
             </button>
           ))}
         </div>
         <button type="button" className="btn btn-sm" onClick={() => setDegreeDialog({})}>
           <Plus strokeWidth={1.75} />
-          Agregar carrera
+          Agregar {terms.space.one}
         </button>
       </div>
 
-      {degrees.length === 0 ? (
-        <p className="t-small py-12 text-center text-faint">Sin carreras</p>
+      {scoped.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-12">
+          <p className="t-small text-faint">Todavía no cargaste {terms.space.f ? "ninguna" : "ningún"} {terms.space.one}</p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setDegreeDialog({})}>
+            <Plus strokeWidth={1.75} />
+            {cap(terms.space.one)}
+          </button>
+        </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-12">
-          <p className="t-small text-faint">No encontramos esa carrera</p>
+          <p className="t-small text-faint">No encontramos {terms.space.f ? "esa" : "ese"} {terms.space.one}</p>
           <button type="button" className="btn btn-sm" onClick={() => setDegreeFilter("all")}>
             Ver todas
           </button>
         </div>
-      ) : mode === "tabla" ? (
+      ) : currentMode === "tabla" ? (
         visible.map((degree) => {
           const own = subjectsOf(degree.id);
           return (
@@ -97,19 +111,28 @@ export function CarrerasView() {
                 onDelete={() => setDegreeToDelete(degree)}
                 onAddSubject={() => setSubjectDialog({ degreeId: degree.id })}
               />
-              <PlanTable
-                degree={degree}
-                subjects={own}
-                all={subjects}
-                onEdit={(subject) => setSubjectDialog({ subject })}
-                onDelete={(subject) => setSubjectToDelete(subject)}
-              />
+              {PROFILES[kindOf(degree)].study ? (
+                <PlanTable
+                  degree={degree}
+                  subjects={own}
+                  all={subjects}
+                  onEdit={(subject) => setSubjectDialog({ subject })}
+                  onDelete={(subject) => setSubjectToDelete(subject)}
+                />
+              ) : (
+                <ItemList
+                  degree={degree}
+                  subjects={own}
+                  onEdit={(subject) => setSubjectDialog({ subject })}
+                  onDelete={(subject) => setSubjectToDelete(subject)}
+                />
+              )}
             </section>
           );
         })
       ) : (
         <>
-          {visible.map((degree) => (
+          {studyVisible.map((degree) => (
             <DegreeHeader
               key={degree.id}
               degree={degree}
@@ -120,7 +143,7 @@ export function CarrerasView() {
             />
           ))}
           <PlanMap
-            degrees={visible}
+            degrees={studyVisible}
             subjects={subjects}
             onEdit={(subject) => setSubjectDialog({ subject })}
             onDelete={(subject) => setSubjectToDelete(subject)}
@@ -132,7 +155,7 @@ export function CarrerasView() {
 
       {subjectDialog && (
         <SubjectDialog
-          degrees={degrees}
+          degrees={scoped.length ? scoped : degrees}
           allSubjects={subjects}
           subject={subjectDialog.subject}
           defaultDegreeId={subjectDialog.degreeId}
@@ -142,9 +165,9 @@ export function CarrerasView() {
 
       {degreeToDelete && (
         <ConfirmDialog
-          title="Eliminar carrera"
-          message={`Se borran "${degreeToDelete.name}", todas sus materias y sus tareas. No se puede deshacer.`}
-          confirmLabel="Eliminar carrera"
+          title={`Eliminar ${termsFor(degreeToDelete.id).space.one}`}
+          message={`Se borran "${degreeToDelete.name}", ${termsFor(degreeToDelete.id).item.f ? "todas sus" : "todos sus"} ${termsFor(degreeToDelete.id).item.many} y sus tareas. No se puede deshacer.`}
+          confirmLabel={`Eliminar ${termsFor(degreeToDelete.id).space.one}`}
           onConfirm={confirmDeleteDegree}
           onClose={() => setDegreeToDelete(null)}
         />
@@ -152,9 +175,9 @@ export function CarrerasView() {
 
       {subjectToDelete && (
         <ConfirmDialog
-          title="Eliminar materia"
-          message={`Se borran "${subjectToDelete.name}" con sus tareas, apuntes, PDFs y flashcards. No se puede deshacer.`}
-          confirmLabel="Eliminar materia"
+          title={`Eliminar ${termsFor(subjectToDelete.degreeId).item.one}`}
+          message={`Se borran "${subjectToDelete.name}" con sus tareas, notas, PDFs y flashcards. No se puede deshacer.`}
+          confirmLabel={`Eliminar ${termsFor(subjectToDelete.degreeId).item.one}`}
           onConfirm={confirmDeleteSubject}
           onClose={() => setSubjectToDelete(null)}
         />

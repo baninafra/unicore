@@ -63,7 +63,7 @@ export function ListPicker({
             {list.map((item) => (
               <button key={item.id} type="button" className="row w-full justify-between text-left" onClick={() => pick(item)}>
                 <span className="truncate">{item.label}</span>
-                {item.hint && <span className="shrink-0 text-[11px] text-faint">{item.hint}</span>}
+                {item.hint && <span className="shrink-0 text-[length:calc(11px*var(--ui-scale,1))] text-faint">{item.hint}</span>}
               </button>
             ))}
           </div>

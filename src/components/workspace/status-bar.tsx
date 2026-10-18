@@ -7,7 +7,7 @@ import { PomodoroChip } from "@/components/pomodoro/pomodoro-chip";
 export function StatusBar() {
   const { statusItems } = useWorkspace();
   return (
-    <footer className="flex h-6 flex-none items-center justify-end gap-4 border-t border-border bg-bg px-3 text-[12px] text-faint">
+    <footer className="flex h-6 flex-none items-center justify-end gap-4 border-t border-border bg-bg px-3 text-[length:calc(12px*var(--ui-scale,1))] text-faint">
       {Object.entries(statusItems).map(([key, node]) => (
         <span key={key} className="flex items-center gap-1.5 num">
           {node}

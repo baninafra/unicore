@@ -9,6 +9,13 @@ import { SummaryLines } from "@/components/dashboard/summary-lines";
 import { useNow } from "@/components/dashboard/use-now";
 import { useOpen } from "@/components/workspace/use-open";
 import { useAllSubjects, useSubjectMap, useTasks } from "@/lib/hooks";
+import { useProfiles } from "@/lib/profiles";
+
+// "Buen día", "Buenas tardes" o "Buenas noches" según la hora.
+function greeting(now: Date) {
+  const h = now.getHours();
+  return h >= 6 && h < 13 ? "Buen día" : h >= 13 && h < 20 ? "Buenas tardes" : "Buenas noches";
+}
 
 function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -21,6 +28,8 @@ export function InicioView() {
   const subjectMap = useSubjectMap();
   const allSubjects = useAllSubjects();
   const open = useOpen();
+  const { profile } = useProfiles();
+  const firstName = profile.name.trim().split(/\s+/)[0];
 
   // Sin la hora del navegador la fecha queda vacía un instante, para no diferir del servidor.
   const dateLabel = now ? capitalize(format(now, "EEEE d 'de' MMMM", { locale: es })) : "";
@@ -28,7 +37,10 @@ export function InicioView() {
   return (
     <div className="view-wide @container mx-auto grid max-w-[1280px] gap-8 @min-[820px]:grid-cols-[minmax(0,1fr)_280px]">
       <div className="flex min-w-0 flex-col gap-8">
-        <p className="t-small min-h-5 text-faint">{dateLabel}</p>
+        <div className="flex min-h-5 flex-col gap-0.5">
+          {now && firstName && <h1 className="t-h2 font-semibold">{`${greeting(now)}, ${firstName}`}</h1>}
+          <p className="t-small text-faint">{dateLabel}</p>
+        </div>
         <Agenda tasks={tasks} subjectMap={subjectMap} now={now} />
         <Kanban tasks={tasks} subjectMap={subjectMap} />
       </div>

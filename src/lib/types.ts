@@ -2,6 +2,9 @@
 
 export type DegreeColor = "primary" | "cyan";
 
+// Tipo de espacio (perfil): una carrera, un curso del colegio, un trabajo, proyectos propios o la vida personal.
+export type ProfileKind = "universidad" | "colegio" | "trabajo" | "proyectos" | "personal";
+
 export interface Degree {
   id: string;
   name: string; // "Tecnicatura en Administración"
@@ -9,6 +12,8 @@ export interface Degree {
   institution?: string;
   color: DegreeColor;
   totalYears: number;
+  kind?: ProfileKind; // sin tipo = universidad
+  profileId?: string; // perfil del usuario al que pertenece (sin esto, el primero de su tipo)
   createdAt: string;
 }
 

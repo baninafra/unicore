@@ -223,11 +223,11 @@ function PaletteDialog({ detail, onClose }: { detail: PaletteOpen; onClose: () =
               (detail.mode === "commands" ? (
                 <span className="kbd shrink-0">{item.hint}</span>
               ) : (
-                <span className="shrink-0 text-[12px] text-faint">{item.hint}</span>
+                <span className="shrink-0 text-[length:calc(12px*var(--ui-scale,1))] text-faint">{item.hint}</span>
               ))}
           </button>
         ))}
-        {!list.length && <p className="px-2 py-3 text-[13px] text-faint">Sin resultados</p>}
+        {!list.length && <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin resultados</p>}
       </div>
     </Modal>
   );

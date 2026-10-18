@@ -59,7 +59,7 @@ export function WebView({ url }: { url: string }) {
         </button>
         <form onSubmit={onSubmit} className="min-w-0 flex-1">
           <input
-            className="input h-7 text-[13px]"
+            className="input h-7 text-[length:calc(13px*var(--ui-scale,1))]"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onFocus={(e) => e.currentTarget.select()}
@@ -73,7 +73,7 @@ export function WebView({ url }: { url: string }) {
       </div>
 
       <div className="flex-none px-3 py-1">
-        <button type="button" className="text-[12px] text-faint hover:text-muted" onClick={openExternal}>
+        <button type="button" className="text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-muted" onClick={openExternal}>
           ¿No carga? Abrir en el navegador
         </button>
       </div>

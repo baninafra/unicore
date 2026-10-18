@@ -1,11 +1,12 @@
 "use client";
 
 import clsx from "clsx";
-import { ArrowLeft, ArrowRight, Columns2, Pin, Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Pin, Plus, X } from "lucide-react";
+import { GLYPH, TOP_BTN, TopGlyph, useWindowControls } from "@/components/shell/window-controls";
 import { useWorkspace, type Pane, type Tab } from "@/lib/workspace";
 import { useViewTitle } from "./view-title";
 
-function TabButton({ pane, tab, active }: { pane: Pane; tab: Tab; active: boolean }) {
+function TabButton({ pane, tab, active, divider }: { pane: Pane; tab: Tab; active: boolean; divider: boolean }) {
   const { activateTab, closeTab, togglePin } = useWorkspace();
   const title = useViewTitle(tab.view);
   return (
@@ -21,8 +22,10 @@ function TabButton({ pane, tab, active }: { pane: Pane; tab: Tab; active: boolea
       }}
       onDoubleClick={() => togglePin(pane.id, tab.id)}
       className={clsx(
-        "group relative flex h-[30px] min-w-0 max-w-[200px] flex-1 basis-[160px] cursor-default items-center gap-1.5 rounded-t-md px-2.5 text-[13px]",
+        "group relative flex h-[30px] min-w-0 max-w-[200px] flex-1 basis-[160px] cursor-default items-center gap-1.5 rounded-t-md px-2.5 text-[length:calc(13px*var(--ui-scale,1))]",
         active ? "bg-surface text-text" : "text-muted hover:bg-surface-raised/60 hover:text-text",
+        // Como en Chrome: una rayita entre pestañas inactivas (no al lado de la activa ni de la que tiene el mouse).
+        divider && "after:pointer-events-none after:absolute after:-right-px after:top-1/2 after:h-4 after:w-px after:-translate-y-1/2 after:bg-border-strong hover:after:opacity-0",
       )}
     >
       {tab.pinned && <Pin className="h-3 w-3 flex-none text-faint" strokeWidth={1.75} />}
@@ -47,9 +50,11 @@ function TabButton({ pane, tab, active }: { pane: Pane; tab: Tab; active: boolea
 export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boolean }) {
   const { openView, goBack, goForward, activeTab, panes, closePane, focusPane } = useWorkspace();
   const current = pane.tabs.find((t) => t.id === pane.activeTabId);
+  // En la app de escritorio "Dividir" está arriba a la derecha, junto a los botones de la ventana.
+  const controls = useWindowControls();
   const canNav = isActivePane && activeTab;
   return (
-    <div className="flex h-10 flex-none items-end gap-0.5 bg-bg px-1.5" onMouseDown={() => focusPane(pane.id)}>
+    <div data-tauri-drag-region className="flex h-10 flex-none items-end gap-0.5 bg-bg px-1.5" onMouseDown={() => focusPane(pane.id)}>
       <div className="mb-1 flex flex-none items-center">
         <button
           className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text disabled:opacity-40"
@@ -68,10 +73,12 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
           <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
-      <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-hidden">
-        {pane.tabs.map((t) => (
-          <TabButton key={t.id} pane={pane} tab={t} active={t.id === pane.activeTabId} />
-        ))}
+      <div role="tablist" data-tauri-drag-region className="flex min-w-0 flex-1 items-end gap-0.5 overflow-hidden">
+        {pane.tabs.map((t, i) => {
+          const next = pane.tabs[i + 1];
+          const active = t.id === pane.activeTabId;
+          return <TabButton key={t.id} pane={pane} tab={t} active={active} divider={!active && !!next && next.id !== pane.activeTabId} />;
+        })}
         <button
           aria-label="Nueva pestaña"
           className="mb-1 flex h-7 w-7 flex-none items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
@@ -93,14 +100,14 @@ export function TabBar({ pane, isActivePane }: { pane: Pane; isActivePane: boole
           >
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
-        ) : (
+        ) : controls ? null : (
           <button
             aria-label="Dividir a la derecha"
             title="Dividir a la derecha"
-            className="flex h-7 w-7 items-center justify-center rounded-sm text-faint hover:bg-surface-raised hover:text-text"
+            className={TOP_BTN}
             onClick={() => current && openView(current.view, "split")}
           >
-            <Columns2 className="h-4 w-4" strokeWidth={1.75} />
+            <TopGlyph d={GLYPH.split} />
           </button>
         )}
       </div>

@@ -5,6 +5,7 @@ import type { PartialBlock } from "@blocknote/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   BookOpen,
+  Users,
   Bookmark,
   BookmarkCheck,
   ClipboardCheck,
@@ -35,6 +36,7 @@ import { FlashcardsReviewModal } from "@/components/flashcards/flashcards-review
 import { HistoryModal } from "@/components/notes/history-modal";
 import { ListPicker, type PickItem } from "@/components/notes/list-picker";
 import { NoteEditor } from "@/components/notes/note-editor";
+import { ShareDialog, ShareTitleBridge, useShare } from "@/components/share/share-dialog";
 import type { NoteBlockEditor } from "@/components/notes/note-schema";
 import { NoteProperties } from "@/components/notes/note-properties";
 import { NoteTasks } from "@/components/tasks/note-tasks";
@@ -155,6 +157,8 @@ function TitleField({ noteId, title, onEnter }: { noteId: string; title: string;
 // Vista de una nota: barra de herramientas, título, propiedades, editor y comandos.
 export function NotaView({ id }: { id: string }) {
   const note = useLiveQuery(async () => (await db.notes.get(id)) ?? null, [id]);
+  const share = useShare(id);
+  const [shareOpen, setShareOpen] = useState(false);
   const subjects: Subject[] = useLiveQuery(() => db.subjects.toArray(), []) ?? NO_ITEMS;
   const degrees: Degree[] = useLiveQuery(() => db.degrees.toArray(), []) ?? NO_ITEMS;
   const allNotes: Note[] = useLiveQuery(() => db.notes.toArray(), []) ?? NO_ITEMS;
@@ -505,6 +509,17 @@ export function NotaView({ id }: { id: string }) {
         onContextMenu={(e) => menu.open(e, menuItems)}
       >
         <div className="t-small mr-auto flex min-w-0 items-center gap-1.5 truncate text-muted">{crumbs}</div>
+        <button
+          type="button"
+          className="icon-btn relative"
+          aria-pressed={!!share}
+          aria-label={share ? "Nota compartida" : "Compartir"}
+          title={share ? `Compartida · ${share.peers.length ? `${share.peers.length} conectado${share.peers.length === 1 ? "" : "s"}` : "esperando"}` : "Compartir y editar con otros en vivo"}
+          onClick={() => setShareOpen(true)}
+        >
+          <Users />
+          {share && <span className={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${share.peers.length ? "bg-mint" : "bg-amber"}`} />}
+        </button>
         <button type="button" className="icon-btn" aria-pressed={!!bookmark} aria-label="Marcador" onClick={() => void toggleBookmark()}>
           {bookmark ? <BookmarkCheck /> : <Bookmark />}
         </button>
@@ -526,6 +541,7 @@ export function NotaView({ id }: { id: string }) {
           <MoreHorizontal />
         </button>
         {menu.menu}
+        {shareOpen && <ShareDialog noteId={id} title={note.title} onClose={() => setShareOpen(false)} />}
       </div>
 
       <div className="view-readable w-full">
@@ -552,8 +568,10 @@ export function NotaView({ id }: { id: string }) {
         )}
 
         <div className="mt-6">
+          <ShareTitleBridge noteId={id} title={note.title} />
           <NoteEditor
-            key={id}
+            key={`${id}:${share?.room ?? ""}`}
+            share={share}
             note={note}
             active={isActive}
             editable={!reading}

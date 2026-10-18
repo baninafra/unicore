@@ -7,6 +7,7 @@ import type { Degree, Subject } from "@/lib/types";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { exportMenuItem } from "@/components/export/export-menu";
 import { degreeProgress } from "./plan";
+import { kindOf, PROFILES } from "@/lib/profiles";
 
 // Encabezado de una carrera: nombre, sigla, promedio y avance en una línea, con barra de 2 px.
 export function DegreeHeader({
@@ -23,16 +24,22 @@ export function DegreeHeader({
   onAddSubject: () => void;
 }) {
   const p = degreeProgress(subjects);
+  const t = PROFILES[kindOf(degree)];
+  const add = `Agregar ${t.item.one}`;
+  const active = subjects.filter((s) => s.status === "CURSANDO").length;
+  const stats = t.study
+    ? `${grade(p.average)} · ${p.approved}/${p.total} ${t.statuses.APROBADA.toLowerCase()}s · ${p.regular} ${t.statuses.REGULAR.toLowerCase()}`
+    : `${active} ${t.statuses.CURSANDO.toLowerCase()} · ${p.approved}/${p.total} ${t.statuses.APROBADA.toLowerCase()}s`;
   const { open, menu } = useContextMenu();
   // La barra es blurple por defecto; la carrera cian usa el token --cyan.
   const barStyle: CSSProperties | undefined = degree.color === "cyan" ? { background: "var(--cyan)" } : undefined;
 
   const items: MenuItem[] = [
-    { label: "Editar carrera", icon: Pencil, onSelect: onEdit },
-    { label: "Agregar materia", icon: Plus, onSelect: onAddSubject },
+    { label: `Editar ${t.space.one}`, icon: Pencil, onSelect: onEdit },
+    { label: add, icon: Plus, onSelect: onAddSubject },
     exportMenuItem({ kind: "degree", id: degree.id }),
     { type: "separator" },
-    { label: "Eliminar carrera", icon: Trash2, onSelect: onDelete, danger: true },
+    { label: `Eliminar ${t.space.one}`, icon: Trash2, onSelect: onDelete, danger: true },
   ];
 
   return (
@@ -40,10 +47,9 @@ export function DegreeHeader({
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="t-h3 min-w-0 truncate font-semibold">{degree.name}</h2>
         <span className="tag">{degree.shortName}</span>
-        <span className="t-small num ml-auto flex-none text-faint">
-          {grade(p.average)} · {p.approved}/{p.total} aprobadas · {p.regular} regular
-        </span>
-        <button type="button" className="icon-btn" onClick={onAddSubject} aria-label="Agregar materia" title="Agregar materia">
+        {degree.kind && degree.kind !== "universidad" && <t.icon className="h-4 w-4 flex-none text-faint" strokeWidth={1.75} aria-label={t.label} />}
+        <span className="t-small num ml-auto flex-none text-faint">{stats}</span>
+        <button type="button" className="icon-btn" onClick={onAddSubject} aria-label={add} title={add}>
           <Plus strokeWidth={1.75} />
         </button>
         <button

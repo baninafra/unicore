@@ -13,7 +13,17 @@ export function ReviewFlow({ initialSubjectId }: { initialSubjectId: string }) {
   const onFinish = useCallback((m: number) => setMinutes(m), []);
 
   if (run && minutes !== null) {
-    return <ReviewSummary total={run.cards.length} minutes={minutes} subjectIds={run.subjectIds} />;
+    return (
+      <ReviewSummary
+        total={run.cards.length}
+        minutes={minutes}
+        subjectIds={run.subjectIds}
+        onRestart={() => {
+          setRun(null);
+          setMinutes(null);
+        }}
+      />
+    );
   }
   if (run) {
     return <ReviewSession cards={run.cards} onFinish={onFinish} />;

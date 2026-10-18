@@ -56,10 +56,10 @@ export function PdfToolbar({
   };
 
   return (
-    <div className="flex h-9 flex-none items-center gap-2 border-b border-border bg-bg px-2 text-[13px]">
+    <div className="flex h-9 flex-none items-center gap-2 border-b border-border bg-bg px-2 text-[length:calc(13px*var(--ui-scale,1))]">
       <div className="flex items-center gap-1 text-muted">
         <input
-          className="input num h-6 w-14 px-1 text-center text-[13px]"
+          className="input num h-6 w-14 px-1 text-center text-[length:calc(13px*var(--ui-scale,1))]"
           value={pageDraft ?? String(page)}
           onChange={(e) => setPageDraft(e.target.value)}
           onFocus={(e) => e.currentTarget.select()}
@@ -76,7 +76,7 @@ export function PdfToolbar({
 
       <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
         <input
-          className="input h-6 w-full max-w-[260px] text-[13px]"
+          className="input h-6 w-full max-w-[260px] text-[length:calc(13px*var(--ui-scale,1))]"
           placeholder="Buscar en el PDF"
           value={query}
           onChange={(e) => onQuery(e.target.value)}
@@ -85,7 +85,7 @@ export function PdfToolbar({
         />
         {query.trim() && (
           <>
-            <span className="num min-w-[56px] text-center text-[12px] text-faint">
+            <span className="num min-w-[56px] text-center text-[length:calc(12px*var(--ui-scale,1))] text-faint">
               {searching ? "Buscando…" : hitCount > 0 ? `${hitIndex + 1} de ${hitCount}` : searched ? "Sin resultados" : ""}
             </span>
             <button type="button" className="icon-btn h-6 w-6" onClick={() => onSearch("prev")} disabled={hitCount === 0} aria-label="Coincidencia anterior">
@@ -102,7 +102,7 @@ export function PdfToolbar({
         <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("out")} aria-label="Alejar">
           <ZoomOut strokeWidth={1.75} />
         </button>
-        <span className="num w-11 text-center text-[12px] text-muted">{Math.round(scale * 100)}%</span>
+        <span className="num w-11 text-center text-[length:calc(12px*var(--ui-scale,1))] text-muted">{Math.round(scale * 100)}%</span>
         <button type="button" className="icon-btn h-6 w-6" onClick={() => onZoom("in")} aria-label="Acercar">
           <ZoomIn strokeWidth={1.75} />
         </button>

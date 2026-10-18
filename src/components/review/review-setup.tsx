@@ -9,6 +9,7 @@ import type { Flashcard } from "@/lib/types";
 import { QuickCardForm } from "./quick-card-form";
 import { endOfToday, minutesFor, plural } from "./review-utils";
 import { Select } from "@/components/ui/select";
+import { Plus } from "lucide-react";
 
 export interface ReviewRun {
   cards: Flashcard[];
@@ -82,19 +83,23 @@ export function ReviewSetup({ initialSubjectId, onStart }: { initialSubjectId: s
             {plural(due.length, "tarjeta para hoy", "tarjetas para hoy")}
           </p>
           <p className="t-small num text-faint">unos {plural(minutesFor(due.length), "minuto", "minutos")}</p>
-          <button type="button" className="btn btn-primary" onClick={() => onStart({ cards: due, subjectIds: [...scopeIds] })}>
+          <button type="button" className="btn btn-primary h-9 px-5" onClick={() => onStart({ cards: due, subjectIds: [...scopeIds] })}>
             Empezar repaso
           </button>
         </div>
       ) : (
-        <div className="flex w-full flex-col items-center gap-4">
-          <p className="t-small text-faint">Sin tarjetas para hoy</p>
+        <div className="flex w-full flex-col items-center gap-4 text-center">
           {adding ? (
-            <QuickCardForm defaultSubjectId={selectedSubject} />
+            <QuickCardForm defaultSubjectId={selectedSubject} onClose={() => setAdding(false)} />
           ) : (
-            <button type="button" className="btn btn-sm" onClick={() => setAdding(true)}>
-              Nueva tarjeta
-            </button>
+            <>
+              <p className="t-h2">Sin tarjetas para hoy</p>
+              <p className="t-small text-faint">Podés crear una a mano o pedírselas a la IA desde una nota.</p>
+              <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
+                <Plus />
+                Nueva tarjeta
+              </button>
+            </>
           )}
         </div>
       )}

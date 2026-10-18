@@ -11,6 +11,7 @@ import { useAppState } from "@/lib/app-state";
 import { useWorkspace, type ViewState } from "@/lib/workspace";
 import { db, newId, nowIso } from "@/lib/db";
 import { useAllSubjects, useDegrees } from "@/lib/hooks";
+import { cap, useProfiles } from "@/lib/profiles";
 import { SUBJECT_STATUS_LABEL, type Note, type SubjectDocument, type SubjectStatus, type Subject } from "@/lib/types";
 import { ConfirmDialog } from "@/components/careers/confirm-dialog";
 import { saveSubject, type SubjectInput } from "@/components/careers/actions";
@@ -166,6 +167,8 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
   const [cardForm, setCardForm] = useState(false);
   const [quizForm, setQuizForm] = useState(false);
   const pageMenu = useContextMenu();
+  const { termsForSubject } = useProfiles();
+  const pt = termsForSubject(subjectId);
 
   useEffect(() => {
     setCurrentSubjectId(subjectId);
@@ -185,9 +188,9 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
   if (subject === null) {
     return (
       <div className="view-readable">
-        <p className="t-small text-faint">No encontramos esta materia</p>
+        <p className="t-small text-faint">No {pt.item.f ? "encontramos esta" : "encontramos este"} {pt.item.one}</p>
         <button type="button" className="btn btn-sm mt-3" onClick={() => openView({ type: "carreras" })}>
-          Mis carreras
+          {pt.spacesView}
         </button>
       </div>
     );
@@ -272,7 +275,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         <input
           key={subject.name}
           defaultValue={subject.name}
-          aria-label="Nombre de la materia"
+          aria-label={`Nombre ${pt.item.f ? "de la" : "del"} ${pt.item.one}`}
           className="min-w-0 flex-1 bg-transparent text-[26px] font-semibold leading-tight text-text outline-none"
           onBlur={(e) => {
             const v = e.target.value.trim();
@@ -301,7 +304,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
       </div>
 
       <div className="flex flex-col">
-        <Prop label="Carrera">
+        <Prop label={cap(pt.space.one)}>
           <Select className={CONTROL} value={subject.degreeId} onChange={(e) => {
             const degreeId = e.target.value;
             void save({
@@ -317,7 +320,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           </Select>
         </Prop>
 
-        <Prop label="Año">
+        {pt.study && <Prop label="Año">
           <Select className={CONTROL} value={subject.year} onChange={(e) => void save({ year: Number(e.target.value) })}>
             {yearOptions.map((y) => (
               <option key={y} value={y}>
@@ -329,19 +332,19 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             <option value={1}>1.º cuatrimestre</option>
             <option value={2}>2.º cuatrimestre</option>
           </Select>
-        </Prop>
+        </Prop>}
 
         <Prop label="Estado">
           <Select className={CONTROL} value={subject.status} onChange={(e) => void save({ status: e.target.value as SubjectStatus })}>
             {(Object.keys(SUBJECT_STATUS_LABEL) as SubjectStatus[]).map((st) => (
               <option key={st} value={st}>
-                {SUBJECT_STATUS_LABEL[st]}
+                {pt.statuses[st]}
               </option>
             ))}
           </Select>
         </Prop>
 
-        <Prop label="Nota">
+        {pt.study && <Prop label="Nota">
           <input
             key={subject.finalGrade ?? "sin-nota"}
             defaultValue={subject.finalGrade === undefined ? "" : String(subject.finalGrade).replace(".", ",")}
@@ -354,9 +357,9 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
               if (e.key === "Enter") e.currentTarget.blur();
             }}
           />
-        </Prop>
+        </Prop>}
 
-        <Prop label="Correlativas">
+        {pt.study && <Prop label="Correlativas">
           {correlatives.map((c) => (
             <span key={c.id} className="tag gap-1 pr-1">
               {c.name}
@@ -387,15 +390,15 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
               ))}
             </Select>
           )}
-        </Prop>
+        </Prop>}
 
-        <Prop label="Profesor">
+        <Prop label={pt.study ? "Profesor" : "Contacto"}>
           <input
             key={subject.professorEmail ?? ""}
             type="email"
             defaultValue={subject.professorEmail ?? ""}
             placeholder="–"
-            aria-label="Profesor"
+            aria-label={pt.study ? "Profesor" : "Contacto"}
             className={`${CONTROL} flex-1`}
             onBlur={(e) => {
               const v = e.target.value.trim();
@@ -407,8 +410,8 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
           />
         </Prop>
 
-        <Prop label="Campus">
-          <LinkField value={subject.campusUrl} placeholder="Campus" onSave={(v) => void save({ campusUrl: v })} />
+        <Prop label={pt.study ? "Campus" : "Link"}>
+          <LinkField value={subject.campusUrl} placeholder={pt.study ? "Campus" : "Link"} onSave={(v) => void save({ campusUrl: v })} />
         </Prop>
 
         <Prop label="Drive">
@@ -431,7 +434,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         ) : (
           notesByUnit.map(([unit, list]) => (
             <div key={unit} className="flex flex-col">
-              <div className="t-small px-2 pt-2 text-faint">Unidad {unit}</div>
+              <div className="t-small px-2 pt-2 text-faint">{pt.unit} {unit}</div>
               {list.map((note) => (
                 <ListRow
                   key={note.id}
@@ -462,7 +465,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         )}
       </Section>
 
-      <Section title="Bibliografía" action={<PdfImportButton subjectId={subjectId} label="Subir PDF" onImported={() => undefined} />}>
+      <Section title={pt.study ? "Bibliografía" : "Documentos"} action={<PdfImportButton subjectId={subjectId} label="Subir PDF" onImported={() => undefined} />}>
         {docs && docs.length > 0 ? (
           [...docs]
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -481,7 +484,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         )}
       </Section>
 
-      <Section
+      {(pt.study || quizzes.length > 0) && <Section
         title="Cuestionarios"
         action={
           <button type="button" className="icon-btn" onClick={() => setQuizForm(true)} aria-label="Nuevo cuestionario" title="Nuevo cuestionario con IA">
@@ -500,10 +503,10 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             Armar un cuestionario para estudiar
           </button>
         )}
-      </Section>
+      </Section>}
       {quizForm && <NewQuizDialog subjectId={subjectId} onClose={() => setQuizForm(false)} />}
 
-      <Section
+      {(pt.study || totalCards > 0) && <Section
         title="Flashcards"
         action={
           <button type="button" className="icon-btn" onClick={() => setCardForm(true)} aria-label="Nueva flashcard" title="Nueva flashcard">
@@ -524,7 +527,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
             Repasar
           </button>
         </div>
-      </Section>
+      </Section>}
 
       <Section
         title="Tareas"

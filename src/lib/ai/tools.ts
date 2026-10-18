@@ -5,26 +5,30 @@
 
 import * as chrono from "chrono-node";
 import { db, newId, nowIso } from "../db";
+import { kindOf, PROFILES, profileText } from "../profiles";
 import type { Degree, Subject, SubjectStatus, Task, TaskPriority, TaskStatus, TaskType } from "../types";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, SUBJECT_STATUS_LABEL, TASK_TYPE_LABEL, TEMPLATES_FOLDER } from "../types";
 import { createNote } from "@/components/notes/note-utils";
 import { deleteDegreeCascade, deleteSubjectCascade, saveDegree, saveSubject } from "@/components/careers/actions";
 import { newFlashcardRecord } from "@/components/flashcards/fsrs-card";
 import { deleteNote, deleteCanvas } from "../nav/actions";
-import { saveNoteContent } from "../notes/note-ops";
-import { markdownToBlocks } from "../notes/md-blocks";
+import { saveNoteContent, snapshotNote } from "../notes/note-ops";
+import { blocksToMarkdown, markdownToBlocks, TEXT_BLOCKS, type MdBlock } from "../notes/md-blocks";
 import { deleteWithUndo } from "../undo";
 import type { ViewState } from "../workspace";
 import type { ApiTool } from "./server";
 import { readPage, webSearch } from "./web";
 import { parseVideoUrl, videoInfo } from "../video";
 import { EDITOR_TOOL_DEFS, runEditorTool } from "./editor-tools";
+import { deleteOfficeDoc } from "../editors/editors";
 import { UTIL_TOOL_DEFS, runUtilTool } from "./util-tools";
+import { APP_TOOL_DEFS, runAppTool } from "./app-tools";
 
 export interface ToolContext {
   confirm: (title: string, detail: string) => Promise<boolean>;
   openView: (view: ViewState) => void;
   userText?: string; // último mensaje del usuario (para corregir fechas)
+  noteId?: string; // nota que el usuario tiene abierta (editar_nota la usa si no viene id)
 }
 
 const WEEKDAYS: [RegExp, number][] = [
@@ -282,16 +286,16 @@ export const TOOL_DEFS: ApiTool[] = [
     function: {
       name: "eliminar",
       description:
-        "Elimina uno o varios elementos (tareas, notas, lienzos, ideas, materias, carreras, flashcards) en UNA sola llamada: la app le muestra al usuario un único botón para confirmar todo junto. No pidas confirmación por texto. Para borrar 'todos los X', usá titulo (+ carpeta) o pasá la lista completa en elementos.",
+        "Elimina uno o varios elementos (tareas, notas, lienzos, ideas, archivos de Word/Excel/PowerPoint/PDF/geometría, materias, carreras, flashcards) en UNA sola llamada: la app le muestra al usuario un único botón para confirmar todo junto. No pidas confirmación por texto. Para borrar 'todos los X', usá titulo (+ carpeta) o pasá la lista completa en elementos.",
       parameters: obj({
         elementos: {
           type: "array",
           description: "Lista de lo que hay que borrar (ids sacados de listar_elementos, listar_tareas, etc.)",
-          items: obj({ tipo: { type: "string", enum: ["tarea", "nota", "materia", "carrera", "lienzo", "flashcard"] }, id: S("Id") }, ["tipo", "id"]),
+          items: obj({ tipo: { type: "string", enum: ["tarea", "nota", "archivo", "materia", "carrera", "lienzo", "flashcard"] }, id: S("Id") }, ["tipo", "id"]),
         },
-        tipo: { type: "string", enum: ["tarea", "nota", "materia", "carrera", "lienzo", "flashcard"], description: "Para un solo elemento, o para filtrar por título" },
+        tipo: { type: "string", enum: ["tarea", "nota", "archivo", "materia", "carrera", "lienzo", "flashcard"], description: "Para un solo elemento, o para filtrar por título" },
         id: S("Id de un solo elemento"),
-        titulo: S("Borra TODAS las notas/lienzos/tareas con este título exacto (ej. 'Sin título')"),
+        titulo: S("Borra TODAS las notas/lienzos/archivos/tareas con este título exacto (ej. 'Sin título')"),
         carpeta: S("Con titulo: limitar a una materia o carpeta (Notas, Diario, Ideas, Plantillas)"),
       }),
     },
@@ -356,11 +360,11 @@ export const TOOL_DEFS: ApiTool[] = [
     function: {
       name: "listar_elementos",
       description:
-        "Lista las notas y lienzos (dibujos/tableros) de una carpeta o materia, con id, tipo, título y si están vacíos. Usala antes de borrar o mover, porque en el explorador hay notas Y lienzos.",
+        "Lista las notas, lienzos (dibujos/tableros) y archivos (Word, Excel, PowerPoint, PDF, geometría) de una carpeta o materia, con id, tipo, título y si están vacíos. Usala antes de borrar o mover.",
       parameters: obj({
         carpeta: S("Materia o carpeta: Notas, Diario, Ideas, Plantillas (opcional: todas)"),
         titulo: S("Filtrar por título (opcional)"),
-        tipo: { type: "string", enum: ["nota", "lienzo", "todos"] },
+        tipo: { type: "string", enum: ["nota", "lienzo", "archivo", "todos"] },
       }),
     },
   },
@@ -376,7 +380,7 @@ export const TOOL_DEFS: ApiTool[] = [
     type: "function",
     function: {
       name: "leer_nota",
-      description: "Lee el texto completo de una nota por id.",
+      description: "Lee una nota completa en Markdown (con títulos, listas y tablas) por id.",
       parameters: obj({ id: S("Id de la nota") }, ["id"]),
     },
   },
@@ -416,8 +420,26 @@ export const TOOL_DEFS: ApiTool[] = [
     type: "function",
     function: {
       name: "agregar_a_nota",
-      description: "Agrega contenido en Markdown al final de una nota existente.",
-      parameters: obj({ id: S("Id de la nota"), contenido: S("Markdown a agregar") }, ["id", "contenido"]),
+      description: "Agrega contenido en Markdown al final de una nota existente (sin id: la nota abierta).",
+      parameters: obj({ id: S("Id de la nota (opcional: la que está abierta)"), contenido: S("Markdown a agregar") }, ["contenido"]),
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "editar_nota",
+      description:
+        "Reescribe una nota existente con su versión nueva completa en Markdown: corregir ortografía, ordenar, mejorar la redacción, agregar o sacar puntos en el medio, cambiar el formato. Sin id edita la nota que el usuario tiene abierta. El usuario puede deshacerlo con Ctrl+Z o desde el historial.",
+      parameters: obj(
+        {
+          id: S("Id de la nota (opcional: la que está abierta)"),
+          contenido: S(
+            "La nota ENTERA como tiene que quedar, en Markdown. Mantené todo lo que no te pidieron cambiar. Las marcas como [image] o [videoEmbed] dejalas igual, en su lugar: son imágenes y videos de la nota.",
+          ),
+          titulo: S("Título nuevo (opcional)"),
+        },
+        ["contenido"],
+      ),
     },
   },
   {
@@ -532,7 +554,7 @@ export const TOOL_DEFS: ApiTool[] = [
     type: "function",
     function: {
       name: "abrir",
-      description: "Abre en pantalla una nota, materia, el calendario, el inicio o el repaso.",
+      description: "Abre en pantalla una nota, materia, el calendario, el inicio o el repaso. Para archivos o el escáner usá abrir_archivo.",
       parameters: obj(
         {
           que: { type: "string", enum: ["nota", "materia", "calendario", "inicio", "repaso", "carreras"] },
@@ -543,6 +565,7 @@ export const TOOL_DEFS: ApiTool[] = [
     },
   },
   ...EDITOR_TOOL_DEFS,
+  ...APP_TOOL_DEFS,
   ...UTIL_TOOL_DEFS,
 ];
 
@@ -589,7 +612,7 @@ async function createTask(a: Args, extra: Partial<Task> = {}, userText?: string)
 const FOLDER_LABEL: Record<string, string> = { [LOOSE_FOLDER]: "Notas", [DAILY_FOLDER]: "Diario", [IDEAS_FOLDER]: "Ideas", [TEMPLATES_FOLDER]: "Plantillas" };
 
 // Notas y lienzos de una carpeta (o de todas), para listar o borrar.
-async function listItems(carpeta: string | undefined, titulo: string | undefined, tipo: "nota" | "lienzo" | "todos", exact: boolean) {
+async function listItems(carpeta: string | undefined, titulo: string | undefined, tipo: "nota" | "lienzo" | "archivo" | "todos", exact: boolean) {
   let folderId: string | undefined;
   if (carpeta) {
     const c = norm(carpeta);
@@ -605,11 +628,16 @@ async function listItems(carpeta: string | undefined, titulo: string | undefined
   // Lo que no tiene materia válida se ve en "Notas" en el explorador.
   const inFolder = (sid?: string) =>
     !folderId || (sid ?? LOOSE_FOLDER) === folderId || (folderId === LOOSE_FOLDER && !!sid && !subjects.has(sid) && !FOLDER_LABEL[sid]);
-  const out: { tipo: "nota" | "lienzo"; id: string; titulo: string; carpeta: string; vacia: boolean }[] = [];
-  if (tipo !== "lienzo")
+  const out: { tipo: "nota" | "lienzo" | "archivo"; id: string; titulo: string; carpeta: string; vacia: boolean }[] = [];
+  if (tipo === "archivo" || tipo === "todos")
+    for (const d of await db.officeDocs.toArray())
+      // Sirve el nombre con o sin extensión ("Informe" o "Informe.docx").
+      if (inFolder(d.subjectId) && (match(d.name) || match(d.name.replace(/[.][a-z0-9]+$/i, ""))))
+        out.push({ tipo: "archivo", id: d.id, titulo: d.name, carpeta: where(d.subjectId), vacia: !d.fileId });
+  if (tipo === "nota" || tipo === "todos")
     for (const n of await db.notes.toArray())
       if (inFolder(n.subjectId) && match(n.title)) out.push({ tipo: "nota", id: n.id, titulo: n.title || "Sin título", carpeta: where(n.subjectId), vacia: !n.plainTextCache.trim() });
-  if (tipo !== "nota")
+  if (tipo === "lienzo" || tipo === "todos")
     for (const c of await db.canvases.toArray())
       if (inFolder(c.subjectId) && match(c.name))
         out.push({ tipo: "lienzo", id: c.id, titulo: c.name || "Sin título", carpeta: where(c.subjectId), vacia: !(c.data?.nodes?.length ?? 0) });
@@ -627,6 +655,9 @@ async function findByTitle(tipo: string, title: string): Promise<Deletable[]> {
     for (const x of await db.notes.toArray()) if (norm(x.title || "Sin título") === t) out.push({ tipo: "nota", id: x.id, title: x.title || "Sin título", run: () => deleteNote(x.id) });
     for (const x of await db.canvases.toArray()) if (norm(x.name || "Sin título") === t) out.push({ tipo: "lienzo", id: x.id, title: x.name || "Sin título", run: () => deleteCanvas(x.id) });
   }
+  if (!tipo || tipo === "archivo" || tipo === "nota")
+    for (const x of await db.officeDocs.toArray())
+      if (norm(x.name) === t || norm(x.name.replace(/[.][a-z0-9]+$/i, "")) === t) out.push({ tipo: "archivo", id: x.id, title: x.name, run: () => deleteOfficeDoc(x.id) });
   return out.slice(0, 50);
 }
 
@@ -649,6 +680,10 @@ async function resolveDeletable(tipo: string, id: string): Promise<Deletable | n
     const c = await db.canvases.get(id);
     return c ? { tipo: "lienzo", id, title: c.name || "Sin título", run: () => deleteCanvas(id) } : null;
   }
+  if (tipo === "archivo") {
+    const x = await db.officeDocs.get(id);
+    return x ? { tipo, id, title: x.name, run: () => deleteOfficeDoc(id) } : null;
+  }
   if (tipo === "materia") {
     const x = await db.subjects.get(id);
     return x ? { tipo, id, title: x.name, run: () => deleteSubjectCascade(id) } : null;
@@ -662,7 +697,7 @@ async function resolveDeletable(tipo: string, id: string): Promise<Deletable | n
     return x ? { tipo, id, title: x.front, run: () => db.flashcards.delete(id) } : null;
   }
   // Sin tipo: probamos en todas las tablas.
-  for (const tt of ["nota", "tarea", "flashcard"]) {
+  for (const tt of ["nota", "archivo", "tarea", "flashcard"]) {
     const r = await resolveDeletable(tt, id);
     if (r) return r;
   }
@@ -670,7 +705,7 @@ async function resolveDeletable(tipo: string, id: string): Promise<Deletable | n
 }
 
 export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<ToolResult> {
-  const fromEditor = (await runEditorTool(name, a, ctx)) ?? (await runUtilTool(name, a));
+  const fromEditor = (await runEditorTool(name, a, ctx)) ?? (await runAppTool(name, a, ctx)) ?? (await runUtilTool(name, a));
   if (fromEditor) return fromEditor;
   switch (name) {
     case "listar_materias": {
@@ -749,7 +784,7 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
       if (Array.isArray(a.elementos)) for (const e of a.elementos as Args[]) if (e?.id) targets.push({ tipo: String(e.tipo ?? ""), id: String(e.id) });
       if (a.id) targets.push({ tipo: String(a.tipo ?? ""), id: String(a.id) });
       if (str(a.titulo)) {
-        const kind = a.tipo === "nota" || a.tipo === "lienzo" ? a.tipo : "todos";
+        const kind = a.tipo === "nota" || a.tipo === "lienzo" || a.tipo === "archivo" ? a.tipo : "todos";
         if (a.tipo !== "tarea") {
           let found = await listItems(str(a.carpeta), str(a.titulo), kind, true);
           // La carpeta puede venir mal escrita: probamos en todas (igual se confirma antes de borrar).
@@ -812,7 +847,7 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
     case "listar_elementos": {
       // Siempre devolvemos notas y lienzos: en el explorador se ven iguales y la IA los confunde.
       const items = await listItems(str(a.carpeta), str(a.titulo), "todos", false);
-      return { ok: true, content: json(items.slice(0, 80)), label: "Revisé tus notas y lienzos" };
+      return { ok: true, content: json(items.slice(0, 80)), label: "Revisé tus notas, lienzos y archivos" };
     }
 
     case "crear_carrera": {
@@ -894,7 +929,25 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
     case "leer_nota": {
       const n = await db.notes.get(String(a.id ?? ""));
       if (!n) return fail("No existe esa nota.");
-      return { ok: true, content: json({ titulo: n.title, texto: n.plainTextCache.slice(0, 12000) }), label: `Leí «${n.title}»` };
+      return { ok: true, content: json({ titulo: n.title, markdown: blocksToMarkdown(n.content).slice(0, 20000) }), label: `Leí «${n.title}»` };
+    }
+
+    case "editar_nota": {
+      const n = await db.notes.get(str(a.id) ?? ctx.noteId ?? "");
+      if (!n) return fail("No encontré la nota. Usá buscar_notas para conseguir el id.");
+      const md = String(a.contenido ?? "").trim();
+      if (!md) return fail("Falta el contenido nuevo de la nota.");
+      const blocks = withMedia(await linkWikilinks(markdownToBlocks(md)), n.content as MdBlock[]);
+      // Copia de la versión anterior en el historial, por si el usuario quiere volver.
+      await snapshotNote({ id: n.id, title: n.title, content: n.content as unknown[], plainTextCache: n.plainTextCache }, true);
+      await writeNote(n.id, blocks, false);
+      const title = str(a.titulo);
+      if (title && title !== n.title) await db.notes.update(n.id, { title, updatedAt: nowIso() });
+      return {
+        ok: true,
+        content: json({ ok: true, aviso: "La versión anterior quedó en el historial; se deshace con Ctrl+Z." }),
+        label: `Edité «${title ?? n.title}»`,
+      };
     }
 
     case "crear_nota": {
@@ -920,9 +973,9 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
     }
 
     case "agregar_a_nota": {
-      const n = await db.notes.get(String(a.id ?? ""));
+      const n = await db.notes.get(str(a.id) ?? ctx.noteId ?? "");
       if (!n) return fail("No existe esa nota.");
-      await saveNoteContent(n.id, [...(n.content as unknown[]), ...markdownToBlocks(String(a.contenido ?? ""))]);
+      await writeNote(n.id, await linkWikilinks(markdownToBlocks(String(a.contenido ?? ""))), true);
       return { ok: true, content: json({ ok: true }), label: `Agregué contenido a «${n.title}»` };
     }
 
@@ -1091,6 +1144,66 @@ export async function runTool(name: string, a: Args, ctx: ToolContext): Promise<
   return fail(`No existe la herramienta ${name}.`);
 }
 
+// Cambia el contenido de una nota. Si está abierta, el cambio lo hace el editor (se deshace con Ctrl+Z
+// y el guardado automático no lo pisa); si no, se guarda directo.
+async function writeNote(noteId: string, blocks: MdBlock[], append: boolean) {
+  const detail = { noteId, blocks, append, handled: false };
+  window.dispatchEvent(new CustomEvent("uc:note-replace", { detail }));
+  if (detail.handled) return;
+  const n = await db.notes.get(noteId);
+  if (n) await saveNoteContent(noteId, append ? [...(n.content as unknown[]), ...blocks] : blocks);
+}
+
+// [[Título]] o [[Título|alias]] escritos por la IA → enlaces de verdad a la nota (si existe).
+async function linkWikilinks(blocks: MdBlock[]): Promise<MdBlock[]> {
+  if (!JSON.stringify(blocks).includes("[[")) return blocks;
+  const byTitle = new Map((await db.notes.toArray()).map((n) => [norm(n.title), n]));
+  const fix = (items: unknown): unknown => {
+    if (!Array.isArray(items)) return items;
+    return items.flatMap((it: { type?: string; text?: string }) => {
+      if (it?.type !== "text" || !it.text?.includes("[[")) return [it];
+      const out: unknown[] = [];
+      let last = 0;
+      for (const m of it.text.matchAll(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g)) {
+        const target = byTitle.get(norm(m[1].trim()));
+        if (!target) continue;
+        if (m.index > last) out.push({ ...it, text: it.text.slice(last, m.index) });
+        out.push({ type: "wikilink", props: { noteId: target.id, title: target.title, alias: m[2]?.trim() ?? "" } });
+        last = m.index + m[0].length;
+      }
+      if (last < it.text.length) out.push({ ...it, text: it.text.slice(last) });
+      return out;
+    });
+  };
+  const walk = (list: MdBlock[]): MdBlock[] =>
+    list.map((b) => ({ ...b, content: fix(b.content), ...(Array.isArray(b.children) ? { children: walk(b.children as MdBlock[]) } : {}) }));
+  return walk(blocks);
+}
+
+// Al reescribir, las imágenes, videos y archivos de la nota vuelven a su lugar: la IA los ve como "[image]"
+// y deja la marca donde van. Los que la IA no dejó van al final, para no perder nada.
+function withMedia(blocks: MdBlock[], old: MdBlock[]): MdBlock[] {
+  const media: MdBlock[] = [];
+  const collect = (list: MdBlock[]) => {
+    for (const b of list) {
+      if (!TEXT_BLOCKS.has(String(b.type))) media.push(b);
+      else if (Array.isArray(b.children)) collect(b.children as MdBlock[]);
+    }
+  };
+  collect(old);
+  if (!media.length) return blocks;
+  const used = new Set<MdBlock>();
+  const out = blocks.map((b) => {
+    if (b.type !== "paragraph" || !Array.isArray(b.content) || b.content.length !== 1) return b;
+    const m = String((b.content[0] as { text?: string }).text ?? "").trim().match(/^\[([A-Za-z]+)(?::[^\]]*)?\]$/);
+    const hit = m && media.find((x) => !used.has(x) && x.type === m[1]);
+    if (!hit) return b;
+    used.add(hit);
+    return hit;
+  });
+  return [...out, ...media.filter((x) => !used.has(x))];
+}
+
 // Resumen de la situación para el sistema: fecha, días que vienen y materias.
 export async function situationText(): Promise<string> {
   const now = new Date();
@@ -1104,15 +1217,17 @@ export async function situationText(): Promise<string> {
   const [degrees, subjects] = await Promise.all([db.degrees.toArray(), db.subjects.toArray()]);
   const lines = degrees.map(
     (d) =>
-      `- ${d.name} (${d.shortName}): ` +
+      `- ${d.name} (${d.shortName}) [${PROFILES[kindOf(d)].label}]: ` +
       (subjects
         .filter((s) => s.degreeId === d.id && (s.status === "CURSANDO" || s.status === "REGULAR"))
         .map((s) => s.name)
-        .join(", ") || "sin materias en curso"),
+        .join(", ") || "nada en curso"),
   );
+  const about = profileText();
   return [
+    ...(about ? [`Sobre el usuario: ${about}`] : []),
     `Fecha y hora actual: ${fmtDate(now)} (zona horaria del usuario). El año actual es ${now.getFullYear()}.`,
     `Próximos días (usá esta tabla para "el jueves", "mañana", etc.):\n${days.join("\n")}`,
-    `Carreras y materias en curso:\n${lines.join("\n") || "(todavía no cargó carreras)"}`,
+    `Espacios [perfil] y lo que tienen en curso:\n${lines.join("\n") || "(todavía no cargó nada)"}`,
   ].join("\n");
 }

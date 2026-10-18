@@ -75,7 +75,7 @@ export function QuizPage({ note }: { note: Note }) {
   return (
     <div className="view-readable mx-auto w-full px-6 py-6">
       <header className="mb-5 space-y-2">
-        <div className="flex items-center gap-2 text-[13px] text-faint">
+        <div className="flex items-center gap-2 text-[length:calc(13px*var(--ui-scale,1))] text-faint">
           <ClipboardCheck className="h-4 w-4 text-primary-soft" strokeWidth={1.75} />
           <span>Cuestionario</span>
           {place && <span>· {place}</span>}
@@ -99,7 +99,7 @@ export function QuizPage({ note }: { note: Note }) {
         <div className="progress h-1.5 flex-1">
           <i style={{ width: `${qs.length ? (answered / qs.length) * 100 : 0}%` }} />
         </div>
-        <span className="num text-[13px] text-muted">
+        <span className="num text-[length:calc(13px*var(--ui-scale,1))] text-muted">
           {answered}/{qs.length} · {correct} bien
         </span>
       </div>
@@ -127,7 +127,7 @@ export function QuizPage({ note }: { note: Note }) {
                       disabled={answeredQ}
                       onClick={() => choose(qi, oi)}
                       className={clsx(
-                        "flex items-start gap-2.5 rounded-md border px-3 py-2 text-left text-[14px] transition-colors",
+                        "flex items-start gap-2.5 rounded-md border px-3 py-2 text-left text-[length:calc(14px*var(--ui-scale,1))] transition-colors",
                         !answeredQ && "border-border hover:border-primary hover:bg-primary-tint",
                         answeredQ && isRight && "border-mint bg-mint-tint text-text",
                         answeredQ && isPicked && !isRight && "border-rose bg-rose-tint text-text",

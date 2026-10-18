@@ -67,8 +67,8 @@ function WikilinkPreview({ note, rect }: { note: Note; rect: DOMRect }) {
       className="pointer-events-none fixed z-[55] w-80 rounded-md border border-border bg-surface p-3 shadow-pop"
       style={{ left, top }}
     >
-      <div className="text-[13px] font-semibold text-text">{note.title}</div>
-      {lines && <div className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-muted">{lines}</div>}
+      <div className="text-[length:calc(13px*var(--ui-scale,1))] font-semibold text-text">{note.title}</div>
+      {lines && <div className="mt-1.5 whitespace-pre-wrap text-[length:calc(12px*var(--ui-scale,1))] leading-relaxed text-muted">{lines}</div>}
     </div>,
     document.body,
   );

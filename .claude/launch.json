@@ -4,8 +4,32 @@
     {
       "name": "unicore",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "unicore-compilada",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3200",
+        "--directory",
+        "out"
+      ],
+      "port": 3200
+    },
+    {
+      "name": "unicore-alt",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set NEXT_DIST_DIR=.next-alt&& npx next dev -p 3100"
+      ],
+      "port": 3100
     }
   ]
 }

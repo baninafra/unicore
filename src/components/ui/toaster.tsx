@@ -43,7 +43,7 @@ export function Toaster() {
           key={t.id}
           role="status"
           className={clsx(
-            "pointer-events-auto flex max-w-[520px] items-center gap-3 rounded-md border bg-surface-raised px-3 py-2 text-[13px] shadow-pop",
+            "pointer-events-auto flex max-w-[520px] items-center gap-3 rounded-md border bg-surface-raised px-3 py-2 text-[length:calc(13px*var(--ui-scale,1))] shadow-pop",
             t.tone === "error" ? "border-rose text-rose" : "border-border-strong text-text",
           )}
         >

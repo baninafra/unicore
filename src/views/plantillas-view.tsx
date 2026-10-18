@@ -191,7 +191,7 @@ export function PlantillasView() {
           {templates.map((t) => (
             <div key={t.id} className="card flex flex-col gap-2 p-4">
               <p className="t-h3">{t.title}</p>
-              <p className="line-clamp-4 flex-1 text-[12px] text-muted">{preview(t) || "Vacía"}</p>
+              <p className="line-clamp-4 flex-1 text-[length:calc(12px*var(--ui-scale,1))] text-muted">{preview(t) || "Vacía"}</p>
               <div className="flex items-center gap-1">
                 <button type="button" className="btn btn-sm" onClick={(e) => chooseWhere(t, e)} aria-haspopup="menu">
                   Usar en…
@@ -215,7 +215,7 @@ export function PlantillasView() {
       {templates && templates.length > 0 && SUGGESTED.some((s) => !templates.some((t) => t.title.toLowerCase() === s.title.toLowerCase())) && (
         <button
           type="button"
-          className="self-start text-[13px] text-faint underline underline-offset-2 hover:text-text"
+          className="self-start text-[length:calc(13px*var(--ui-scale,1))] text-faint underline underline-offset-2 hover:text-text"
           onClick={async () => {
             const n = await addSuggestedTemplates();
             toast(`Agregamos ${n} plantillas`);

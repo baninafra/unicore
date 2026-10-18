@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { mentionLine, mentionsPhrase } from "@/lib/panes/note-data";
 import { useActiveNoteId, useAllNotes, useNote } from "@/lib/panes/hooks";
 import type { Note } from "@/lib/types";
-import { NoteRow, PaneEmpty, PaneSection, useNoteActions } from "./pane-ui";
+import { NoteRow, PaneBlank, PaneEmpty, PaneSection, useNoteActions } from "./pane-ui";
 
 interface Hit {
   note: Note;
@@ -43,10 +43,10 @@ export function BacklinksPane() {
     return { linked: linked.sort(byTitle), unlinked: unlinked.sort(byTitle) };
   }, [note, notes]);
 
-  if (!note) return <PaneEmpty>Abrí una nota</PaneEmpty>;
+  if (!note) return <PaneBlank>Abrí una nota para ver quién la menciona</PaneBlank>;
 
   return (
-    <>
+    <div className="p-2">
       <PaneSection title="Enlazadas" count={linked.length}>
         {linked.length === 0 && <PaneEmpty>Sin menciones</PaneEmpty>}
         {linked.map((h) => (
@@ -72,6 +72,6 @@ export function BacklinksPane() {
         ))}
       </PaneSection>
       {actions.menu}
-    </>
+    </div>
   );
 }

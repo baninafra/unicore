@@ -50,3 +50,4 @@ next-env.d.ts
 
 # Piezas descargadas (scripts/fetch-vendor.sh)
 /public/vendor/
+/.next-alt/

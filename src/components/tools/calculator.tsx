@@ -177,7 +177,7 @@ export function CalculatorTool() {
             onClick={() => !h.error && setExpr((x) => x + h.result)}
           >
             <span className="t-small num text-muted">{h.expr}</span>
-            <span className={clsx("num text-[15px]", h.error ? "text-rose" : "text-text")}>{h.error ? h.result : `= ${h.result}`}</span>
+            <span className={clsx("num text-[length:calc(15px*var(--ui-scale,1))]", h.error ? "text-rose" : "text-text")}>{h.error ? h.result : `= ${h.result}`}</span>
           </button>
         ))}
       </div>
@@ -211,7 +211,7 @@ export function CalculatorTool() {
             type="button"
             onClick={() => press(k)}
             className={clsx(
-              "btn btn-sm h-9 justify-center px-0 text-[13px]",
+              "btn btn-sm h-9 justify-center px-0 text-[length:calc(13px*var(--ui-scale,1))]",
               k.tone === "eq" ? "btn-primary" : k.tone === "op" ? "bg-surface-raised text-primary-soft" : k.tone === "fn" ? "btn-ghost text-muted" : "bg-surface-raised",
             )}
           >

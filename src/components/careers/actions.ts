@@ -1,7 +1,7 @@
 "use client";
 
 import { db, newId, nowIso } from "@/lib/db";
-import type { Degree, DegreeColor, Subject, SubjectStatus } from "@/lib/types";
+import type { Degree, DegreeColor, ProfileKind, Subject, SubjectStatus } from "@/lib/types";
 
 export interface DegreeInput {
   name: string;
@@ -9,6 +9,8 @@ export interface DegreeInput {
   institution?: string;
   color: DegreeColor;
   totalYears: number;
+  kind?: ProfileKind;
+  profileId?: string;
 }
 
 export interface SubjectInput {

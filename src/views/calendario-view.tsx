@@ -327,12 +327,12 @@ export function CalendarioView() {
         <button type="button" className="icon-btn" aria-label="Siguiente" title="Siguiente (→)" onClick={() => step(1)}>
           <ChevronRight />
         </button>
-        <span className="ml-1 truncate text-[15px] font-semibold text-text">{searching ? `Resultados para «${query.trim()}»` : title}</span>
+        <span className="ml-1 truncate text-[length:calc(15px*var(--ui-scale,1))] font-semibold text-text">{searching ? `Resultados para «${query.trim()}»` : title}</span>
 
         <div className="ml-auto flex items-center gap-1.5">
           <div className="relative hidden md:block">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
-            <input className="input h-7 w-44 pl-7 pr-6 text-[12px]" placeholder="Buscar eventos y tareas" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQuery("")} aria-label="Buscar en el calendario" />
+            <input className="input h-7 w-44 pl-7 pr-6 text-[length:calc(12px*var(--ui-scale,1))]" placeholder="Buscar eventos y tareas" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQuery("")} aria-label="Buscar en el calendario" />
             {query && (
               <button type="button" className="absolute right-1 top-1/2 -translate-y-1/2 text-faint hover:text-text" aria-label="Limpiar búsqueda" onClick={() => setQuery("")}>
                 <X className="h-3.5 w-3.5" />
@@ -348,14 +348,14 @@ export function CalendarioView() {
                 aria-selected={view === v && !searching}
                 title={`${VIEW_LABEL[v]} (${Object.keys(VIEW_KEY).find((k) => VIEW_KEY[k] === v)?.toUpperCase()})`}
                 onClick={() => (setQuery(""), setView(v))}
-                className="h-6 rounded-sm px-2 text-[12px] text-muted hover:text-text aria-selected:bg-surface-raised aria-selected:text-text"
+                className="h-6 rounded-sm px-2 text-[length:calc(12px*var(--ui-scale,1))] text-muted hover:text-text aria-selected:bg-surface-raised aria-selected:text-text"
               >
                 {VIEW_LABEL[v]}
               </button>
             ))}
           </div>
           {view === "multisemana" && !searching && (
-            <select className="input h-7 w-auto px-1.5 text-[12px]" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} aria-label="Cantidad de semanas">
+            <select className="input h-7 w-auto px-1.5 text-[length:calc(12px*var(--ui-scale,1))]" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} aria-label="Cantidad de semanas">
               {[2, 3, 4, 5, 6].map((n) => (
                 <option key={n} value={n}>
                   {n} semanas

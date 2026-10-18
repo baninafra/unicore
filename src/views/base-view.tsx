@@ -35,7 +35,7 @@ import type { Note } from "@/lib/types";
 import { Select } from "@/components/ui/select";
 
 const FIELD_SELECT =
-  "h-7 rounded-md border border-border bg-surface-raised px-2 text-[13px] text-text outline-none hover:border-border-strong focus:border-primary";
+  "h-7 rounded-md border border-border bg-surface-raised px-2 text-[length:calc(13px*var(--ui-scale,1))] text-text outline-none hover:border-border-strong focus:border-primary";
 const EMPTY_FILTER: BaseFilter = { field: "title", op: "contiene", value: "" };
 
 interface EditState {
@@ -184,7 +184,7 @@ export function BaseView() {
                 <label key={p.key} className="row cursor-pointer">
                   <input type="checkbox" checked={config.columns.includes(p.key)} onChange={() => toggleColumn(p.key)} />
                   <span className="min-w-0 flex-1 truncate text-text">{p.key}</span>
-                  <span className="text-[12px] text-faint">{p.kind}</span>
+                  <span className="text-[length:calc(12px*var(--ui-scale,1))] text-faint">{p.kind}</span>
                 </label>
               ))}
             </div>
@@ -206,7 +206,7 @@ export function BaseView() {
           ))}
         </Select>
 
-        <span className="num ml-auto text-[12px] text-faint">
+        <span className="num ml-auto text-[length:calc(12px*var(--ui-scale,1))] text-faint">
           {total} {total === 1 ? "nota" : "notas"}
         </span>
       </div>
@@ -278,7 +278,7 @@ export function BaseView() {
               ))}
               <button
                 type="button"
-                className="text-[12px] text-faint hover:text-text"
+                className="text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-text"
                 onClick={() => setConfig((c) => ({ ...c, filters: [] }))}
               >
                 Quitar filtros
@@ -294,7 +294,7 @@ export function BaseView() {
         <p className="py-6 t-small text-faint">Sin resultados</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-[13px]">
+          <table className="w-full min-w-[640px] border-collapse text-[length:calc(13px*var(--ui-scale,1))]">
             <thead>
               <tr className="border-b border-border">
                 <HeaderCell label="Título" field="title" config={config} onSort={toggleSort} />
@@ -332,7 +332,7 @@ export function BaseView() {
                         </button>
                       </td>
                       <td className="max-w-[160px] truncate px-2 text-muted">{subjectOf(note)}</td>
-                      <td className="max-w-[200px] truncate px-2 text-[12px] text-muted">
+                      <td className="max-w-[200px] truncate px-2 text-[length:calc(12px*var(--ui-scale,1))] text-muted">
                         {(note.tags ?? []).map((t) => `#${t}`).join(" ")}
                       </td>
                       <td className="whitespace-nowrap px-2 text-muted">{shortDateTime(note.updatedAt)}</td>
@@ -359,7 +359,7 @@ export function BaseView() {
                                   if (e.key === "Escape") cancelEdit();
                                 }}
                                 onBlur={() => void commitEdit()}
-                                className="h-6 w-full rounded-sm border border-primary bg-surface-raised px-1.5 text-[13px] text-text outline-none"
+                                className="h-6 w-full rounded-sm border border-primary bg-surface-raised px-1.5 text-[length:calc(13px*var(--ui-scale,1))] text-text outline-none"
                               />
                             ) : (
                               <span className="block truncate">{displayText(note.properties?.[key]) || " "}</span>

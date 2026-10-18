@@ -16,35 +16,53 @@ import {
   isNativeSave,
   officeBytes,
   registerEditor,
+  renameOfficeDoc,
   saveOfficeBytes,
   touchEditor,
   type LiveEditor,
 } from "@/lib/editors/editors";
 import { saveBlob } from "@/lib/export/save";
-import { FileX } from "lucide-react";
+import { FileX, FolderInput } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { pickFolder } from "@/components/shell/folder-picker";
+import { useAllSubjects } from "@/lib/hooks";
+import { FOLDER_NAME } from "@/lib/nav/actions";
 
 const AUTOSAVE_MS = 1500;
 const COMMAND_TIMEOUT_MS = 60000;
 
 export function EditorView({ id }: { id: string }) {
-  const doc = useLiveQuery(async () => (await db.officeDocs.get(id)) ?? null, [id]);
+  const doc = useLiveQuery(
+    async () => (await db.officeDocs.get(id)) ?? null,
+    [id],
+  );
   const kind = doc?.kind;
   const frame = useRef<HTMLIFrameElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [error, setError] = useState("");
+  const subjects = useAllSubjects();
+  const place = doc
+    ? (subjects?.find((x) => x.id === doc.subjectId)?.name ??
+      FOLDER_NAME[doc.subjectId] ??
+      "Notas")
+    : "";
 
   useEffect(() => {
     if (!kind) return;
     const iframe = frame.current;
     if (!iframe) return;
     const origin = window.location.origin;
-    const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+    const pending = new Map<
+      string,
+      { resolve: (v: unknown) => void; reject: (e: Error) => void }
+    >();
     let seq = 0;
     let saveTimer: number | undefined;
 
-    const post = (message: Record<string, unknown>, transfer?: Transferable[]) =>
-      iframe.contentWindow?.postMessage(message, origin, transfer ?? []);
+    const post = (
+      message: Record<string, unknown>,
+      transfer?: Transferable[],
+    ) => iframe.contentWindow?.postMessage(message, origin, transfer ?? []);
 
     const editor: LiveEditor = {
       docId: id,
@@ -54,7 +72,8 @@ export function EditorView({ id }: { id: string }) {
       lastActive: Date.now(),
       command: (command, params) =>
         new Promise((resolve, reject) => {
-          if (!editor.ready) return reject(new Error("El editor todavía está cargando."));
+          if (!editor.ready)
+            return reject(new Error("El editor todavía está cargando."));
           const cid = `c${++seq}`;
           const timer = window.setTimeout(() => {
             pending.delete(cid);
@@ -78,8 +97,24 @@ export function EditorView({ id }: { id: string }) {
     // Texto del archivo para buscar y para la IA.
     const refreshText = async () => {
       try {
-        const r = (await editor.command("uc.read")) as { text?: string } | undefined;
-        if (typeof r?.text === "string") await db.officeDocs.update(id, { textCache: r.text.slice(0, 60000) });
+        const r = (await editor.command("uc.read")) as
+          { text?: string } | undefined;
+        if (typeof r?.text === "string") {
+          await db.officeDocs.update(id, { textCache: r.text.slice(0, 60000) });
+          // Un archivo "Sin título" toma el nombre de su primer renglón con texto (como Word).
+          const current = await db.officeDocs.get(id);
+          const line = r.text
+            .split("\n")
+            .map((l) =>
+              l
+                .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, " ")
+                .replace(/\s+/g, " ")
+                .trim(),
+            )
+            .find((l) => /\p{L}{2}/u.test(l));
+          if (current && line && /^sin t[ií]tulo/i.test(current.name))
+            await renameOfficeDoc(id, line.slice(0, 60).trim());
+        }
       } catch {
         // Sin texto no pasa nada: el archivo ya quedó guardado.
       }
@@ -88,7 +123,8 @@ export function EditorView({ id }: { id: string }) {
     const autosave = () => {
       window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => {
-        if (editor.dirty) editor.command(EDITOR_KINDS[kind].saveCommand).catch(() => {});
+        if (editor.dirty)
+          editor.command(EDITOR_KINDS[kind].saveCommand).catch(() => {});
       }, AUTOSAVE_MS);
     };
 
@@ -100,11 +136,13 @@ export function EditorView({ id }: { id: string }) {
           const current = await db.officeDocs.get(id);
           const bytes = current ? await officeBytes(current) : null;
           // Un archivo nuevo no tiene contenido: el editor ya arranca vacío.
-          if (current && bytes) post({ type: "uc:open", name: current.name, bytes }, [bytes]);
+          if (current && bytes)
+            post({ type: "uc:open", name: current.name, bytes }, [bytes]);
           editor.ready = true;
           editor.lastActive = Date.now();
           setState("ready");
-          if (current && !current.textCache && bytes) window.setTimeout(refreshText, 1500);
+          if (current && !current.textCache && bytes)
+            window.setTimeout(refreshText, 1500);
           break;
         }
         case "uc:failed":
@@ -144,42 +182,74 @@ export function EditorView({ id }: { id: string }) {
       window.removeEventListener("message", onMessage);
       window.clearTimeout(saveTimer);
       unregister();
-      for (const p of pending.values()) p.reject(new Error("Se cerró el editor."));
+      for (const p of pending.values())
+        p.reject(new Error("Se cerró el editor."));
     };
   }, [id, kind]);
 
-  if (doc === undefined) return <div className="p-6 t-small text-faint">Cargando…</div>;
+  if (doc === undefined)
+    return <div className="p-6 t-small text-faint">Cargando…</div>;
   if (!doc)
     return (
       <div className="p-6">
-        <EmptyState icon={FileX} title="No encontramos el archivo" text="Puede que lo hayas borrado." />
+        <EmptyState
+          icon={FileX}
+          title="No encontramos el archivo"
+          text="Puede que lo hayas borrado."
+        />
       </div>
     );
 
   return (
-    <div className="relative h-full w-full" onPointerDown={() => touchEditor(id)} onFocus={() => touchEditor(id)}>
-      <iframe
-        ref={frame}
-        title={doc.name}
-        src={`${EDITOR_KINDS[doc.kind].path}index.html?host=parent`}
-        className="absolute inset-0 h-full w-full border-0 bg-bg"
-        allow="clipboard-read; clipboard-write; fullscreen"
-      />
-      {state !== "ready" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg text-center">
-          {state === "loading" ? (
-            <div className="t-small text-faint">Abriendo el editor…</div>
-          ) : (
-            <>
-              <div className="t-h3">No pudimos abrir el editor</div>
-              <div className="t-small max-w-md text-muted">
-                Hace falta WebGPU o WebGL2. Actualizá la app o probá abrir el archivo como nota.
-                {error && <span className="mt-2 block text-faint">{error}</span>}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+    <div className="flex h-full w-full flex-col">
+      <div className="flex h-8 flex-none items-center gap-2 border-b border-border bg-bg px-3">
+        <span className="t-small truncate text-faint">
+          Se guarda solo en {place}
+        </span>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm ml-auto"
+          title="Elegir la materia o carpeta donde queda el archivo"
+          onClick={async () => {
+            const to = await pickFolder("¿Dónde lo guardo?");
+            if (to) await db.officeDocs.update(id, { subjectId: to });
+          }}
+        >
+          <FolderInput className="h-4 w-4" strokeWidth={1.75} />
+          Guardar en…
+        </button>
+      </div>
+      <div
+        className="relative min-h-0 w-full flex-1"
+        onPointerDown={() => touchEditor(id)}
+        onFocus={() => touchEditor(id)}
+      >
+        <iframe
+          ref={frame}
+          title={doc.name}
+          src={`${EDITOR_KINDS[doc.kind].path}index.html?host=parent`}
+          className="absolute inset-0 h-full w-full border-0 bg-bg"
+          allow="clipboard-read; clipboard-write; fullscreen"
+        />
+        {state !== "ready" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg text-center">
+            {state === "loading" ? (
+              <div className="t-small text-faint">Abriendo el editor…</div>
+            ) : (
+              <>
+                <div className="t-h3">No pudimos abrir el editor</div>
+                <div className="t-small max-w-md text-muted">
+                  Hace falta WebGPU o WebGL2. Actualizá la app o probá abrir el
+                  archivo como nota.
+                  {error && (
+                    <span className="mt-2 block text-faint">{error}</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

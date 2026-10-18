@@ -54,7 +54,7 @@ export function GraphOptionsPanel({ opts, local, groups, onChange, onForces, onR
           />
         )}
         <input
-          className="input h-7 text-[13px]"
+          className="input h-7 text-[length:calc(13px*var(--ui-scale,1))]"
           placeholder="Buscar nota"
           value={opts.query}
           onChange={(e) => onChange({ query: e.target.value })}
@@ -116,7 +116,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex h-6 w-full items-center gap-1 text-left text-[13px] font-medium text-muted hover:text-text"
+        className="flex h-6 w-full items-center gap-1 text-left text-[length:calc(13px*var(--ui-scale,1))] font-medium text-muted hover:text-text"
         aria-expanded={open}
       >
         <ChevronDown className={clsx("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} strokeWidth={1.75} />
@@ -159,7 +159,7 @@ function Slider({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex flex-col gap-0.5 px-2 text-[12px] text-muted">
+    <label className="flex flex-col gap-0.5 px-2 text-[length:calc(12px*var(--ui-scale,1))] text-muted">
       <span className="flex items-center justify-between">
         <span>{label}</span>
         <span className="num text-faint">{display ?? value}</span>

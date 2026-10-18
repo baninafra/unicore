@@ -41,9 +41,9 @@ export function PropertiesPane() {
           }
           className="row w-full min-w-0"
         >
-          <span className="min-w-0 flex-1 truncate text-left text-[13px] text-text">{p.key}</span>
-          <span className="text-[12px] text-faint">{p.kind}</span>
-          <span className="num w-6 text-right text-[12px] text-faint">{p.count}</span>
+          <span className="min-w-0 flex-1 truncate text-left text-[length:calc(13px*var(--ui-scale,1))] text-text">{p.key}</span>
+          <span className="text-[length:calc(12px*var(--ui-scale,1))] text-faint">{p.kind}</span>
+          <span className="num w-6 text-right text-[length:calc(12px*var(--ui-scale,1))] text-faint">{p.count}</span>
         </button>
       ))}
       {ctx.menu}

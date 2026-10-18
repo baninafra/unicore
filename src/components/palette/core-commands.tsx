@@ -6,6 +6,7 @@ import { useWorkspace, useRegisterCommands, type Command, type ViewState } from 
 import { useAppState } from "@/lib/app-state";
 import { db } from "@/lib/db";
 import { EDITOR_KINDS } from "@/lib/editors/editors";
+import { openJoinDialog } from "@/components/share/share-dialog";
 import { openScanner } from "@/components/scanner/scanner-app";
 import { plainTextOf } from "@/components/notes/note-utils";
 import { PromptModal } from "@/components/ui/prompt-modal";
@@ -158,8 +159,8 @@ export function CoreCommands() {
       name: EDITOR_KINDS[kind].newLabel,
       run: () => runSafe(async () => go({ type: "editor", id: await newOfficeForView(kind, ws.activeView) })),
     })),
-    { id: "escaner:camara", name: "Escanear documento con la cámara", run: () => openScanner("camera") },
-    { id: "escaner:fotos", name: "Escanear documento desde fotos", run: () => openScanner("files") },
+    { id: "compartir:unirse", name: "Unirse a una nota compartida", run: () => openJoinDialog() },
+    { id: "escaner:fotos", name: "Escanear documento desde fotos", run: () => openScanner(true) },
     {
       id: "marcador:alternar",
       name: "Agregar o quitar marcador",

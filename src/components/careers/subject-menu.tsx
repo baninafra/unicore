@@ -2,7 +2,8 @@
 
 import { BookOpen, Pencil, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
-import { SUBJECT_STATUS_LABEL, type Subject, type SubjectStatus } from "@/lib/types";
+import type { Subject, SubjectStatus } from "@/lib/types";
+import { useProfiles } from "@/lib/profiles";
 import { useContextMenu } from "@/components/ui/menu";
 import { exportMenuItem } from "@/components/export/export-menu";
 import { useWorkspace } from "@/lib/workspace";
@@ -13,9 +14,11 @@ const STATUSES: SubjectStatus[] = ["PENDIENTE", "CURSANDO", "REGULAR", "APROBADA
 export function useSubjectMenu({ onEdit, onDelete }: { onEdit: (s: Subject) => void; onDelete: (s: Subject) => void }) {
   const { openView } = useWorkspace();
   const { open, menu } = useContextMenu();
+  const { termsFor } = useProfiles();
 
   function show(e: { clientX: number; clientY: number; preventDefault?: () => void; stopPropagation?: () => void }, subject: Subject) {
     const view = { type: "materia" as const, id: subject.id };
+    const labels = termsFor(subject.degreeId).statuses;
     open(e, [
       { label: "Abrir", icon: BookOpen, onSelect: () => openView(view) },
       { label: "Abrir en pestaña nueva", onSelect: () => openView(view, "tab") },
@@ -23,7 +26,7 @@ export function useSubjectMenu({ onEdit, onDelete }: { onEdit: (s: Subject) => v
       exportMenuItem({ kind: "subject", id: subject.id }),
       { type: "separator" },
       ...STATUSES.map((st) => ({
-        label: `Estado: ${SUBJECT_STATUS_LABEL[st]}`,
+        label: `Estado: ${labels[st]}`,
         disabled: subject.status === st,
         onSelect: () => void db.subjects.update(subject.id, { status: st }),
       })),

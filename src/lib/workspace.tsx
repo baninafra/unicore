@@ -65,7 +65,8 @@ export type RightView =
   | "plot"
   | "units"
   | "grades"
-  | "bases";
+  | "bases"
+  | "scanner";
 
 export type OpenMode = "current" | "tab" | "split";
 
@@ -148,7 +149,7 @@ function newTab(view: ViewState): Tab {
 function defaultLayout(): Layout {
   const tab = newTab({ type: "inicio" });
   const pane: Pane = { id: nanoid(8), tabs: [tab], activeTabId: tab.id };
-  return { panes: [pane], activePaneId: pane.id, leftOpen: true, leftView: "explorer", rightOpen: false, rightView: "ia" };
+  return { panes: [pane], activePaneId: pane.id, leftOpen: true, leftView: "explorer", rightOpen: true, rightView: "ia" };
 }
 
 function readJSON<T>(key: string): T | undefined {
@@ -190,7 +191,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const l = readJSON<Layout>(LS_LAYOUT);
-    if (validLayout(l)) setLayout(l);
+    // Al abrir la app, la barra derecha arranca siempre a la vista y en la IA (aunque se haya escondido antes).
+    if (validLayout(l)) setLayout({ ...l, rightOpen: true, rightView: "ia" });
+    try {
+      localStorage.setItem("uc-right-rail-hidden", "0");
+      window.dispatchEvent(new Event("uc:right-rail"));
+    } catch {}
     setSaved(readJSON<Record<string, Layout>>(LS_SAVED) ?? {});
     setLoaded(true);
   }, []);

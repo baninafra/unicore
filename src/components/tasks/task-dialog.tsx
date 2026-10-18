@@ -1,5 +1,6 @@
 "use client";
 
+import { cap, useProfiles } from "@/lib/profiles";
 import { useCallback, useState, type FormEvent } from "react";
 import { deleteWithUndo } from "@/lib/undo";
 import { Sparkles, Trash2 } from "lucide-react";
@@ -54,7 +55,8 @@ function Prop({ label, children }: { label: string; children: React.ReactNode })
 
 function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => void }) {
   const { degreeFilter } = useAppState();
-  const degrees = useDegrees();
+  const { termsFor, termsForSubject, inScope } = useProfiles();
+  const allDegrees = useDegrees();
   const subjects = useAllSubjects();
   const editing = !!task?.id;
   const fromMail = task?.source === "EMAIL_AUTO" || !!task?.rawEmailBody;
@@ -63,6 +65,10 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
   const [type, setType] = useState<TaskType>(task?.type ?? "TAREA");
   const [degreeId, setDegreeId] = useState(task?.degreeId ?? (degreeFilter !== "all" ? degreeFilter : ""));
   const [subjectId, setSubjectId] = useState(task?.subjectId ?? "");
+  // Nombres según el espacio elegido (o el perfil que se está viendo).
+  const terms = degreeId ? termsFor(degreeId) : subjectId ? termsForSubject(subjectId) : termsFor();
+  // Espacios del perfil activo (y el de la tarea, aunque sea de otro perfil).
+  const degrees = allDegrees.filter((d) => inScope(d.id) || d.id === degreeId);
   const [noteId, setNoteId] = useState(task?.noteId ?? "");
   const linkable = useLiveQuery(() => (subjectId ? subjectNotesForLinking(subjectId) : Promise.resolve([])), [subjectId]) ?? [];
   const { openView } = useWorkspace();
@@ -211,15 +217,15 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
             <Select className={CONTROL} value={type} onChange={(e) => setType(e.target.value as TaskType)}>
               {(Object.keys(TASK_TYPE_LABEL) as TaskType[]).map((t) => (
                 <option key={t} value={t}>
-                  {TASK_TYPE_LABEL[t]}
+                  {terms.taskTypes[t]}
                 </option>
               ))}
             </Select>
           </Prop>
 
-          <Prop label="Carrera">
+          <Prop label={cap(terms.space.one)}>
             <Select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
-              <option value="">Sin carrera</option>
+              <option value="">Sin {terms.space.one}</option>
               {degrees.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -228,9 +234,9 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
             </Select>
           </Prop>
 
-          <Prop label="Materia">
+          <Prop label={cap(terms.item.one)}>
             <Select className={CONTROL} value={subjectId} onChange={(e) => { setSubjectId(e.target.value); setNoteId(""); }}>
-              <option value="">Sin materia</option>
+              <option value="">Sin {terms.item.one}</option>
               {visibleSubjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {!degreeId && degreeName(s.degreeId) ? `${s.name} · ${degreeName(s.degreeId)}` : s.name}
@@ -240,7 +246,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
           </Prop>
 
           {subjectId && (
-            <Prop label="Clase">
+            <Prop label={terms.study ? "Clase" : "Nota"}>
               <Select className={CONTROL} value={noteId} onChange={(e) => setNoteId(e.target.value)} aria-label="Clase o nota enlazada">
                 <option value="">Sin enlazar</option>
                 {linkable.map((n) => (
@@ -252,7 +258,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
               {noteId && (
                 <button
                   type="button"
-                  className="flex-none text-[12px] text-primary-soft hover:underline"
+                  className="flex-none text-[length:calc(12px*var(--ui-scale,1))] text-primary-soft hover:underline"
                   onClick={() => {
                     onClose();
                     openView({ type: "nota", id: noteId }, "tab");

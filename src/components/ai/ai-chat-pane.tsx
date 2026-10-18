@@ -6,11 +6,13 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDownToLine, Brain, Check, Copy, FileText, Film, Image as ImageIcon, Paperclip, Send, Settings2, Square, SquarePen, X } from "lucide-react";
+import { ArrowDownToLine, Brain, Check, Copy, FileText, Film, Image as ImageIcon, Paperclip, Send, Settings2, Sparkles, Square, SquarePen, X } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { db, newId } from "@/lib/db";
 import { useLocalAI, type ChatMessage } from "@/lib/ai/use-local-ai";
 import { buildSubjectContext } from "@/lib/ai/rag";
+import { blocksToMarkdown } from "@/lib/notes/md-blocks";
+import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER } from "@/lib/types";
 import { isSummaryRequest, summarize, summarySources } from "@/lib/ai/summarize";
 import { useWorkspace, type ViewState } from "@/lib/workspace";
 import { noteTitle, specialFolderName } from "@/lib/panes/note-data";
@@ -114,7 +116,8 @@ interface PendingConfirm {
 const HISTORY_TURNS = 6;
 const HISTORY_CHARS_USER = 800;
 const HISTORY_CHARS_ASSISTANT = 600;
-const NOTE_CHARS = 1500; // texto de la nota abierta que entra en el contexto
+const NOTE_CHARS = 1500; // texto de la nota abierta que entra en el contexto (chat simple)
+const OPEN_NOTE_CHARS = 16000; // la nota abierta entera, en Markdown, para que la IA potente la pueda editar
 const DOC_CHARS = 24000; // texto de un archivo adjunto que entra en el mensaje
 const AGENT_KEEP = 40; // mensajes de la conversación que se le mandan a la IA potente
 
@@ -191,6 +194,11 @@ function compactHistory(msgs: ApiMessage[], keep = AGENT_KEEP): ApiMessage[] {
     ),
   ];
 }
+
+// "Mejorá esta lista", "corregí la ortografía": el pedido es sobre la nota abierta, no hace falta buscar en otras.
+const ABOUT_OPEN_NOTE =
+  /\b(est[ae]|la|el)\s+(nota|lista|p[aá]gina|apunte|texto|documento)\b|\b(edit|mejor|correg|arregl|orden|reescrib|redact|ortograf|resum|complet)/i;
+const SPECIAL_FOLDERS = new Set([LOOSE_FOLDER, DAILY_FOLDER, IDEAS_FOLDER, TEMPLATES_FOLDER]);
 
 // Links de los videos embebidos en una nota.
 function videosOfNote(blocks: unknown[]): string[] {
@@ -354,21 +362,24 @@ export function AIChatPane() {
     let sources: string[] = [];
     // La IA básica tiene poca memoria: menos material.
     const docChars = powerful ? DOC_CHARS : 5000;
-    const noteChars = powerful ? NOTE_CHARS : 700;
-    if (subjectId && text.length > 3) {
+    const noteChars = powerful ? OPEN_NOTE_CHARS : 2500;
+    // Con una nota abierta, otras notas sólo suman si son de la misma materia y la pregunta no es sobre esta nota
+    // (en Ideas o Notas sueltas cada nota es de un tema distinto y confunden a la IA).
+    const searchOthers = !note || (!!subjectId && !SPECIAL_FOLDERS.has(subjectId) && !ABOUT_OPEN_NOTE.test(text));
+    if (subjectId && text.length > 3 && searchOthers) {
       try {
-        const found = await buildSubjectContext(subjectId, text, powerful ? 3 : 1);
+        const found = await buildSubjectContext(subjectId, text, powerful ? 3 : 1, note?.id);
         material = found.context;
         sources = found.sources.map((s) => s.label);
       } catch {
         // seguimos sin material
       }
     }
-    const noteBody = note?.plainTextCache.trim().slice(0, noteChars) ?? "";
-    if (note && noteBody) {
-      material = [`[Fuente: ${noteTitle(note)} (nota abierta)]\n${noteBody}`, material].filter(Boolean).join("\n\n");
-      sources = [noteTitle(note), ...sources];
-    }
+    const noteMd = note ? blocksToMarkdown(note.content).trim() : "";
+    const openNote = noteMd
+      ? `NOTA ABIERTA «${noteTitle(note!)}» (es lo que el usuario está viendo; si pide cambiarla, usá editar_nota sobre esta nota)` +
+        `${noteMd.length > noteChars ? ". Es larga: acá va el principio, leela entera con leer_nota antes de reescribirla" : ""}:\n"""\n${noteMd.slice(0, noteChars)}\n"""`
+      : "";
 
     // Links de video en el mensaje: se lee la transcripción antes de preguntar.
     const videoTexts: string[] = [];
@@ -398,7 +409,8 @@ export function AIChatPane() {
       );
     }
     for (const a of atts.filter((a) => a.kind === "doc" && a.text)) parts.push(`[Archivo adjunto: ${a.name}]\n"""\n${a.text!.slice(0, docChars)}\n"""`);
-    if (material) parts.push(`MATERIAL de los apuntes (usalo si sirve para la pregunta):\n${material}`);
+    if (openNote) parts.push(openNote);
+    if (material) parts.push(`MATERIAL de otras notas y de la bibliografía (sólo si sirve para la pregunta; no lo mezcles con la nota abierta):\n${material}`);
     parts.push(text || "(mirá el adjunto)");
     const textPart = parts.join("\n\n");
     const images: ContentPart[] = [];
@@ -425,7 +437,12 @@ export function AIChatPane() {
     try {
       const common = {
         signal: ctrl.signal,
-        ctx: { confirm: (title: string, detail: string) => askConfirm(aiId, title, detail), openView: (v: ViewState) => openView(v, "tab"), userText: text },
+        ctx: {
+          confirm: (title: string, detail: string) => askConfirm(aiId, title, detail),
+          openView: (v: ViewState) => openView(v, "tab"),
+          userText: text,
+          noteId: note?.id,
+        },
         events: {
           onText: (t: string) => patchTurn(aiId, { content: t, working: undefined }),
           onToolStart: (name: string) => patchTurn(aiId, { working: TOOL_WORKING[name] ?? "Trabajando…" }),
@@ -637,7 +654,7 @@ export function AIChatPane() {
         </div>
       )}
 
-      <div className="flex min-h-9 flex-none items-center gap-1 px-2 py-1.5">
+      <div className="flex min-h-9 flex-none items-center gap-1 px-3 py-1.5">
         <div className="min-w-0 flex-[0_1_auto]">
           <ModelPicker />
         </div>
@@ -677,16 +694,19 @@ export function AIChatPane() {
       </div>
 
       {chipName && (
-        <div className="flex-none px-3 pb-1">
+        <div className="flex-none px-4 pb-1">
           <span className="tag max-w-full" title={chipName}>
             <span className="min-w-0 truncate">{chipName}</span>
           </span>
         </div>
       )}
 
-      <div ref={threadRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3">
+      <div ref={threadRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
         {turns.length === 0 && (
-          <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{contextName ? `Preguntá sobre ${contextName}` : "Preguntá lo que necesites"}</p>
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+            <Sparkles className="h-6 w-6 text-faint" strokeWidth={1.5} />
+            <p className="text-[length:calc(13px*var(--ui-scale,1))] text-faint">{contextName ? `Preguntá sobre ${contextName}` : "Preguntá lo que necesites"}</p>
+          </div>
         )}
         {turns.map((t) =>
           t.role === "user" ? (
@@ -782,7 +802,7 @@ export function AIChatPane() {
         )}
       </div>
 
-      <div className="flex-none border-t border-border p-2">
+      <div className="flex-none border-t border-border px-4 py-3">
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1">
             {attachments.map((a) => (

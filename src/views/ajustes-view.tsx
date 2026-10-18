@@ -5,22 +5,22 @@ import clsx from "clsx";
 import { useAppState } from "@/lib/app-state";
 import { isDesktop } from "@/lib/desktop";
 import { useWorkspace } from "@/lib/workspace";
-import { useOpen } from "@/components/workspace/use-open";
 import { useSettings } from "@/components/settings/apply-settings";
 import { AISection } from "@/components/settings/ai-section";
+import { ProfilesSection } from "@/components/settings/profiles-section";
 import { CalendarSection } from "@/components/settings/calendar-section";
 import { DataSection, useCounts } from "@/components/settings/data-section";
 import { DEFAULT_SETTINGS } from "@/components/settings/apply-settings";
 import { Hint, Row, Segmented, Slider, Toggle } from "@/components/settings/settings-ui";
 
 const SECTIONS = [
+  { key: "perfiles", label: "Perfiles" },
   { key: "apariencia", label: "Apariencia" },
   { key: "editor", label: "Editor" },
   { key: "calendarios", label: "Calendarios" },
   { key: "notificaciones", label: "Notificaciones" },
   { key: "ia", label: "IA" },
   { key: "atajos", label: "Atajos" },
-  { key: "carreras", label: "Carreras" },
   { key: "datos", label: "Datos" },
   { key: "acerca", label: "Acerca de" },
 ] as const;
@@ -51,10 +51,10 @@ function Apariencia() {
         />
       </Row>
       <Row label="Tamaño de texto de la interfaz">
-        <Slider value={settings.uiFont} min={12} max={16} onChange={(v) => update({ uiFont: v })} />
+        <Slider value={settings.uiFont} min={12} max={20} onChange={(v) => update({ uiFont: v })} />
       </Row>
       <Row label="Tamaño de texto del editor">
-        <Slider value={settings.editorFont} min={14} max={20} onChange={(v) => update({ editorFont: v })} />
+        <Slider value={settings.editorFont} min={14} max={24} onChange={(v) => update({ editorFont: v })} />
       </Row>
       <Row label="Limitar ancho de lectura">
         <Toggle checked={settings.readableWidth} onChange={(v) => update({ readableWidth: v })} label="Limitar ancho de lectura" />
@@ -153,17 +153,6 @@ function Atajos() {
   );
 }
 
-function Carreras() {
-  const open = useOpen();
-  return (
-    <Row label="Mis carreras">
-      <button type="button" className="btn btn-sm" onClick={(e) => open({ type: "carreras" }, e)}>
-        Abrir
-      </button>
-    </Row>
-  );
-}
-
 function Notificaciones() {
   const [settings, update] = useSettings();
   const rows: { key: keyof typeof settings; label: string }[] = [
@@ -225,7 +214,7 @@ const CONTENT: Record<SectionKey, () => React.ReactElement> = {
   atajos: Atajos,
   calendarios: CalendarSection,
   notificaciones: Notificaciones,
-  carreras: Carreras,
+  perfiles: ProfilesSection,
   datos: DataSection,
   acerca: Acerca,
 };

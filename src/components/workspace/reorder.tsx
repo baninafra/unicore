@@ -39,20 +39,25 @@ export function useReorderDrag(group: string, move: (from: string, to: string) =
   const bind = (id: string) => ({
     "data-reorder": group,
     "data-reorder-id": id,
+    onDragStart: (e: React.DragEvent) => e.preventDefault(),
     onPointerDown: (e: React.PointerEvent) => {
       if (e.button !== 0) return;
       const startX = e.clientX;
       const startY = e.clientY;
       let active = false;
-      const timer = window.setTimeout(() => {
+      const start = () => {
+        window.clearTimeout(timer);
         active = true;
         setDragging(id);
         document.body.style.cursor = "grabbing";
-      }, HOLD_MS);
+        document.body.style.userSelect = "none";
+      };
+      // Arranca al mantener apretado o directamente al arrastrar.
+      const timer = window.setTimeout(start, HOLD_MS);
       const onMove = (ev: PointerEvent) => {
         if (!active) {
-          if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 6) cleanup();
-          return;
+          if (Math.hypot(ev.clientX - startX, ev.clientY - startY) <= 5) return;
+          start();
         }
         ev.preventDefault();
         const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>(`[data-reorder="${group}"]`);
@@ -79,6 +84,7 @@ export function useReorderDrag(group: string, move: (from: string, to: string) =
         if (active) {
           setDragging(null);
           document.body.style.cursor = "";
+          document.body.style.userSelect = "";
         }
       };
       window.addEventListener("pointermove", onMove);

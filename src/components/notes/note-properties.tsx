@@ -71,7 +71,7 @@ function ValueInput({ value, type, onCommit }: { value: PropValue; type: PropTyp
     return (
       <input
         type="date"
-        className="input h-7 w-auto text-[13px]"
+        className="input h-7 w-auto text-[length:calc(13px*var(--ui-scale,1))]"
         value={typeof value === "string" ? value : ""}
         onChange={(e) => e.target.value && onCommit(e.target.value)}
       />
@@ -94,7 +94,7 @@ function ValueInput({ value, type, onCommit }: { value: PropValue; type: PropTyp
   return (
     <input
       inputMode={type === "numero" ? "decimal" : undefined}
-      className="w-full min-w-0 bg-transparent text-[13px] text-text outline-none placeholder:text-faint"
+      className="w-full min-w-0 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] text-text outline-none placeholder:text-faint"
       placeholder={type === "lista" ? "Separadas por coma" : "Vacío"}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
@@ -230,7 +230,7 @@ export function NoteProperties({ note }: { note: Note }) {
                 </span>
               ))}
               <input
-                className="w-32 bg-transparent text-[13px] outline-none placeholder:text-faint"
+                className="w-32 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] outline-none placeholder:text-faint"
                 placeholder="Agregar etiqueta"
                 value={tagDraft}
                 onChange={(e) => setTagDraft(e.target.value)}
@@ -246,7 +246,7 @@ export function NoteProperties({ note }: { note: Note }) {
             <div key={key} className="prop-row group">
               <input
                 defaultValue={key}
-                className="min-w-0 bg-transparent text-[13px] text-faint outline-none"
+                className="min-w-0 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] text-faint outline-none"
                 onBlur={(e) => renameProp(key, e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -254,7 +254,7 @@ export function NoteProperties({ note }: { note: Note }) {
               />
               <div className="flex min-w-0 items-center gap-2">
                 <Select
-                  className="h-6 rounded-sm border-0 bg-transparent text-[12px] text-faint outline-none"
+                  className="h-6 rounded-sm border-0 bg-transparent text-[length:calc(12px*var(--ui-scale,1))] text-faint outline-none"
                   value={typeOf(value)}
                   onChange={(e) => setProp(key, coerce(value, e.target.value as PropType))}
                   aria-label="Tipo de propiedad"
@@ -284,7 +284,7 @@ export function NoteProperties({ note }: { note: Note }) {
             <div className="prop-row">
               <input
                 autoFocus
-                className="min-w-0 bg-transparent text-[13px] outline-none placeholder:text-faint"
+                className="min-w-0 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] outline-none placeholder:text-faint"
                 placeholder="Nombre"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
@@ -294,7 +294,7 @@ export function NoteProperties({ note }: { note: Note }) {
               />
               <div className="flex min-w-0 items-center gap-2">
                 <Select
-                  className="h-6 rounded-sm border-0 bg-transparent text-[12px] text-faint outline-none"
+                  className="h-6 rounded-sm border-0 bg-transparent text-[length:calc(12px*var(--ui-scale,1))] text-faint outline-none"
                   value={newType}
                   onChange={(e) => setNewType(e.target.value as PropType)}
                   aria-label="Tipo de propiedad nueva"
@@ -306,7 +306,7 @@ export function NoteProperties({ note }: { note: Note }) {
                   ))}
                 </Select>
                 <input
-                  className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
+                  className="min-w-0 flex-1 bg-transparent text-[length:calc(13px*var(--ui-scale,1))] outline-none placeholder:text-faint"
                   placeholder="Valor"
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}

@@ -222,6 +222,8 @@ pub fn run_mcp() {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // Recuerda si la ventana quedó maximizada, su tamaño y posición al cerrar.
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             let store = open_store()?;
             app.manage(store);

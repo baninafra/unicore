@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { normalizeText } from "@/lib/ai/rag";
 import { headingsOf } from "@/lib/panes/note-data";
 import { useActiveNoteId, useNote } from "@/lib/panes/hooks";
-import { FIELD_CLASS, PaneEmpty } from "./pane-ui";
+import { FIELD_CLASS, PaneBlank, PaneEmpty } from "./pane-ui";
 
 // Esquema de la nota activa. Clic en un encabezado: el editor de esa nota va a ese bloque.
 export function OutlinePane() {
@@ -17,7 +17,7 @@ export function OutlinePane() {
   const needle = normalizeText(query).trim();
   const shown = needle ? headings.filter((h) => normalizeText(h.text).includes(needle)) : headings;
 
-  if (!note) return <PaneEmpty>Abrí una nota</PaneEmpty>;
+  if (!note) return <PaneBlank>Abrí una nota para ver su esquema</PaneBlank>;
 
   const goTo = (blockId: string) => {
     window.dispatchEvent(new CustomEvent("uc:goto-block", { detail: { noteId: note.id, blockId } }));
@@ -46,7 +46,7 @@ export function OutlinePane() {
               className="row w-full min-w-0 text-left"
               style={{ paddingLeft: 8 + (h.level - 1) * 12 }}
             >
-              <span className={clsx("truncate text-[13px]", h.level <= 2 ? "text-text" : "text-muted")}>{h.text}</span>
+              <span className={clsx("truncate text-[length:calc(13px*var(--ui-scale,1))]", h.level <= 2 ? "text-text" : "text-muted")}>{h.text}</span>
             </button>
           ))}
         </div>

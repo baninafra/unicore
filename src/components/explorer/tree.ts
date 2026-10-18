@@ -3,10 +3,11 @@
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
 import { folderName } from "@/lib/folder-names";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CalendarDays, DraftingCompass, FileSpreadsheet, FileText, FileType, Folder, GraduationCap, Lightbulb, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, DraftingCompass, FileSpreadsheet, FileText, FileType, Folder, FolderKanban, Lightbulb, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type OfficeDoc, type OfficeKind, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
+import { kindOf, PROFILES, type ProfileDef } from "@/lib/profiles";
 
 export type SortMode = "nombre" | "modificacion" | "creacion";
 
@@ -112,7 +113,7 @@ function group<T>(list: T[], keyOf: (t: T) => string | undefined): Record<string
   return out;
 }
 
-export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMode): TreeNode[] {
+export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMode, inScope: (degreeId?: string) => boolean = () => true): TreeNode[] {
   const subjectIds = new Set(data.subjects.map((s) => s.id));
 
   // Subnotas: cuelgan de su nota madre (si la madre está en la misma carpeta).
@@ -165,6 +166,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       label: folderName(DAILY_FOLDER) ?? "Diario",
       icon: CalendarDays,
       item: { kind: "folder", folder: DAILY_FOLDER },
+      drop: { subjectId: DAILY_FOLDER },
       children: daily.map((n) => noteNode(n)),
     },
     {
@@ -195,7 +197,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
   const canvasesBy = group(data.canvases, (c) => (c.subjectId && subjectIds.has(c.subjectId) ? c.subjectId : undefined));
   const filesBy = group(data.officeDocs, (f) => (subjectIds.has(f.subjectId) ? f.subjectId : undefined));
 
-  const subjectNode = (s: Subject): TreeNode => {
+  const subjectNode = (s: Subject, def: ProfileDef = PROFILES.universidad): TreeNode => {
     const notes = sortItems(notesBy[s.id] ?? [], (n) => n.title, sort);
     const canvases = sortItems(canvasesBy[s.id] ?? [], (c) => c.name, sort);
     const files = sortItems(filesBy[s.id] ?? [], (f) => f.name, sort).map((f) => fileNode(f, s.id));
@@ -206,7 +208,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         ? [
             ...units.map((u): TreeNode => ({
               key: `u:${s.id}:${u}`,
-              label: `Unidad ${u}`,
+              label: `${def.unit} ${u}`,
               item: { kind: "unit", subjectId: s.id, unit: u },
               drop: { subjectId: s.id, unit: u },
               children: notes.filter((n) => n.unitNumber === u).map((n) => noteNode(n)),
@@ -218,7 +220,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     return {
       key: `s:${s.id}`,
       label: s.name,
-      icon: BookOpen,
+      icon: def.study ? BookOpen : FolderKanban,
       view: { type: "materia", id: s.id },
       item: { kind: "subject", id: s.id },
       drop: { subjectId: s.id },
@@ -227,14 +229,26 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
   };
 
   const degrees = data.degrees
-    .filter((d) => degreeFilter === "all" || d.id === degreeFilter)
+    .filter((d) => (degreeFilter === "all" || d.id === degreeFilter) && inScope(d.id))
     .map((d): TreeNode => {
+      const def = PROFILES[kindOf(d)];
       const subjects = data.subjects.filter((s) => s.degreeId === d.id);
       const years = [...new Set(subjects.map((s) => s.year))].sort((a, b) => a - b);
+      const node = (s: Subject) => subjectNode(s, def);
+      // Trabajo, proyectos y personal no tienen años: van directo, ordenados por nombre.
+      if (!def.study) {
+        return {
+          key: `d:${d.id}`,
+          label: d.name,
+          icon: def.spaceIcon,
+          item: { kind: "degree", id: d.id },
+          children: [...subjects].sort((a, b) => a.name.localeCompare(b.name, "es")).map(node),
+        };
+      }
       return {
         key: `d:${d.id}`,
         label: d.name,
-        icon: GraduationCap,
+        icon: def.spaceIcon,
         item: { kind: "degree", id: d.id },
         children: years.map((y): TreeNode => ({
           key: `y:${d.id}:${y}`,
@@ -243,7 +257,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
           children: subjects
             .filter((s) => s.year === y)
             .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, "es"))
-            .map(subjectNode),
+            .map(node),
         })),
       };
     });

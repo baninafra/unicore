@@ -6,8 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 // con variables CSS en <html>. Montar <ApplySettings /> una vez en la raíz de la app.
 
 export interface AppSettings {
-  uiFont: number; // px base de la interfaz, 12 a 16 (13 = normal)
-  editorFont: number; // px del editor, 14 a 20
+  uiFont: number; // px base de la interfaz, 12 a 20 (15 = normal)
+  editorFont: number; // px del editor, 14 a 24
   readableWidth: boolean; // limita el ancho de las vistas de lectura
   spellcheck: boolean; // corrector ortográfico
   wordCount: boolean; // conteo de palabras en el editor
@@ -26,8 +26,8 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  uiFont: 13,
-  editorFont: 16,
+  uiFont: 15,
+  editorFont: 17,
   readableWidth: true,
   spellcheck: true,
   wordCount: true,
@@ -66,11 +66,16 @@ function clamp(n: unknown, min: number, max: number, fallback: number) {
 export function readSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    const saved = raw ? (JSON.parse(raw) as Partial<AppSettings>) : {};
+    const saved = raw ? (JSON.parse(raw) as Partial<AppSettings> & { fontV?: number }) : {};
     const d = DEFAULT_SETTINGS;
+    // Antes el texto venía más chico (13 y 16): quien nunca lo cambió pasa a los tamaños nuevos.
+    if (saved.fontV !== 2) {
+      if (saved.uiFont === 13) delete saved.uiFont;
+      if (saved.editorFont === 16) delete saved.editorFont;
+    }
     return {
-      uiFont: clamp(saved.uiFont, 12, 16, d.uiFont),
-      editorFont: clamp(saved.editorFont, 14, 20, d.editorFont),
+      uiFont: clamp(saved.uiFont, 12, 20, d.uiFont),
+      editorFont: clamp(saved.editorFont, 14, 24, d.editorFont),
       readableWidth: bool(saved.readableWidth, d.readableWidth),
       spellcheck: bool(saved.spellcheck, d.spellcheck),
       wordCount: bool(saved.wordCount, d.wordCount),
@@ -102,9 +107,31 @@ const SIZE_RULES: [string, number][] = [
   [".btn-sm, .badge, .tag", 12],
 ];
 
+// Alturas que acompañan al texto: si la letra crece, los botones y campos también (así no queda apretado).
+const HEIGHT_RULES: [string, string, number][] = [
+  [".input", "height", 32],
+  [".btn", "height", 30],
+  [".btn-sm", "height", 26],
+  [".badge, .tag, .kbd", "height", 20],
+  [".row", "min-height", 28],
+  [".nav-item", "height", 28],
+  [".prop-row", "min-height", 30],
+  [".uc-select", "min-height", 30],
+];
+
+const scaled = (px: number) => `calc(${px}px * var(--ui-scale, 1))`;
+
+// Va en la capa "components" (como globals.css): las clases de Tailwind de cada elemento siguen mandando.
 const STYLE = [
-  ...SIZE_RULES.map(([sel, px]) => `${sel} { font-size: calc(${px}px * var(--ui-scale, 1)); }`),
-  "body { font-size: calc(14px * var(--ui-scale, 1)); }",
+  "@layer components {",
+  ...SIZE_RULES.map(([sel, px]) => `${sel} { font-size: ${scaled(px)}; }`),
+  ...HEIGHT_RULES.map(([sel, prop, px]) => `${sel} { ${prop}: ${scaled(px)}; }`),
+  `.uc-select, .field > span { font-size: ${scaled(13)}; }`,
+  `.t-display { font-size: ${scaled(40)}; line-height: 1.1; }`,
+  ".t-h1, .t-h2 { line-height: 1.3; }",
+  ".t-h3, .t-body, .t-small { line-height: 1.5; }",
+  "}",
+  `body { font-size: ${scaled(14)}; }`,
   ".view-readable { max-width: var(--readable-width, 760px); }",
   ".bn-editor { font-size: var(--editor-font-size, 16px) !important; font-family: var(--editor-font-family, inherit) !important; line-height: var(--editor-line-height, 1.6); }",
 ].join("\n");
@@ -135,7 +162,7 @@ export function applySettings(s: AppSettings) {
 export function writeSettings(patch: Partial<AppSettings>): AppSettings {
   const next = { ...readSettings(), ...patch };
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(next));
+    localStorage.setItem(LS_KEY, JSON.stringify({ ...next, fontV: 2 }));
   } catch {}
   applySettings(next);
   window.dispatchEvent(new CustomEvent<AppSettings>(EVENT, { detail: next }));

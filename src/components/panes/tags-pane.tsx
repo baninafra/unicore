@@ -34,7 +34,7 @@ export function TagsPane() {
             type="button"
             aria-pressed={sort === mode}
             onClick={() => setSort(mode)}
-            className={clsx("text-[12px] capitalize", sort === mode ? "text-text" : "text-faint hover:text-text")}
+            className={clsx("text-[length:calc(12px*var(--ui-scale,1))] capitalize", sort === mode ? "text-text" : "text-faint hover:text-text")}
           >
             {mode === "nombre" ? "Nombre" : "Frecuencia"}
           </button>
@@ -87,12 +87,12 @@ function TagBranch({
           type="button"
           title={`#${node.path}`}
           onClick={(e) => open({ type: "busqueda", query: `tag:#${node.path}` }, e)}
-          className="min-w-0 flex-1 truncate text-left text-[13px] text-text hover:text-primary-soft"
+          className="min-w-0 flex-1 truncate text-left text-[length:calc(13px*var(--ui-scale,1))] text-text hover:text-primary-soft"
         >
           <span className="text-faint">#</span>
           {node.name}
         </button>
-        <span className="num text-[12px] text-faint">{node.total}</span>
+        <span className="num text-[length:calc(12px*var(--ui-scale,1))] text-faint">{node.total}</span>
       </div>
       {hasChildren &&
         !isCollapsed &&

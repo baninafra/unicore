@@ -73,6 +73,7 @@ export async function buildSubjectContext(
   subjectId: string,
   question: string,
   maxChunks = 4,
+  excludeNoteId?: string, // la nota abierta ya va entera, no hace falta repetirla en fragmentos
 ): Promise<{ context: string; sources: { label: string }[] }> {
   const [notes, documents] = await Promise.all([
     db.notes.where("subjectId").equals(subjectId).toArray(),
@@ -80,7 +81,7 @@ export async function buildSubjectContext(
   ]);
 
   const chunks: Chunk[] = [];
-  for (const note of notes) addChunks(chunks, note.title, note.plainTextCache);
+  for (const note of notes) if (note.id !== excludeNoteId) addChunks(chunks, note.title, note.plainTextCache);
   for (const doc of documents) addChunks(chunks, doc.fileName, doc.extractedText);
 
   const queryTerms = [...new Set(tokenize(question))];

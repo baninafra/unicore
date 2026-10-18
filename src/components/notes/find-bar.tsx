@@ -160,7 +160,7 @@ export function FindBar({
         </button>
         <input
           ref={findInput}
-          className="input h-7 min-w-0 flex-1 text-[13px]"
+          className="input h-7 min-w-0 flex-1 text-[length:calc(13px*var(--ui-scale,1))]"
           placeholder="Buscar en la nota"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -180,7 +180,7 @@ export function FindBar({
       {showReplace && (
         <div className="flex items-center gap-1.5 pl-7">
           <input
-            className="input h-7 min-w-0 flex-1 text-[13px]"
+            className="input h-7 min-w-0 flex-1 text-[length:calc(13px*var(--ui-scale,1))]"
             placeholder="Reemplazar con"
             value={replacement}
             onChange={(e) => setReplacement(e.target.value)}

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { folderName, useFolderNames } from "@/lib/folder-names";
 import { IDEAS_FOLDER } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
+import { useProfilesMaybe } from "@/lib/profiles";
 
 const STATIC_TITLES: Partial<Record<ViewState["type"], string>> = {
   inicio: "Inicio",
@@ -24,6 +25,7 @@ const STATIC_TITLES: Partial<Record<ViewState["type"], string>> = {
 // Título de una pestaña (lee nombres de la base cuando hace falta).
 export function useViewTitle(view: ViewState): string {
   useFolderNames();
+  const profiles = useProfilesMaybe();
   const dynamic = useLiveQuery(async () => {
     switch (view.type) {
       case "materia":
@@ -44,6 +46,7 @@ export function useViewTitle(view: ViewState): string {
     }
   }, [JSON.stringify(view)]);
 
+  if (view.type === "carreras" && profiles) return profiles.terms.spacesView;
   if (view.type === "ideas") return folderName(IDEAS_FOLDER) ?? "Ideas";
   if (view.type === "web") {
     try {

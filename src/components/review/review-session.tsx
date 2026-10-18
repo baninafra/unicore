@@ -100,7 +100,7 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
         <div className="t-h2 whitespace-pre-wrap">{current.front}</div>
 
         {!revealed ? (
-          <button type="button" className="btn btn-sm" onClick={() => setRevealed(true)}>
+          <button type="button" className="btn btn-primary h-9 px-5" onClick={() => setRevealed(true)}>
             Mostrar respuesta
             <span className="kbd">Espacio</span>
           </button>
@@ -114,18 +114,21 @@ export function ReviewSession({ cards, onFinish }: { cards: Flashcard[]; onFinis
 
       {revealed && (
         <>
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          {/* Cuatro botones del mismo tamaño: la calificación arriba y cuándo vuelve abajo. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {OPCIONES.map((o) => (
               <button
                 key={o.rating}
                 type="button"
                 disabled={busy}
                 onClick={() => void rate(o.rating)}
-                className={clsx("btn gap-2", o.rating === 3 && "border-primary")}
+                title={`Atajo: ${o.rating}`}
+                className={clsx("btn h-14 flex-col gap-1", o.rating === 3 && "border-primary")}
               >
                 <span className={o.textClass}>{o.label}</span>
-                <span className="t-small num text-faint">{previews?.[o.rating]}</span>
-                <span className="kbd">{o.rating}</span>
+                <span className="t-small num font-normal text-faint">
+                  {previews?.[o.rating]} · <span className="kbd">{o.rating}</span>
+                </span>
               </button>
             ))}
           </div>

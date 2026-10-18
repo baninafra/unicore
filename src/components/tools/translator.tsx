@@ -3,7 +3,8 @@
 // Traductor sin conexión (modelos chicos que se bajan por idioma; ver lib/tools/translate.ts).
 
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Check, ClipboardPaste, Copy, Download, Trash2 } from "lucide-react";
+import clsx from "clsx";
+import { ArrowLeftRight, Check, ChevronDown, ClipboardPaste, Copy, Download, Trash2, X } from "lucide-react";
 import { insertBlocks } from "@/lib/nav/actions";
 import { toast } from "@/lib/undo";
 import { directions, downloadedModels, downloadModels, forgetModels, LANGS, modelsForLang, route, translate } from "@/lib/tools/translate";
@@ -90,50 +91,77 @@ export function TranslatorTool() {
     setHave(downloadedModels());
   };
 
+  // Con el idioma ya bajado, traduce solo mientras escribís (medio segundo después de parar).
+  useEffect(() => {
+    if (!text.trim()) {
+      setOut("");
+      return;
+    }
+    if (!steps || missing.length || busy) return;
+    const t = window.setTimeout(() => void run(), 600);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, from, to, missing.length]);
+
+  const swap = () => {
+    savePair(to, from);
+    if (out) {
+      setText(out);
+      setOut(text);
+    }
+  };
+  const langName = (c: string) => LANGS.find((l) => l.code === c)?.name ?? c;
+  const readyCount = LANGS.filter((l) => modelsForLang(l.code).every((m) => have.has(m))).length;
+
   return (
     <div className="tool-pane">
-      <div className="flex items-end gap-1.5">
-        <label className="field min-w-0 flex-1">
-          <span>De</span>
-          <Select value={from} onChange={(e) => savePair(e.target.value, to === e.target.value ? from : to)}>{options}</Select>
-        </label>
-        <button type="button" className="btn btn-ghost btn-icon mb-0.5" title="Invertir idiomas" aria-label="Invertir idiomas" onClick={() => {
-          savePair(to, from);
-          if (out) {
-            setText(out);
-            setOut(text);
-          }
-        }}>
-          <ArrowLeftRight className="h-4 w-4" strokeWidth={1.75} />
+      {/* Idiomas: De ⇄ A en una sola barra */}
+      <div className="flex items-center gap-1 rounded-md border border-border bg-surface p-1">
+        <Select aria-label="Idioma de origen" className="input h-8 min-w-0 flex-1 border-transparent bg-transparent" value={from} onChange={(e) => savePair(e.target.value, to === e.target.value ? from : to)}>
+          {options}
+        </Select>
+        <button type="button" className="icon-btn h-8 w-8" title="Invertir idiomas" aria-label="Invertir idiomas" onClick={swap}>
+          <ArrowLeftRight />
         </button>
-        <label className="field min-w-0 flex-1">
-          <span>A</span>
-          <Select value={to} onChange={(e) => savePair(from === e.target.value ? to : from, e.target.value)}>{options}</Select>
-        </label>
+        <Select aria-label="Idioma de destino" className="input h-8 min-w-0 flex-1 border-transparent bg-transparent" value={to} onChange={(e) => savePair(from === e.target.value ? to : from, e.target.value)}>
+          {options}
+        </Select>
       </div>
 
-      <textarea
-        className="input min-h-[96px] resize-y"
-        placeholder="Escribí o pegá el texto…"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void run();
-        }}
-      />
+      {/* Texto original */}
+      <div className="rounded-md border border-border bg-surface focus-within:border-primary">
+        <textarea
+          className="block min-h-[110px] w-full resize-y bg-transparent px-3 pt-2.5 text-[length:calc(14px*var(--ui-scale,1))] leading-6 text-text outline-none placeholder:text-faint"
+          placeholder={`Escribí o pegá el texto en ${langName(from).toLowerCase()}…`}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void run();
+          }}
+        />
+        <div className="flex items-center gap-1 px-2 pb-1.5">
+          <span className="t-small num text-faint">{text.length.toLocaleString("es-AR")} caracteres</span>
+          {text && (
+            <button type="button" className="icon-btn ml-auto" title="Borrar el texto" aria-label="Borrar el texto" onClick={() => (setText(""), setOut(""))}>
+              <X />
+            </button>
+          )}
+        </div>
+      </div>
 
       {!steps ? (
-        <div className="t-small text-rose">Todavía no hay un modelo para traducir de ese idioma a ese otro.</div>
-      ) : (
-        <button type="button" className="btn btn-primary" disabled={!!busy || !text.trim()} onClick={() => void run()}>
-          {missing.length ? <Download className="h-4 w-4" strokeWidth={1.75} /> : null}
-          {missing.length ? "Bajar idioma y traducir" : "Traducir"}
-          <span className="kbd ml-1">Ctrl Enter</span>
-        </button>
-      )}
-      {missing.length > 0 && !busy && steps && (
-        <div className="t-small text-faint">La primera vez se baja el modelo de ese idioma (unos 100 MB). Después funciona sin conexión.</div>
-      )}
+        <div className="t-small text-rose">Todavía no hay un modelo para traducir de {langName(from)} a {langName(to)}.</div>
+      ) : missing.length > 0 ? (
+        <div className="flex flex-col gap-1.5 rounded-md border border-dashed border-border-strong p-3">
+          <span className="t-small text-muted">
+            Para traducir sin conexión hay que bajar {missing.length === 1 ? "un modelo" : "los modelos"} de este idioma una sola vez (unos 100 MB).
+          </span>
+          <button type="button" className="btn btn-primary self-start" disabled={!!busy} onClick={() => void run()}>
+            <Download />
+            Bajar y traducir
+          </button>
+        </div>
+      ) : null}
 
       {busy && (
         <div className="flex flex-col gap-1">
@@ -149,41 +177,51 @@ export function TranslatorTool() {
         </div>
       )}
 
-      {out && (
-        <div className="flex flex-col gap-2">
-          <div className="whitespace-pre-wrap rounded-md border border-border bg-surface p-2 text-[14px]">{out}</div>
-          <div className="flex gap-1">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard.writeText(out).then(() => toast("Copiamos la traducción"))}>
-              <Copy className="h-4 w-4" strokeWidth={1.75} />
-              Copiar
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              title="Agrega la traducción al final de la nota abierta"
-              onClick={() => insertBlocks(out.split("\n").map((p) => ({ type: "paragraph", content: p })))}
-            >
-              <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} />
-              Pegar en la nota
-            </button>
-          </div>
+      {/* Traducción: siempre a la vista */}
+      <div className="rounded-md border border-border bg-surface-raised">
+        <div className={clsx("min-h-[110px] whitespace-pre-wrap px-3 pt-2.5 text-[length:calc(14px*var(--ui-scale,1))] leading-6", out ? "text-text" : "text-faint")}>
+          {out || (busy === "Traduciendo…" ? "Traduciendo…" : `La traducción al ${langName(to).toLowerCase()} aparece acá`)}
         </div>
-      )}
+        <div className="flex items-center justify-end gap-1 px-2 pb-1.5">
+          <button
+            type="button"
+            className="icon-btn"
+            disabled={!out}
+            title="Copiar la traducción"
+            aria-label="Copiar la traducción"
+            onClick={() => void navigator.clipboard.writeText(out).then(() => toast("Copiamos la traducción"))}
+          >
+            <Copy />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            disabled={!out}
+            title="Pegar la traducción al final de la nota abierta"
+            aria-label="Pegar en la nota"
+            onClick={() => insertBlocks(out.split("\n").map((p) => ({ type: "paragraph", content: p })))}
+          >
+            <ClipboardPaste />
+          </button>
+        </div>
+      </div>
 
-      <div className="mt-2 border-t border-border pt-3">
-        <button type="button" className="t-label text-muted hover:text-text" onClick={() => setShowLangs((v) => !v)}>
-          {showLangs ? "Ocultar idiomas" : "Idiomas sin conexión"}
+      {/* Idiomas sin conexión, plegado */}
+      <div className="border-t border-border pt-2">
+        <button type="button" className="flex w-full items-center gap-2 py-1 text-[length:calc(13px*var(--ui-scale,1))] text-muted hover:text-text" onClick={() => setShowLangs((v) => !v)} aria-expanded={showLangs}>
+          <ChevronDown className={clsx("h-4 w-4 transition-transform", !showLangs && "-rotate-90")} strokeWidth={1.75} />
+          Idiomas sin conexión
+          <span className="t-small ml-auto text-faint">{readyCount === 0 ? "ninguno bajado" : `${readyCount} bajado${readyCount === 1 ? "" : "s"}`}</span>
         </button>
         {showLangs && (
-          <div className="mt-2 flex flex-col gap-0.5">
+          <div className="mt-1 flex flex-col gap-0.5">
             {LANGS.map((l) => {
               const ready = modelsForLang(l.code).every((m) => have.has(m));
               const dir = directions(l.code);
               const oneWay = !dir.toSpanish || !dir.fromSpanish;
               return (
-                <div key={l.code} className="flex items-center gap-2 rounded-sm px-1 py-1 hover:bg-surface-raised">
-                  <span className="text-[13px]">{l.name}</span>
-                  {l.main && <span className="badge badge-primary">Principal</span>}
+                <div key={l.code} className="flex min-h-8 items-center gap-2 rounded-sm px-2 hover:bg-surface-raised">
+                  <span className="text-[length:calc(13px*var(--ui-scale,1))]">{l.name}</span>
                   {oneWay && <span className="t-small text-faint">{dir.toSpanish ? "sólo al español" : "sólo desde el español"}</span>}
                   <span className="ml-auto" />
                   {ready ? (
@@ -192,13 +230,13 @@ export function TranslatorTool() {
                         <Check className="h-3 w-3" strokeWidth={2} />
                         Listo
                       </span>
-                      <button type="button" className="btn btn-ghost btn-sm btn-icon" title="Quitar" aria-label={`Quitar ${l.name}`} onClick={() => void removeLang(l.code)}>
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      <button type="button" className="icon-btn" title="Quitar" aria-label={`Quitar ${l.name}`} onClick={() => void removeLang(l.code)}>
+                        <Trash2 />
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => void fetchLang(l.code)}>
-                      <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    <button type="button" className="btn btn-sm" disabled={!!busy} onClick={() => void fetchLang(l.code)}>
+                      <Download />
                       Bajar
                     </button>
                   )}

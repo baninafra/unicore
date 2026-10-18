@@ -4,6 +4,7 @@
 //  - a la izquierda, el mes chico para saltar de fecha y la lista de calendarios (propios, suscritos y qué más mostrar);
 //  - a la derecha, las tareas: filtrar, agregar rápido, marcar hechas y arrastrarlas al calendario.
 
+import { useProfiles } from "@/lib/profiles";
 import { useMemo, useState } from "react";
 import clsx from "clsx";
 import * as chrono from "chrono-node";
@@ -20,7 +21,7 @@ import { PromptModal } from "@/components/ui/prompt-modal";
 import { saveBlob, safeFileName } from "@/lib/export/save";
 import { toast, deleteWithUndo } from "@/lib/undo";
 import { byDueDate, END_OF_DAY } from "@/components/tasks/task-meta";
-import { TASK_TYPE_LABEL, type CalendarSource, type Subject, type Task } from "@/lib/types";
+import { type CalendarSource, type Subject, type Task } from "@/lib/types";
 import { DOT, TASK_MIME } from "./calendar-parts";
 
 // ---------- Mes chico ----------
@@ -38,7 +39,7 @@ export function MiniMonth({ cursor, from, to, marks, weekStart, onPick }: { curs
   return (
     <div className="flex flex-col gap-1 px-3 pt-3">
       <div className="flex items-center">
-        <span className="text-[13px] font-semibold capitalize text-text">{label}</span>
+        <span className="text-[length:calc(13px*var(--ui-scale,1))] font-semibold capitalize text-text">{label}</span>
         <button type="button" className="icon-btn ml-auto" aria-label="Mes anterior" onClick={() => setMonth(addMonths(month, -1))}>
           <ChevronLeft />
         </button>
@@ -48,7 +49,7 @@ export function MiniMonth({ cursor, from, to, marks, weekStart, onPick }: { curs
       </div>
       <div className="grid grid-cols-7 text-center">
         {names.map((n, i) => (
-          <span key={i} className="text-[10px] font-medium text-faint">
+          <span key={i} className="text-[length:calc(10px*var(--ui-scale,1))] font-medium text-faint">
             {n}
           </span>
         ))}
@@ -60,7 +61,7 @@ export function MiniMonth({ cursor, from, to, marks, weekStart, onPick }: { curs
               type="button"
               onClick={() => onPick(d)}
               className={clsx(
-                "num relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[12px]",
+                "num relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[length:calc(12px*var(--ui-scale,1))]",
                 isToday(d) ? "bg-primary-fill font-semibold text-on-primary" : inRange ? "bg-primary-tint text-text" : isSameMonth(d, month) ? "text-muted hover:bg-surface-raised" : "text-faint hover:bg-surface-raised",
               )}
             >
@@ -261,6 +262,7 @@ const LS_FILTER = "uc-cal-task-filter";
 export function TasksPane({ tasks, subjects }: { tasks: Task[]; subjects: Subject[] }) {
   const { openTaskDialog } = useAppState();
   const { open, menu } = useContextMenu();
+  const { taskLabel } = useProfiles();
   const [filter, setFilter] = useState<TaskFilter>(() => {
     try {
       return (localStorage.getItem(LS_FILTER) as TaskFilter) || "pendientes";
@@ -325,7 +327,7 @@ export function TasksPane({ tasks, subjects }: { tasks: Task[]; subjects: Subjec
       <div className="flex flex-none flex-col gap-2 p-3">
         <div className="flex flex-wrap gap-1">
           {(Object.keys(FILTER_LABEL) as TaskFilter[]).map((f) => (
-            <button key={f} type="button" aria-pressed={filter === f} onClick={() => pick(f)} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted hover:text-text aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft">
+            <button key={f} type="button" aria-pressed={filter === f} onClick={() => pick(f)} className="rounded-full border border-border px-2 py-0.5 text-[length:calc(11px*var(--ui-scale,1))] text-muted hover:text-text aria-pressed:border-primary aria-pressed:bg-primary-tint aria-pressed:text-primary-soft">
               {FILTER_LABEL[f]}
             </button>
           ))}
@@ -374,9 +376,9 @@ export function TasksPane({ tasks, subjects }: { tasks: Task[]; subjects: Subjec
                 aria-label={done ? "Marcar como pendiente" : "Marcar como hecha"}
               />
               <div className="min-w-0 flex-1">
-                <div className={clsx("truncate text-[13px] text-text", done && "text-faint line-through")}>{t.title}</div>
-                <div className="flex flex-wrap gap-x-2 text-[11px] text-faint">
-                  <span>{TASK_TYPE_LABEL[t.type]}</span>
+                <div className={clsx("truncate text-[length:calc(13px*var(--ui-scale,1))] text-text", done && "text-faint line-through")}>{t.title}</div>
+                <div className="flex flex-wrap gap-x-2 text-[length:calc(11px*var(--ui-scale,1))] text-faint">
+                  <span>{taskLabel(t)}</span>
                   {due && <span className={clsx(late && "text-rose")}>{format(due, due.getHours() === 23 && due.getMinutes() === 59 ? "EEE d/M" : "EEE d/M HH:mm", { locale: es })}</span>}
                   {t.subjectId && names.get(t.subjectId) && <span className="truncate">{names.get(t.subjectId)}</span>}
                 </div>

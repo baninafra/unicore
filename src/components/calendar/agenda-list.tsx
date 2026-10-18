@@ -43,17 +43,17 @@ export function AgendaList({ items, h, empty }: { items: CalItem[]; h: GridHandl
               onContextMenu={(e) => h.onContext(e, it)}
               className={clsx("row min-h-9 items-center gap-3", (it.done || it.cancelled) && "line-through opacity-60")}
             >
-              <span className="num w-24 flex-none text-[12px] text-faint">{it.allDay ? "Todo el día" : `${format(it.start, "HH:mm")}${it.kind === "task" ? "" : ` – ${format(it.end, "HH:mm")}`}`}</span>
+              <span className="num w-24 flex-none text-[length:calc(12px*var(--ui-scale,1))] text-faint">{it.allDay ? "Todo el día" : `${format(it.start, "HH:mm")}${it.kind === "task" ? "" : ` – ${format(it.end, "HH:mm")}`}`}</span>
               <span className={clsx("h-2 w-2 flex-none rounded-full", DOT[it.color])} />
               <ItemIcons it={it} onToggleTask={h.onToggleTask} />
               <span className="min-w-0 flex-1 truncate text-text">{it.title}</span>
               {it.location && (
-                <span className="hidden max-w-[200px] items-center gap-1 truncate text-[12px] text-faint md:flex">
+                <span className="hidden max-w-[200px] items-center gap-1 truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint md:flex">
                   <MapPin className="h-3 w-3" />
                   {it.location}
                 </span>
               )}
-              <span className="max-w-[160px] truncate text-[12px] text-faint">{it.calendarName}</span>
+              <span className="max-w-[160px] truncate text-[length:calc(12px*var(--ui-scale,1))] text-faint">{it.calendarName}</span>
             </div>
           ))}
         </section>

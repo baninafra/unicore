@@ -109,7 +109,7 @@ export function SearchResults({
   onOpen: (hit: SearchHit, fragment?: Fragment, e?: ModifierEvent) => void;
 }) {
   if (!hits.length) {
-    return query.trim() ? <p className="px-2 py-3 text-[13px] text-faint">Sin resultados</p> : null;
+    return query.trim() ? <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin resultados</p> : null;
   }
   return (
     <div className="flex flex-col gap-1.5">
@@ -123,15 +123,15 @@ export function SearchResults({
               <span className="min-w-0 flex-1 truncate text-text">
                 <Highlighted text={hit.doc.title} marks={hit.titleMarks} />
               </span>
-              {hit.count > 0 && <span className="num shrink-0 text-[12px] text-faint">{hit.count}</span>}
+              {hit.count > 0 && <span className="num shrink-0 text-[length:calc(12px*var(--ui-scale,1))] text-faint">{hit.count}</span>}
             </button>
-            {meta && <div className="truncate pl-7 text-[12px] text-faint">{meta}</div>}
+            {meta && <div className="truncate pl-7 text-[length:calc(12px*var(--ui-scale,1))] text-faint">{meta}</div>}
             {hit.fragments.map((f, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={(e) => onOpen(hit, f, e)}
-                className="mb-0.5 ml-7 mr-1 rounded-sm px-1.5 py-1 text-left text-[12px] leading-snug text-muted hover:bg-surface-raised hover:text-text"
+                className="mb-0.5 ml-7 mr-1 rounded-sm px-1.5 py-1 text-left text-[length:calc(12px*var(--ui-scale,1))] leading-snug text-muted hover:bg-surface-raised hover:text-text"
               >
                 {f.lead && "… "}
                 <Highlighted text={f.text} marks={f.marks} />

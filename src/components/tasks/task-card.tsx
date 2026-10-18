@@ -1,16 +1,17 @@
 "use client";
 
+import { useProfiles } from "@/lib/profiles";
 import clsx from "clsx";
 import { useAppState } from "@/lib/app-state";
 import { isUrgent, shortDate } from "@/lib/format";
 import type { Subject, Task } from "@/lib/types";
-import { TASK_TYPE_LABEL } from "@/lib/types";
 import { useTaskMenu } from "./task-menu";
 
 // Tarjeta mínima del kanban: título, y debajo tipo · materia · fecha.
 export function TaskCard({ task, subject }: { task: Task; subject?: Subject }) {
   const { openTaskDialog } = useAppState();
   const { show, menu } = useTaskMenu();
+  const { taskLabel } = useProfiles();
   const done = task.status === "DONE";
   const urgent = !done && !!task.dueDate && isUrgent(task.type, task.dueDate);
 
@@ -32,7 +33,7 @@ export function TaskCard({ task, subject }: { task: Task; subject?: Subject }) {
       >
         <span className={clsx("t-small truncate text-text", done && "line-through")}>{task.title}</span>
         <span className="t-small flex min-w-0 items-center gap-1.5 text-faint">
-          <span className="flex-none">{TASK_TYPE_LABEL[task.type]}</span>
+          <span className="flex-none">{taskLabel(task)}</span>
           {subject && (
             <>
               <span aria-hidden>·</span>

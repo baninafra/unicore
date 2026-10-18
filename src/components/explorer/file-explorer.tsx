@@ -3,10 +3,11 @@
 import { newSubmenu, type NewMenuOpts } from "@/components/ui/new-menu";
 import { renameFolder, useFolderNames } from "@/lib/folder-names";
 import { addIdea } from "@/views/ideas-view";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
+import { useProfiles } from "@/lib/profiles";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
 import { db } from "@/lib/db";
 import { useWorkspace, sameView, type ViewState } from "@/lib/workspace";
@@ -44,7 +45,93 @@ import { allKeys, ancestorsOf, buildTree, defaultOpen, useBookmarkSet, useExplor
 
 const LS_OPEN = "uc-explorer-open";
 const LS_SORT = "uc-explorer-sort";
-const DRAG_MIME = "application/x-unicore-item";
+// Arrastrar notas, lienzos y archivos a otra carpeta o materia. Con pointer events (el arrastre
+// nativo del navegador no es confiable dentro de la app de escritorio): arranca al mantener
+// apretado o al mover el mouse con el botón apretado. Quedarse encima de una carpeta cerrada la abre.
+function startDrag(
+  e: ReactPointerEvent,
+  node: TreeNode,
+  h: { findDrop: (key: string) => Target | undefined; setDropKey: (k: string | null) => void; moveTo: (p: Payload, t: Target) => void; toggle: (key: string) => void },
+) {
+  if (e.button !== 0 || !node.drag) return;
+  const payload = node.drag;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let active = false;
+  let ghost: HTMLDivElement | null = null;
+  let overKey: string | null = null;
+  let expandKey: string | null = null;
+  let expandTimer: number | undefined;
+
+  const start = () => {
+    window.clearTimeout(holdTimer);
+    if (active) return;
+    active = true;
+    window.getSelection()?.removeAllRanges();
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+    ghost = document.createElement("div");
+    ghost.textContent = node.label;
+    ghost.className = "pointer-events-none fixed z-[1000] max-w-[240px] truncate rounded-md border border-border bg-surface-raised px-2 py-1 text-[length:calc(13px*var(--ui-scale,1))] text-text shadow-lg";
+    document.body.appendChild(ghost);
+  };
+  const holdTimer = window.setTimeout(start, 300);
+
+  const onMove = (ev: PointerEvent) => {
+    if (!active) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) <= 5) return;
+      start();
+    }
+    ev.preventDefault();
+    if (ghost) {
+      ghost.style.left = `${ev.clientX + 12}px`;
+      ghost.style.top = `${ev.clientY + 8}px`;
+    }
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const dropEl = el?.closest<HTMLElement>("[data-drop]");
+    const key = dropEl && dropEl.dataset.drop !== `n:${payload.id}` ? dropEl.dataset.drop! : null;
+    if (key !== overKey) {
+      overKey = key;
+      h.setDropKey(key);
+    }
+    const exp = el?.closest<HTMLElement>("[data-expand]")?.dataset.expand ?? null;
+    if (exp !== expandKey) {
+      expandKey = exp;
+      window.clearTimeout(expandTimer);
+      if (exp) expandTimer = window.setTimeout(() => h.toggle(exp), 600);
+    }
+  };
+  const onUp = () => {
+    if (active) {
+      const target = overKey ? h.findDrop(overKey) : undefined;
+      if (target) h.moveTo(payload, target);
+      // El clic que llega al soltar no tiene que abrir la nota.
+      const swallow = (ev: Event) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+      };
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      window.setTimeout(() => window.removeEventListener("click", swallow, true), 50);
+    }
+    cleanup();
+  };
+  const cleanup = () => {
+    window.clearTimeout(holdTimer);
+    window.clearTimeout(expandTimer);
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", cleanup);
+    if (active) {
+      ghost?.remove();
+      h.setDropKey(null);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", cleanup);
+}
 
 type Payload = { kind: "note" | "canvas" | "file"; id: string };
 type Target = { subjectId: string; unit?: number; parentId?: string };
@@ -66,6 +153,7 @@ interface Ctx {
   dropKey: string | null;
   setDropKey: (key: string | null) => void;
   onDrop: (payload: Payload, target: Target) => void;
+  startDrag: (e: ReactPointerEvent, node: TreeNode) => void;
   onContext: (e: MouseEvent, node: TreeNode) => void;
 }
 
@@ -75,6 +163,7 @@ const safe = runSafe;
 export function FileExplorer() {
   const { activeView, openView } = useWorkspace();
   const { degreeFilter, openTaskDialog } = useAppState();
+  const { inScope, termsFor, termsForSubject } = useProfiles();
   const open = useOpen();
   const data = useExplorerData();
   const bookmarks = useBookmarkSet();
@@ -87,7 +176,13 @@ export function FileExplorer() {
 
   const namesVersion = useFolderNames();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- namesVersion: los nombres de las carpetas fijas
-  const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort) : []), [data, degreeFilter, sort, namesVersion]);
+  const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort, inScope) : []), [data, degreeFilter, sort, inScope, namesVersion]);
+  const dropTargets = useMemo(() => {
+    const map = new Map<string, Target>();
+    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => (n.drop && map.set(n.key, n.drop), n.children && walk(n.children)));
+    walk(tree);
+    return map;
+  }, [tree]);
   const treeRef = useRef(tree);
   useEffect(() => {
     treeRef.current = tree;
@@ -158,6 +253,10 @@ export function FileExplorer() {
         }
         if (!note.parentId && note.subjectId === target.subjectId && (target.unit === undefined || note.unitNumber === target.unit)) return;
       } else if (target.parentId) return;
+      else if (target.subjectId === DAILY_FOLDER || target.subjectId === IDEAS_FOLDER) {
+        toast("En esa carpeta sólo van notas.", { tone: "error" });
+        return;
+      }
       await moveItem(payload.kind, payload.id, target);
     });
   };
@@ -170,6 +269,7 @@ export function FileExplorer() {
     dropKey,
     setDropKey,
     onDrop: moveTo,
+    startDrag: (e, node) => startDrag(e, node, { findDrop: (key) => dropTargets.get(key), setDropKey, moveTo, toggle }),
     onContext: (e, node) => {
       const items = menuFor(node);
       if (items.length) menu.open(e, items);
@@ -185,7 +285,7 @@ export function FileExplorer() {
     const openTab = (view: ViewState): MenuItem => ({ label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => open(view, { ctrlKey: true }) });
     const openSplit = (view: ViewState): MenuItem => ({ label: "Abrir a la derecha", icon: Columns2, onSelect: () => open(view, { ctrlKey: true, altKey: true }) });
     const rename = (kind: "note" | "canvas" | "subject" | "file", id: string, value: string): MenuItem => ({
-      label: kind === "subject" ? "Renombrar materia" : "Renombrar",
+      label: kind === "subject" ? `Renombrar ${termsForSubject(id).item.one}` : "Renombrar",
       icon: Pencil,
       onSelect: () => setDialog({ type: "rename", kind, id, value }),
     });
@@ -238,7 +338,7 @@ export function FileExplorer() {
         return [
           nuevo({ subjectId: item.id }),
           sep,
-          ...(node.view ? [{ label: "Abrir materia", onSelect: () => open(node.view!) }] : []),
+          ...(node.view ? [{ label: `Abrir ${termsForSubject(item.id).item.one}`, onSelect: () => open(node.view!) }] : []),
           rename("subject", item.id, node.label),
           ...pdf({ kind: "subject", id: item.id }),
           sep,
@@ -311,21 +411,22 @@ export function FileExplorer() {
         return [openTab(node.view!), sep, bm("document", item.id)];
       case "degree": {
         const degree = data?.degrees.find((d) => d.id === item.id);
+        const t = termsFor(item.id);
         return [
           nuevo({
             taskDefaults: { degreeId: item.id },
-            extra: [{ label: "Materia", icon: GraduationCap, onSelect: () => setCareer({ type: "subject", degreeId: item.id }) }],
+            extra: [{ label: t.item.one.charAt(0).toUpperCase() + t.item.one.slice(1), icon: t.study ? GraduationCap : FolderKanban, onSelect: () => setCareer({ type: "subject", degreeId: item.id }) }],
           }),
-          { label: "Ver plan de estudios", icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
+          { label: t.study ? "Ver plan de estudios" : `Ver ${t.item.many}`, icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
           sep,
           { label: "Expandir todo", icon: ChevronsUpDown, onSelect: () => setOpenUnder(node, true) },
           { label: "Colapsar todo", icon: ChevronsDownUp, onSelect: () => setOpenUnder(node, false) },
           sep,
-          { label: "Editar carrera", icon: Pencil, onSelect: () => degree && setCareer({ type: "degree", degree }) },
+          { label: `Editar ${t.space.one}`, icon: Pencil, onSelect: () => degree && setCareer({ type: "degree", degree }) },
           ...pdf({ kind: "degree", id: item.id }),
           sep,
           {
-            label: "Eliminar carrera",
+            label: `Eliminar ${t.space.one}`,
             icon: Trash2,
             danger: true,
             onSelect: () => safe(() => deleteWithUndo(`Se eliminó «${node.label}»`, () => deleteDegreeCascade(item.id))),
@@ -360,7 +461,7 @@ export function FileExplorer() {
     onSelect: () => changeSort(mode),
   }));
 
-  const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? "Renombrar materia" : dialog.kind === "canvas" ? "Renombrar lienzo" : dialog.kind === "file" ? "Renombrar archivo" : dialog.kind === "folder" ? "Renombrar carpeta" : "Renombrar nota") : "";
+  const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? `Renombrar ${termsForSubject(dialog.id).item.one}` : dialog.kind === "canvas" ? "Renombrar lienzo" : dialog.kind === "file" ? "Renombrar archivo" : dialog.kind === "folder" ? "Renombrar carpeta" : "Renombrar nota") : "";
   const deleteTitle = dialog?.type === "delete" ? dialog.title : "";
 
   return (
@@ -461,10 +562,6 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
   const isLevel = !node.view; // carpetas, carreras, años y unidades
   const Icon = node.icon;
   const dropping = !!node.drop && ctx.dropKey === node.key;
-  // Al arrastrar algo y quedarse encima de una carpeta cerrada, se abre sola.
-  const expandTimer = useRef<number | undefined>(undefined);
-  const stopExpand = () => window.clearTimeout(expandTimer.current);
-  useEffect(() => stopExpand, []);
 
   return (
     <>
@@ -473,7 +570,8 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
         aria-expanded={expandable ? expanded : undefined}
         aria-selected={active}
         aria-current={active ? "page" : undefined}
-        draggable={!!node.drag}
+        data-drop={node.drop ? node.key : undefined}
+        data-expand={expandable && !expanded ? node.key : undefined}
         className={clsx("row select-none", isLevel && "font-medium text-text", dropping && "bg-primary-tint text-text")}
         onClick={(e) => (node.view ? ctx.open(node.view, e) : ctx.toggle(node.key))}
         onAuxClick={(e) => {
@@ -483,35 +581,7 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
           }
         }}
         onContextMenu={(e) => ctx.onContext(e, node)}
-        onDragStart={(e: DragEvent<HTMLDivElement>) => {
-          if (!node.drag) return;
-          e.dataTransfer.setData(DRAG_MIME, JSON.stringify(node.drag));
-          e.dataTransfer.setData("text/plain", node.label);
-          e.dataTransfer.effectAllowed = "move";
-        }}
-        onDragEnter={(e: DragEvent<HTMLDivElement>) => {
-          if (!expandable || expanded || !Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
-          stopExpand();
-          expandTimer.current = window.setTimeout(() => ctx.toggle(node.key), 600);
-        }}
-        onDragOver={(e: DragEvent<HTMLDivElement>) => {
-          if (!node.drop || !Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          if (ctx.dropKey !== node.key) ctx.setDropKey(node.key);
-        }}
-        onDragLeave={(e: DragEvent<HTMLDivElement>) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) stopExpand();
-          if (ctx.dropKey === node.key) ctx.setDropKey(null);
-        }}
-        onDrop={(e: DragEvent<HTMLDivElement>) => {
-          stopExpand();
-          if (!node.drop) return;
-          e.preventDefault();
-          ctx.setDropKey(null);
-          const raw = e.dataTransfer.getData(DRAG_MIME);
-          if (raw) ctx.onDrop(JSON.parse(raw) as Payload, node.drop);
-        }}
+        onPointerDown={(e) => node.drag && ctx.startDrag(e, node)}
       >
         <span
           className="flex h-4 w-4 flex-none items-center justify-center text-faint"

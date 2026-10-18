@@ -106,7 +106,7 @@ export function GrafoView({ noteId }: { noteId?: string }) {
           <button type="button" className="btn btn-sm" onClick={() => openView({ type: "grafo" })}>
             Grafo global
           </button>
-          <span className="truncate text-[13px] text-muted">{centerNote?.title?.trim() || ""}</span>
+          <span className="truncate text-[length:calc(13px*var(--ui-scale,1))] text-muted">{centerNote?.title?.trim() || ""}</span>
         </div>
       )}
 

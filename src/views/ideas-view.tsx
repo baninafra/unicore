@@ -122,7 +122,7 @@ function Preview({ note, maxBlocks = 12 }: { note: Note; maxBlocks?: number }) {
   return (
     <>
       {image && <IdbImage url={String(image.props!.url)} className="-mx-3 -mt-3 mb-2 block max-h-56 w-[calc(100%+1.5rem)] max-w-none rounded-t-[9px] object-cover" />}
-      <div className="space-y-1 text-[13px] leading-5 text-text/90">
+      <div className="space-y-1 text-[length:calc(13px*var(--ui-scale,1))] leading-5 text-text/90">
         {shown.map((b, i) => {
           const t = inlineText(b.content);
           if (b.type === "checkListItem")
@@ -137,7 +137,7 @@ function Preview({ note, maxBlocks = 12 }: { note: Note; maxBlocks?: number }) {
                     b.props?.checked ? "border-primary bg-primary text-white" : "border-border-strong hover:border-primary",
                   )}
                 >
-                  {!!b.props?.checked && <span className="text-[10px] leading-none">✓</span>}
+                  {!!b.props?.checked && <span className="text-[length:calc(10px*var(--ui-scale,1))] leading-none">✓</span>}
                 </span>
                 <span className={clsx("min-w-0 break-words", !!b.props?.checked && "text-faint line-through")}>{t}</span>
               </div>
@@ -235,7 +235,7 @@ function Capture() {
     >
       {!open ? (
         <div className="flex items-center gap-2 px-4 py-3">
-          <button type="button" className="flex-1 text-left text-[14px] text-faint" onClick={() => setOpen(true)}>
+          <button type="button" className="flex-1 text-left text-[length:calc(14px*var(--ui-scale,1))] text-faint" onClick={() => setOpen(true)}>
             Anotá una idea…
           </button>
           <button
@@ -259,7 +259,7 @@ function Capture() {
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && bodyRef.current?.focus()}
             placeholder="Título"
-            className="w-full bg-transparent text-[15px] font-medium text-text outline-none placeholder:text-faint"
+            className="w-full bg-transparent text-[length:calc(15px*var(--ui-scale,1))] font-medium text-text outline-none placeholder:text-faint"
           />
           <textarea
             ref={bodyRef}
@@ -272,7 +272,7 @@ function Capture() {
             }}
             rows={2}
             placeholder={checklist ? "Un elemento por renglón" : "Anotá una idea… (Markdown: **negrita**, - listas, # títulos)"}
-            className="w-full resize-none bg-transparent text-[14px] leading-6 text-text outline-none placeholder:text-faint"
+            className="w-full resize-none bg-transparent text-[length:calc(14px*var(--ui-scale,1))] leading-6 text-text outline-none placeholder:text-faint"
           />
           <div className="flex items-center gap-1">
             <button type="button" className="icon-btn" title="Color" aria-label="Color" onClick={() => setPalette((p) => !p)}>
@@ -287,7 +287,7 @@ function Capture() {
             >
               <CheckSquare strokeWidth={1.75} />
             </button>
-            <span className="ml-auto text-[11px] text-faint">Ctrl+Enter para guardar</span>
+            <span className="ml-auto text-[length:calc(11px*var(--ui-scale,1))] text-faint">Ctrl+Enter para guardar</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void save()}>
               Cerrar
             </button>
@@ -394,7 +394,7 @@ function Detail({ note, onClose, actions }: { note: Note; onClose: () => void; a
           <button type="button" className="icon-btn" title="Más opciones" onClick={(e) => menu.open(e, actions(note))}>
             <ListPlus strokeWidth={1.75} />
           </button>
-          <span className="ml-auto text-[12px] text-faint">Editada {edited}</span>
+          <span className="ml-auto text-[length:calc(12px*var(--ui-scale,1))] text-faint">Editada {edited}</span>
         </div>
       </div>
       {menu.menu}
@@ -489,7 +489,7 @@ export function IdeasView() {
         >
           <Pin className="h-4 w-4" strokeWidth={1.75} fill={isPinned(n) ? "currentColor" : "none"} />
         </button>
-        {n.title && n.title !== "Sin título" && <p className="mb-1 pr-7 text-[14px] font-semibold leading-5 text-text">{n.title}</p>}
+        {n.title && n.title !== "Sin título" && <p className="mb-1 pr-7 text-[length:calc(14px*var(--ui-scale,1))] font-semibold leading-5 text-text">{n.title}</p>}
         <Preview note={n} />
         {(n.tags?.length ?? 0) > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
@@ -557,7 +557,7 @@ export function IdeasView() {
           onConfirm={(v) => renameFolder(IDEAS_FOLDER, v)}
           onClose={() => setRenaming(false)}
         />
-        <label className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 text-[13px]">
+        <label className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 text-[length:calc(13px*var(--ui-scale,1))]">
           <Search className="h-3.5 w-3.5 text-faint" strokeWidth={1.75} />
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar ideas" className="w-40 bg-transparent outline-none placeholder:text-faint" />
         </label>

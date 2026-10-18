@@ -13,7 +13,7 @@ function inline(text: string): ReactNode[] {
     if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) return <strong key={i}>{part.slice(2, -2)}</strong>;
     if (part.length > 2 && part.startsWith("`") && part.endsWith("`"))
       return (
-        <code key={i} className="rounded-sm bg-surface px-1 text-[12px]">
+        <code key={i} className="rounded-sm bg-surface px-1 text-[length:calc(12px*var(--ui-scale,1))]">
           {part.slice(1, -1)}
         </code>
       );
@@ -53,7 +53,7 @@ export function MiniMarkdown({ text }: { text: string }) {
     const heading = /^(#{1,3})\s+(.*)$/.exec(line);
     if (heading) {
       const level = heading[1].length;
-      const cls = level === 1 ? "text-[15px] font-semibold" : level === 2 ? "text-[14px] font-semibold" : "font-medium";
+      const cls = level === 1 ? "text-[length:calc(15px*var(--ui-scale,1))] font-semibold" : level === 2 ? "text-[length:calc(14px*var(--ui-scale,1))] font-semibold" : "font-medium";
       blocks.push(
         <div key={i} className={cls}>
           {inline(heading[2])}
@@ -76,5 +76,5 @@ export function MiniMarkdown({ text }: { text: string }) {
   });
   flushList();
 
-  return <div className="flex flex-col gap-1 text-[13px] leading-snug">{blocks}</div>;
+  return <div className="flex flex-col gap-1 text-[length:calc(13px*var(--ui-scale,1))] leading-snug">{blocks}</div>;
 }

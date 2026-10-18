@@ -5,7 +5,9 @@ import "./editor.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { es } from "@blocknote/core/locales";
-import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
+import { filterSuggestionItems, type BlockNoteEditorOptions, type PartialBlock } from "@blocknote/core";
+import { withCollaboration } from "@blocknote/core/yjs";
+import { markSeeded, shareUser, type ShareSession } from "@/lib/share/share";
 import { BlockNoteView } from "@blocknote/mantine";
 import { SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
 import { modeFromEvent } from "@/components/workspace/use-open";
@@ -25,6 +27,8 @@ import { parseVideoUrl } from "@/lib/video";
 
 const AUTOSAVE_MS = 1500;
 
+type PasteArgs = Parameters<NonNullable<BlockNoteEditorOptions<NoteBlockEditor["schema"]["blockSchema"], NoteBlockEditor["schema"]["inlineContentSchema"], NoteBlockEditor["schema"]["styleSchema"]>["pasteHandler"]>>[0];
+
 type SaveState = "saved" | "pending" | "error";
 
 function formatStats(text: string): string {
@@ -41,25 +45,26 @@ interface NoteEditorProps {
   findMode?: "find" | "replace" | null;
   onFindClose?: () => void;
   onEditor?: (editor: NoteBlockEditor | null) => void;
+  // Nota compartida en vivo: el contenido viene del documento compartido (se monta otra vez al empezar o cortar).
+  share?: ShareSession;
 }
 
 // Editor de una nota (BlockNote con enlaces, etiquetas, menú "/" y "[[", guardado automático).
 // Se monta con key={note.id}, así cada nota tiene su propia instancia.
-export function NoteEditor({ note, active = true, editable = true, findMode = null, onFindClose, onEditor }: NoteEditorProps) {
+export function NoteEditor({ note, active = true, editable = true, findMode = null, onFindClose, onEditor, share }: NoteEditorProps) {
   const { theme } = useAppState();
   const { openView } = useWorkspace();
   const [settings] = useSettings();
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const editor = useCreateBlockNote({
+  const base = {
     schema: noteSchema,
     extensions: [notesDecorations],
     dictionary: es,
-    initialContent: note.content.length ? (note.content as PartialBlock[]) : undefined,
-    uploadFile: (file) => saveFile(file),
-    resolveFileUrl: (url) => resolveFileUrl(url),
+    uploadFile: (file: File) => saveFile(file),
+    resolveFileUrl: (url: string) => resolveFileUrl(url),
     // Pegar sólo un link de YouTube o Vimeo lo inserta como video.
-    pasteHandler: ({ event, editor: ed, defaultPasteHandler }) => {
+    pasteHandler: ({ event, editor: ed, defaultPasteHandler }: PasteArgs) => {
       const text = event.clipboardData?.getData("text/plain")?.trim() ?? "";
       const video = !/\s/.test(text) ? parseVideoUrl(text) : null;
       if (!video) return defaultPasteHandler();
@@ -70,7 +75,23 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
       else ed.insertBlocks([block], at, "after");
       return true;
     },
-  });
+  };
+  const editor = useCreateBlockNote(
+    share
+      ? withCollaboration({
+          ...base,
+          collaboration: { fragment: share.fragment, user: shareUser(share.role), provider: { awareness: share.awareness }, showCursorLabels: "always" },
+        })
+      : { ...base, initialContent: note.content.length ? (note.content as PartialBlock[]) : undefined },
+  );
+
+  // El anfitrión carga su nota en el documento compartido una sola vez (los invitados la reciben de él).
+  useEffect(() => {
+    if (!share?.needsSeed) return;
+    markSeeded(share.noteId);
+    if (note.content.length) editor.replaceBlocks(editor.document, note.content as PartialBlock[]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [share, editor]);
 
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [statsText, setStatsText] = useState(() => formatStats(plainTextOf(note.content as BlockLike[])));
@@ -142,15 +163,30 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
     };
     const onInsert = (e: Event) => {
       if (!active) return;
-      const blocks = (e as CustomEvent<{ blocks: PartialBlock[] }>).detail?.blocks;
-      if (!blocks?.length) return;
-      editor.insertBlocks(blocks, editor.getTextCursorPosition().block, "after");
+      const d = (e as CustomEvent<{ blocks: PartialBlock[]; handled?: boolean }>).detail;
+      if (!d?.blocks?.length) return;
+      editor.insertBlocks(d.blocks, editor.getTextCursorPosition().block, "after");
+      d.handled = true;
+    };
+    // La IA reescribe (o agrega al final de) la nota: se hace en el editor para que se pueda deshacer con Ctrl+Z
+    // y para que el guardado automático no pise el cambio con el contenido viejo.
+    const onReplace = (e: Event) => {
+      const d = (e as CustomEvent<{ noteId: string; blocks: PartialBlock[]; append?: boolean; handled?: boolean }>).detail;
+      if (d?.noteId !== note.id || !d.blocks?.length) return;
+      const doc = editor.document;
+      const last = doc[doc.length - 1];
+      const onlyEmpty = doc.length === 1 && last.type === "paragraph" && Array.isArray(last.content) && last.content.length === 0;
+      if (d.append && !onlyEmpty) editor.insertBlocks(d.blocks, last, "after");
+      else editor.replaceBlocks(doc.map((b) => b.id), d.blocks);
+      d.handled = true;
     };
     window.addEventListener("uc:goto-block", onGoto);
     window.addEventListener("uc:insert-blocks", onInsert);
+    window.addEventListener("uc:note-replace", onReplace);
     return () => {
       window.removeEventListener("uc:goto-block", onGoto);
       window.removeEventListener("uc:insert-blocks", onInsert);
+      window.removeEventListener("uc:note-replace", onReplace);
     };
   }, [editor, note.id, active]);
 

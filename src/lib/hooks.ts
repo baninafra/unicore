@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./db";
 import { useAppState } from "./app-state";
+import { useProfiles } from "./profiles";
 import type { Degree, Subject, Task } from "./types";
 
 // Hooks de lectura reactivos: se actualizan solos cuando cambia la base.
@@ -21,15 +23,15 @@ export function useAllSubjects(): Subject[] {
   return useLiveQuery(() => db.subjects.toArray(), []) ?? [];
 }
 
-// Materias según el filtro global de carrera.
+// Materias según el filtro global de carrera y el perfil activo.
 export function useSubjects(): Subject[] {
   const { degreeFilter } = useAppState();
-  return (
-    useLiveQuery(
-      () => (degreeFilter === "all" ? db.subjects.toArray() : db.subjects.where("degreeId").equals(degreeFilter).toArray()),
-      [degreeFilter],
-    ) ?? []
+  const { inScope } = useProfiles();
+  const list = useLiveQuery(
+    () => (degreeFilter === "all" ? db.subjects.toArray() : db.subjects.where("degreeId").equals(degreeFilter).toArray()),
+    [degreeFilter],
   );
+  return useMemo(() => (list ?? []).filter((s) => inScope(s.degreeId)), [list, inScope]);
 }
 
 export function useSubjectMap(): Record<string, Subject> {
@@ -37,13 +39,13 @@ export function useSubjectMap(): Record<string, Subject> {
   return Object.fromEntries(subjects.map((s) => [s.id, s]));
 }
 
-// Tareas según el filtro global de carrera.
+// Tareas según el filtro global de carrera y el perfil activo.
 export function useTasks(): Task[] {
   const { degreeFilter } = useAppState();
-  return (
-    useLiveQuery(
-      () => (degreeFilter === "all" ? db.tasks.toArray() : db.tasks.where("degreeId").equals(degreeFilter).toArray()),
-      [degreeFilter],
-    ) ?? []
+  const { taskInScope } = useProfiles();
+  const list = useLiveQuery(
+    () => (degreeFilter === "all" ? db.tasks.toArray() : db.tasks.where("degreeId").equals(degreeFilter).toArray()),
+    [degreeFilter],
   );
+  return useMemo(() => (list ?? []).filter(taskInScope), [list, taskInScope]);
 }

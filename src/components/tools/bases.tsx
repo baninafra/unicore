@@ -93,8 +93,8 @@ export function BasesTool() {
 
       {value !== null && (
         <div className="rounded-md border border-border bg-surface p-2 t-small">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted">Complemento a 2</span>
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span className="whitespace-nowrap text-muted">Complemento a 2</span>
             <span className="flex gap-1">
               {[8, 16, 32].map((n) => (
                 <button key={n} type="button" className={n === bits ? "badge badge-primary" : "badge cursor-pointer"} onClick={() => setBits(n)}>

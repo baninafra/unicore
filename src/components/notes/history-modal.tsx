@@ -58,7 +58,7 @@ export function HistoryModal({
             {selected && (
               <>
                 <div className="t-h3 mb-2">{selected.title}</div>
-                <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-muted">
+                <div className="whitespace-pre-wrap text-[length:calc(13px*var(--ui-scale,1))] leading-relaxed text-muted">
                   {selected.plainText || "Vacía"}
                 </div>
               </>

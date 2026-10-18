@@ -48,7 +48,7 @@ export function VideoEmbedView({ url, editable, onUrl }: { url: string; editable
         <button type="submit" className="btn btn-sm">
           Insertar
         </button>
-        {error && <span className="text-[12px] text-rose">Ese link no es de un video.</span>}
+        {error && <span className="text-[length:calc(12px*var(--ui-scale,1))] text-rose">Ese link no es de un video.</span>}
       </form>
     );
   }
@@ -65,7 +65,7 @@ export function VideoEmbedView({ url, editable, onUrl }: { url: string; editable
           referrerPolicy="strict-origin-when-cross-origin"
         />
       </div>
-      <div className="flex items-center gap-2 px-2 py-1.5 text-[12px] text-faint">
+      <div className="flex items-center gap-2 px-2 py-1.5 text-[length:calc(12px*var(--ui-scale,1))] text-faint">
         <a href={video.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1 truncate hover:text-text">
           <ExternalLink className="h-3.5 w-3.5 flex-none" strokeWidth={1.75} />
           <span className="truncate">{video.url}</span>

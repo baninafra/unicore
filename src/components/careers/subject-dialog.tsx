@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { SUBJECT_STATUS_LABEL, type Degree, type Subject, type SubjectStatus } from "@/lib/types";
+import { kindOf, nuevo, PROFILES } from "@/lib/profiles";
 import { deleteSubjectCascade, saveSubject, type SubjectInput } from "./actions";
 import { FormField } from "./form-field";
 import { periodIndex, periodLabel, sortSubjects } from "./plan";
@@ -14,6 +15,13 @@ import { Select } from "@/components/ui/select";
 type Errors = Partial<Record<"name" | "grade" | "professorEmail" | "campusUrl" | "driveUrl", string>>;
 
 const STATUSES = Object.keys(SUBJECT_STATUS_LABEL) as SubjectStatus[];
+
+const ITEM_PLACEHOLDER: Record<string, string> = {
+  trabajo: "Lanzamiento de la web",
+  proyectos: "App de recetas",
+  personal: "Salud",
+  colegio: "Matemática",
+};
 
 // "8,42" o "8.42" → 8.42. Null si no es un número.
 function parseGrade(raw: string): number | null {
@@ -73,6 +81,8 @@ export function SubjectDialog({
   const [saveError, setSaveError] = useState<string>();
 
   const degree = degrees.find((d) => d.id === degreeId);
+  const t = PROFILES[kindOf(degree)];
+  const study = t.study;
   const yearOptions = Array.from({ length: Math.max(degree?.totalYears ?? 1, year) }, (_, i) => i + 1);
 
   // Materias elegibles: de la misma carrera, de cuatrimestres anteriores (y las ya marcadas, para no perderlas sin verlo).
@@ -100,10 +110,10 @@ export function SubjectDialog({
     e.preventDefault();
     const next: Errors = {};
     const cleanName = name.trim();
-    if (!cleanName) next.name = "Ponele un nombre a la materia.";
+    if (!cleanName) next.name = `Ponele un nombre ${t.item.f ? "a la" : "al"} ${t.item.one}.`;
 
     let finalGrade: number | undefined;
-    if (status === "APROBADA") {
+    if (study && status === "APROBADA") {
       const n = parseGrade(grade);
       if (n === null || n < 1 || n > 10) next.grade = "La nota tiene que estar entre 1 y 10.";
       else finalGrade = n;
@@ -141,7 +151,7 @@ export function SubjectDialog({
       await saveSubject(input, subject);
       onClose();
     } catch {
-      setSaveError("No pudimos guardar la materia. Probá de nuevo.");
+      setSaveError(`No pudimos guardar ${t.item.f ? "la" : "el"} ${t.item.one}. Probá de nuevo.`);
       setSaving(false);
     }
   }
@@ -155,7 +165,7 @@ export function SubjectDialog({
       onClose();
       await deleteWithUndo(`Se eliminó «${name}»`, () => deleteSubjectCascade(id));
     } catch {
-      setSaveError("No pudimos eliminar la materia. Probá de nuevo.");
+      setSaveError(`No pudimos eliminar ${t.item.f ? "la" : "el"} ${t.item.one}. Probá de nuevo.`);
       setSaving(false);
     }
   }
@@ -166,7 +176,7 @@ export function SubjectDialog({
         Cancelar
       </button>
       <button type="button" className="btn btn-danger" onClick={remove} disabled={saving}>
-        Eliminar materia
+        Eliminar {t.item.one}
       </button>
     </>
   ) : (
@@ -187,10 +197,10 @@ export function SubjectDialog({
   );
 
   return (
-    <Modal open onClose={onClose} title={subject ? "Editar materia" : "Nueva materia"} width={600} footer={footer}>
+    <Modal open onClose={onClose} title={subject ? `Editar ${t.item.one}` : nuevo(t.item)} width={600} footer={footer}>
       {confirmingDelete ? (
         <p className="t-body text-muted">
-          Se borran la materia y sus tareas. También se saca de las correlativas de las materias que la usan.
+          Se borran {t.item.f ? "la" : "el"} {t.item.one} y sus tareas.{study && " También se saca de las correlativas de las materias que la usan."}
         </p>
       ) : (
         <form id="subject-form" onSubmit={submit} className="flex flex-col gap-4" noValidate>
@@ -199,14 +209,14 @@ export function SubjectDialog({
               className={clsx("input", errors.name && "input-error")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Matemática I"
+              placeholder={ITEM_PLACEHOLDER[t.kind] ?? "Matemática I"}
               aria-invalid={!!errors.name}
               autoFocus
             />
           </FormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Carrera">
+            <FormField label={t.space.one.charAt(0).toUpperCase() + t.space.one.slice(1)}>
               <Select className="input" value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
                 {degrees.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -220,13 +230,13 @@ export function SubjectDialog({
               <Select className="input" value={status} onChange={(e) => setStatus(e.target.value as SubjectStatus)}>
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {SUBJECT_STATUS_LABEL[s]}
+                    {t.statuses[s]}
                   </option>
                 ))}
               </Select>
             </FormField>
 
-            <FormField label="Año">
+            {study && <FormField label="Año">
               <Select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
@@ -234,9 +244,9 @@ export function SubjectDialog({
                   </option>
                 ))}
               </Select>
-            </FormField>
+            </FormField>}
 
-            <FormField label="Cuatrimestre">
+            {study && <FormField label="Cuatrimestre">
               <Select
                 className="input"
                 value={semester}
@@ -245,10 +255,10 @@ export function SubjectDialog({
                 <option value={1}>1.º cuatrimestre</option>
                 <option value={2}>2.º cuatrimestre</option>
               </Select>
-            </FormField>
+            </FormField>}
           </div>
 
-          {status === "APROBADA" && (
+          {study && status === "APROBADA" && (
             <FormField label="Nota final" error={errors.grade}>
               <input
                 className={clsx("input", errors.grade && "input-error")}
@@ -261,7 +271,7 @@ export function SubjectDialog({
             </FormField>
           )}
 
-          <div className="flex flex-col gap-2">
+          {study && <div className="flex flex-col gap-2">
             <span className="t-small font-medium text-muted">Correlativas</span>
             <input
               type="search"
@@ -297,9 +307,9 @@ export function SubjectDialog({
                 ))
               )}
             </div>
-          </div>
+          </div>}
 
-          <FormField label="Mail del profesor" error={errors.professorEmail}>
+          <FormField label={study ? "Mail del profesor" : "Mail de contacto"} error={errors.professorEmail}>
             <input
               type="email"
               className="input"
@@ -310,7 +320,7 @@ export function SubjectDialog({
             />
           </FormField>
 
-          <FormField label="Link del campus" error={errors.campusUrl}>
+          <FormField label={study ? "Link del campus" : "Link principal"} error={errors.campusUrl}>
             <input
               className="input"
               value={campusUrl}

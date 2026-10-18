@@ -30,7 +30,7 @@ export function PdfHighlightsPanel({ highlights, onGoTo, onNote, onDelete, editI
       {groups.length === 0 && <div className="px-2 py-2 t-small text-faint">Sin resaltados</div>}
       {groups.map((g) => (
         <div key={g.page} className="flex flex-col">
-          <button type="button" className="row h-6 justify-start text-[12px] text-faint" onClick={() => onGoTo(g.page)}>
+          <button type="button" className="row h-6 justify-start text-[length:calc(12px*var(--ui-scale,1))] text-faint" onClick={() => onGoTo(g.page)}>
             Página {g.page}
           </button>
           {g.items.map((h) => (
@@ -78,14 +78,14 @@ function HighlightItem({
 
   return (
     <div className="group flex flex-col gap-1 border-l-2 py-1.5 pl-2" style={{ borderLeftColor: HL_COLORS[h.color].solid }}>
-      <button type="button" className="line-clamp-3 text-left text-[13px] leading-snug text-text" onClick={onGoTo} title="Ir a la página">
+      <button type="button" className="line-clamp-3 text-left text-[length:calc(13px*var(--ui-scale,1))] leading-snug text-text" onClick={onGoTo} title="Ir a la página">
         {h.text}
       </button>
 
       {showEditor ? (
         <textarea
           autoFocus
-          className="input min-h-[60px] text-[12px]"
+          className="input min-h-[60px] text-[length:calc(12px*var(--ui-scale,1))]"
           value={draft}
           placeholder="Escribí una nota"
           onChange={(e) => setDraft(e.target.value)}
@@ -102,7 +102,7 @@ function HighlightItem({
         />
       ) : h.note ? (
         <p
-          className="cursor-text whitespace-pre-line text-[12px] leading-snug text-muted"
+          className="cursor-text whitespace-pre-line text-[length:calc(12px*var(--ui-scale,1))] leading-snug text-muted"
           onClick={() => {
             setDraft(h.note ?? "");
             setEditingNow(true);
@@ -113,7 +113,7 @@ function HighlightItem({
       ) : (
         <button
           type="button"
-          className="self-start text-[12px] text-faint hover:text-muted"
+          className="self-start text-[length:calc(12px*var(--ui-scale,1))] text-faint hover:text-muted"
           onClick={() => {
             setDraft("");
             setEditingNow(true);

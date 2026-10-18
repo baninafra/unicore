@@ -53,14 +53,14 @@ function Rows({
             onMouseEnter={(e) => onHover?.(i, e.currentTarget, !!it.submenu)}
             onClick={(e) => (it.submenu ? onOpenSub?.(i, e.currentTarget) : onPick(it))}
             className={clsx(
-              "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-[13px] disabled:opacity-40",
+              "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-[length:calc(13px*var(--ui-scale,1))] disabled:opacity-40",
               it.danger ? "text-rose hover:bg-rose-tint" : "text-text hover:bg-surface-raised",
               openIndex === i && "bg-surface-raised",
             )}
           >
             {it.icon && <it.icon className="h-3.5 w-3.5 flex-none text-faint" strokeWidth={1.75} />}
             <span className="flex-1 truncate">{it.label}</span>
-            {it.hint && <span className="text-[11px] text-faint">{it.hint}</span>}
+            {it.hint && <span className="text-[length:calc(11px*var(--ui-scale,1))] text-faint">{it.hint}</span>}
             {it.submenu && <ChevronRight className="h-3.5 w-3.5 flex-none text-faint" strokeWidth={1.75} />}
           </button>
         ),

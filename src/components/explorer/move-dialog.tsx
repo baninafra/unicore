@@ -68,10 +68,10 @@ export function MoveDialog({
             className="row w-full justify-between text-left"
           >
             <span className="min-w-0 truncate text-text">{d.label}</span>
-            {d.hint && <span className="shrink-0 text-[12px] text-faint">{d.hint}</span>}
+            {d.hint && <span className="shrink-0 text-[length:calc(12px*var(--ui-scale,1))] text-faint">{d.hint}</span>}
           </button>
         ))}
-        {!shown.length && <p className="px-2 py-3 text-[13px] text-faint">Sin resultados</p>}
+        {!shown.length && <p className="px-2 py-3 text-[length:calc(13px*var(--ui-scale,1))] text-faint">Sin resultados</p>}
       </div>
     </Modal>
   );

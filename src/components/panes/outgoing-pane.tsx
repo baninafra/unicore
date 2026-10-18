@@ -5,7 +5,7 @@ import { useSubjectMap } from "@/lib/hooks";
 import { folderLabel, wikilinksOf } from "@/lib/panes/note-data";
 import { useActiveNoteId, useAllNotes, useNote } from "@/lib/panes/hooks";
 import type { Note } from "@/lib/types";
-import { NoteRow, PaneEmpty, PaneSection, useNoteActions } from "./pane-ui";
+import { NoteRow, PaneBlank, PaneEmpty, PaneSection, useNoteActions } from "./pane-ui";
 
 // Enlaces salientes de la nota activa: notas a las que enlaza y wikilinks sin resolver.
 export function OutgoingPane() {
@@ -34,10 +34,10 @@ export function OutgoingPane() {
     return { resolved, unresolved };
   }, [note, notes]);
 
-  if (!note) return <PaneEmpty>Abrí una nota</PaneEmpty>;
+  if (!note) return <PaneBlank>Abrí una nota para ver sus enlaces</PaneBlank>;
 
   return (
-    <>
+    <div className="p-2">
       <PaneSection title="Enlaces" count={resolved.length}>
         {resolved.length === 0 && <PaneEmpty>Sin enlaces salientes</PaneEmpty>}
         {resolved.map((n) => (
@@ -53,12 +53,12 @@ export function OutgoingPane() {
       <PaneSection title="Sin resolver" count={unresolved.length}>
         {unresolved.length === 0 && <PaneEmpty>Sin enlaces sin resolver</PaneEmpty>}
         {unresolved.map((text) => (
-          <p key={text} className="truncate px-2 py-1.5 text-[13px] wikilink-unresolved">
+          <p key={text} className="truncate px-2 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] wikilink-unresolved">
             [[{text}]]
           </p>
         ))}
       </PaneSection>
       {actions.menu}
-    </>
+    </div>
   );
 }

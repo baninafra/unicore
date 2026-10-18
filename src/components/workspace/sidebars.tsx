@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileSwitcher } from "./profile-switcher";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import {
@@ -35,16 +36,13 @@ import { OutlinePane } from "@/components/panes/outline-pane";
 import { TagsPane } from "@/components/panes/tags-pane";
 import { PropertiesPane } from "@/components/panes/properties-pane";
 import { useOrder, useReorderDrag } from "./reorder";
-import { openScanner } from "@/components/scanner/scanner-app";
+import { ScannerApp, SCANNER_EVENT } from "@/components/scanner/scanner-app";
+import { CalcStack } from "@/components/tools/calc-stack";
+import { useWindowControls, WINDOW_CONTROLS_W } from "@/components/shell/window-controls";
 
 // Las herramientas se cargan recién cuando se abren (mathjs y el traductor pesan).
 const ToolLoading = () => <div className="tool-pane t-small text-faint">Cargando…</div>;
-const CalculatorTool = dynamic(() => import("@/components/tools/calculator").then((m) => m.CalculatorTool), { ssr: false, loading: ToolLoading });
-const PlotTool = dynamic(() => import("@/components/tools/plotter").then((m) => m.PlotTool), { ssr: false, loading: ToolLoading });
 const TranslatorTool = dynamic(() => import("@/components/tools/translator").then((m) => m.TranslatorTool), { ssr: false, loading: ToolLoading });
-const UnitsTool = dynamic(() => import("@/components/tools/units").then((m) => m.UnitsTool), { ssr: false, loading: ToolLoading });
-const GradesTool = dynamic(() => import("@/components/tools/grades").then((m) => m.GradesTool), { ssr: false, loading: ToolLoading });
-const BasesTool = dynamic(() => import("@/components/tools/bases").then((m) => m.BasesTool), { ssr: false, loading: ToolLoading });
 
 function PaneTab({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {
   return (
@@ -96,6 +94,9 @@ function ResizeHandle({ side, width, onResize, onReset }: { side: "left" | "righ
         e.preventDefault();
         const startX = e.clientX;
         const startW = width;
+        // Capturar el puntero: si se suelta encima de un editor (iframe), igual nos enteramos.
+        const el = e.currentTarget;
+        el.setPointerCapture(e.pointerId);
         setDragging(true);
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
@@ -104,11 +105,15 @@ function ResizeHandle({ side, width, onResize, onReset }: { side: "left" | "righ
           setDragging(false);
           document.body.style.cursor = "";
           document.body.style.userSelect = "";
-          window.removeEventListener("pointermove", move);
-          window.removeEventListener("pointerup", up);
+          el.removeEventListener("pointermove", move);
+          el.removeEventListener("pointerup", up);
+          el.removeEventListener("pointercancel", up);
+          el.removeEventListener("lostpointercapture", up);
         };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", up);
+        el.addEventListener("pointermove", move);
+        el.addEventListener("pointerup", up);
+        el.addEventListener("pointercancel", up);
+        el.addEventListener("lostpointercapture", up);
       }}
       className={clsx(
         "absolute top-0 z-20 h-full w-1.5 cursor-col-resize transition-colors hover:bg-primary/60",
@@ -135,13 +140,19 @@ const RIGHT: { key: RightView; label: string; icon: LucideIcon }[] = [
 ];
 
 // Herramientas sueltas, debajo de lo que tiene que ver con la nota abierta.
+// Todas las de cálculo van juntas en un solo ícono ("Cálculo"), con pestañas adentro.
+const CALC: { key: RightView; label: string; short: string; icon: LucideIcon }[] = [
+  { key: "calc", label: "Calculadora científica", short: "Calculadora", icon: Calculator },
+  { key: "plot", label: "Graficador de funciones", short: "Gráficos", icon: ChartSpline },
+  { key: "units", label: "Conversor de unidades", short: "Unidades", icon: Ruler },
+  { key: "grades", label: "Promedio y nota necesaria", short: "Promedio", icon: GraduationCap },
+  { key: "bases", label: "Bases numéricas", short: "Bases", icon: Binary },
+];
+const isCalc = (k: RightView) => CALC.some((c) => c.key === k);
 const TOOLS: { key: RightView; label: string; icon: LucideIcon }[] = [
-  { key: "calc", label: "Calculadora científica", icon: Calculator },
-  { key: "plot", label: "Graficador de funciones", icon: ChartSpline },
+  { key: "calc", label: "Cálculo", icon: Calculator },
   { key: "translate", label: "Traductor", icon: Languages },
-  { key: "units", label: "Conversor de unidades", icon: Ruler },
-  { key: "grades", label: "Promedio y nota necesaria", icon: GraduationCap },
-  { key: "bases", label: "Bases numéricas", icon: Binary },
+  { key: "scanner", label: "Escáner de documentos", icon: ScanLine },
 ];
 
 export function LeftSidebar() {
@@ -151,7 +162,8 @@ export function LeftSidebar() {
   return (
     <aside className="relative flex flex-none flex-col border-r border-border bg-bg" style={{ width }}>
       <ResizeHandle side="left" width={width} onResize={setWidth} onReset={() => setWidth(260)} />
-      <div className="flex h-9 flex-none items-center gap-0.5 px-2">
+      <ProfileSwitcher />
+      <div className="flex h-10 flex-none items-center gap-0.5 px-2">
         {LEFT.map((v) => (
           <PaneTab key={v.key} icon={v.icon} label={v.label} active={leftView === v.key} onClick={() => setLeft(true, v.key)} />
         ))}
@@ -181,8 +193,6 @@ function RailButton({ icon: Icon, label, active, onClick }: { icon: LucideIcon; 
     </button>
   );
 }
-
-const SCANNER = { key: "scanner" as RightView, label: "Escáner de documentos", icon: ScanLine };
 
 // Íconos del riel que se reordenan manteniendo apretado y arrastrando (el orden queda guardado).
 function RailGroup({
@@ -218,7 +228,7 @@ function RailGroup({
 const LS_RAIL = "uc-right-rail-hidden";
 const RAIL_EVENT = "uc:right-rail";
 
-function useRailHidden() {
+export function useRailHidden() {
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
     const read = () => {
@@ -240,58 +250,71 @@ function useRailHidden() {
 }
 
 export function RightSidebar() {
-  const { rightOpen, rightView, setRight } = useWorkspace();
+  const { rightView, setRight } = useWorkspace();
   const [railHidden, setRailHidden] = useRailHidden();
   const [width, setWidth] = useWidth("uc-right-width", 320, 240, 760);
-  const pick = (key: RightView) => (rightOpen && rightView === key ? setRight(false) : setRight(true, key));
-  const current = [...RIGHT, ...TOOLS].find((v) => v.key === rightView);
+  // Sin barra de Windows: arriba a la derecha van los botones de la ventana.
+  const controls = useWindowControls();
+  const RAIL_W = 44;
+  // La barra derecha se muestra o se esconde entera (botón de arriba): un ícono sólo cambia de panel.
+  const open = !railHidden;
+  const pick = (key: RightView) => setRight(true, key);
+  const current = isCalc(rightView) ? { label: "Cálculo" } : [...RIGHT, ...TOOLS].find((v) => v.key === rightView);
+  // openScanner() (paleta, IA) abre el escáner acá.
+  useEffect(() => {
+    const show = () => setRight(true, "scanner");
+    window.addEventListener(SCANNER_EVENT, show);
+    return () => window.removeEventListener(SCANNER_EVENT, show);
+  }, [setRight]);
   return (
     <>
-      {rightOpen && (
+      {open && (
         <aside className="relative flex min-w-[220px] flex-[0_1_auto] flex-col border-l border-border bg-bg" style={{ width }}>
           <ResizeHandle side="right" width={width} onResize={setWidth} onReset={() => setWidth(320)} />
-          <div className="flex h-9 flex-none items-center gap-2 px-3">
-            <span className="t-label truncate text-muted">{current?.label}</span>
-            <button
-              aria-label="Cerrar panel derecho"
-              title="Cerrar panel derecho"
-              onClick={() => setRight(false)}
-              className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-faint hover:bg-surface-raised hover:text-text"
-            >
-              <PanelRightClose className="h-4 w-4" strokeWidth={1.75} />
-            </button>
+          <div
+            data-tauri-drag-region
+            className="flex h-10 flex-none items-center gap-2 px-4"
+            style={controls ? { paddingRight: WINDOW_CONTROLS_W - (railHidden ? 0 : RAIL_W) + 8 } : undefined}
+          >
+            <span data-tauri-drag-region className="t-label truncate text-muted">{current?.label}</span>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             {rightView === "ia" && <AIChatPane />}
             {rightView === "backlinks" && <BacklinksPane />}
             {rightView === "outgoing" && <OutgoingPane />}
             {rightView === "outline" && <OutlinePane />}
             {rightView === "tags" && <TagsPane />}
             {rightView === "properties" && <PropertiesPane />}
-            {rightView === "calc" && <CalculatorTool />}
-            {rightView === "plot" && <PlotTool />}
+            {isCalc(rightView) && <CalcStack />}
             {rightView === "translate" && <TranslatorTool />}
-            {rightView === "units" && <UnitsTool />}
-            {rightView === "grades" && <GradesTool />}
-            {rightView === "bases" && <BasesTool />}
+            {/* Queda montado mientras el panel está abierto: cambiar a otra herramienta no pierde las páginas. */}
+            <ScannerApp visible={rightView === "scanner"} />
           </div>
         </aside>
       )}
-      {!railHidden && <nav aria-label="Paneles y herramientas" className="flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2">
-        <RailButton
-          icon={PanelRightClose}
-          label="Esconder la barra derecha"
-          active={false}
-          onClick={() => {
-            setRight(false);
-            setRailHidden(true);
-          }}
-        />
+      {!railHidden && <nav
+        aria-label="Paneles y herramientas"
+        data-tauri-drag-region
+        className={clsx("flex w-11 flex-none flex-col items-center gap-1 border-l border-border bg-bg py-2", controls && "pt-11")}
+      >
+        {/* En la app de escritorio este botón está arriba, con los de la ventana. */}
+        {!controls && (
+          <>
+            <RailButton
+              icon={PanelRightClose}
+              label="Esconder la barra derecha"
+              active={false}
+              onClick={() => {
+                setRight(false);
+                setRailHidden(true);
+              }}
+            />
+            <div className="my-1 h-px w-5 bg-border" />
+          </>
+        )}
+        <RailGroup group="rail-panes" items={RIGHT} isActive={(k: RightView) => rightView === k} onPick={pick} />
         <div className="my-1 h-px w-5 bg-border" />
-        <RailGroup group="rail-panes" items={RIGHT} isActive={(k: RightView) => rightOpen && rightView === k} onPick={pick} />
-        <div className="my-1 h-px w-5 bg-border" />
-        {/* El escáner necesita lugar: se abre a pantalla completa. */}
-        <RailGroup group="rail-tools" items={[...TOOLS, SCANNER]} isActive={(k: RightView) => rightOpen && rightView === k} onPick={(k) => (k === SCANNER.key ? openScanner() : pick(k))} />
+        <RailGroup group="rail-tools" items={TOOLS} isActive={(k: RightView) => rightView === k || (k === "calc" && isCalc(rightView))} onPick={pick} />
       </nav>}
     </>
   );
@@ -301,12 +324,18 @@ export function RightSidebar() {
 // del último panel (en el flujo normal, así no tapa el botón de dividir ni el de cerrar panel).
 export function RightToggle() {
   const [railHidden, setRailHidden] = useRailHidden();
-  if (!railHidden) return null;
+  const { setRight } = useWorkspace();
+  const controls = useWindowControls();
+  if (!railHidden || controls) return null;
   return (
     <button
       aria-label="Mostrar la barra derecha"
       title="Mostrar la barra derecha"
-      onClick={() => setRailHidden(false)}
+      onClick={() => {
+        // Vuelve a abrir el panel que estaba antes de esconderla (IA, calculadora…).
+        setRailHidden(false);
+        setRight(true);
+      }}
       className="mb-1 ml-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-md text-faint hover:bg-surface-raised hover:text-text"
     >
       <PanelRightOpen className="h-4 w-4" strokeWidth={1.75} />

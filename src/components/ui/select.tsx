@@ -174,7 +174,7 @@ export function Select({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => choose(o)}
                   className={clsx(
-                    "flex h-[30px] cursor-default items-center gap-2 rounded-sm px-2 text-[13px]",
+                    "flex h-[30px] cursor-default items-center gap-2 rounded-sm px-2 text-[length:calc(13px*var(--ui-scale,1))]",
                     o.disabled ? "opacity-40" : i === active ? "bg-surface-raised text-text" : "text-text",
                     selected && "text-primary-soft",
                   )}

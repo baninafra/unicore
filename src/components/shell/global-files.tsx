@@ -186,13 +186,13 @@ export function GlobalFiles() {
         </div>
       </Modal>
       {busy ? (
-        <div className="pointer-events-none fixed bottom-9 left-1/2 z-[70] -translate-x-1/2 rounded-md border border-border-strong bg-surface-raised px-3 py-2 text-[13px] shadow-pop">
+        <div className="pointer-events-none fixed bottom-9 left-1/2 z-[70] -translate-x-1/2 rounded-md border border-border-strong bg-surface-raised px-3 py-2 text-[length:calc(13px*var(--ui-scale,1))] shadow-pop">
           {busy}
         </div>
       ) : (
         over && (
           <div className="pointer-events-none fixed inset-0 z-[65] border-2 border-dashed border-primary/70 bg-primary-tint/20">
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-surface-raised px-3 py-1.5 text-[13px] text-text shadow-pop">
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-surface-raised px-3 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] text-text shadow-pop">
               Soltá para agregar: en una nota, en el lienzo, en el chat, como nota nueva o en su editor
             </div>
           </div>

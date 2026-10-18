@@ -128,6 +128,87 @@ export function markdownToBlocks(md: string): MdBlock[] {
   return blocks;
 }
 
+// ---------- Bloques → Markdown (para que la IA lea y reescriba una nota sin perder la estructura) ----------
+
+type InlineLike = { type?: string; text?: string; href?: string; styles?: Styles; content?: unknown; props?: Record<string, unknown> };
+type BlockMd = { type?: string; props?: Record<string, unknown>; content?: unknown; children?: BlockMd[] };
+
+function inlineToMd(items: unknown): string {
+  if (!Array.isArray(items)) return typeof items === "string" ? items : "";
+  return (items as InlineLike[])
+    .map((n) => {
+      if (n?.type === "link") return `[${inlineToMd(n.content)}](${n.href ?? ""})`;
+      if (n?.type === "wikilink") {
+        const title = String(n.props?.title ?? "");
+        const alias = n.props?.alias ? String(n.props.alias) : "";
+        return alias && alias !== title ? `[[${title}|${alias}]]` : `[[${title}]]`;
+      }
+      let t = typeof n?.text === "string" ? n.text : "";
+      if (!t.trim()) return t;
+      const s = n.styles ?? {};
+      if (s.code) t = `\`${t}\``;
+      if (s.bold) t = `**${t}**`;
+      if (s.italic) t = `*${t}*`;
+      if (s.strike) t = `~~${t}~~`;
+      return t;
+    })
+    .join("");
+}
+
+// Bloques que el Markdown no puede describir (imágenes de la nota, videos, archivos, dibujos…).
+export const TEXT_BLOCKS = new Set(["paragraph", "heading", "bulletListItem", "numberedListItem", "checkListItem", "quote", "codeBlock", "table"]);
+
+export function blocksToMarkdown(blocks: unknown[], depth = 0): string {
+  const pad = "  ".repeat(depth);
+  // Los ítems de lista van pegados; el resto, separado por una línea en blanco (si no, dos párrafos se juntan).
+  const out: { md: string; list: boolean }[] = [];
+  let n = 0;
+  for (const b of blocks as BlockMd[]) {
+    const text = inlineToMd(b.content);
+    n = b.type === "numberedListItem" ? n + 1 : 0;
+    let md: string;
+    switch (b.type) {
+      case "heading":
+        md = `${"#".repeat(Number(b.props?.level) || 1)} ${text}`;
+        break;
+      case "bulletListItem":
+        md = `${pad}- ${text}`;
+        break;
+      case "numberedListItem":
+        md = `${pad}${n}. ${text}`;
+        break;
+      case "checkListItem":
+        md = `${pad}- [${b.props?.checked ? "x" : " "}] ${text}`;
+        break;
+      case "quote":
+        md = `> ${text}`;
+        break;
+      case "codeBlock":
+        md = "```" + (b.props?.language && b.props.language !== "text" ? b.props.language : "") + "\n" + text + "\n```";
+        break;
+      case "table": {
+        const rows = ((b.content as { rows?: { cells?: unknown[] }[] })?.rows ?? []).map((r) =>
+          (r.cells ?? []).map((c) => inlineToMd(Array.isArray(c) ? c : (c as { content?: unknown } | null)?.content).replace(/\|/g, "\\|")),
+        );
+        md = rows.length
+          ? [`| ${rows[0].join(" | ")} |`, `|${rows[0].map(() => " --- ").join("|")}|`, ...rows.slice(1).map((r) => `| ${r.join(" | ")} |`)].join("\n")
+          : "";
+        break;
+      }
+      case "paragraph":
+        md = text ? `${pad}${text}` : "";
+        break;
+      default:
+        // Imagen, video, archivo…: queda un marcador para que la IA sepa que está ahí (no se pierde al reescribir).
+        md = `${pad}[${b.type}${b.props?.caption ? `: ${b.props.caption}` : b.props?.name ? `: ${b.props.name}` : ""}]`;
+    }
+    const list = /ListItem$/.test(b.type ?? "");
+    if (b.children?.length) md += `\n${blocksToMarkdown(b.children, depth + 1)}`;
+    if (md) out.push({ md, list });
+  }
+  return out.map((o, i) => (i === 0 ? "" : o.list && out[i - 1].list ? "\n" : "\n\n") + o.md).join("");
+}
+
 // Texto plano para el índice y la búsqueda.
 export function markdownToPlain(md: string): string {
   return md

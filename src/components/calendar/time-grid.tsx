@@ -213,7 +213,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
               className="flex items-baseline justify-center gap-1.5 border-l border-border py-1.5 hover:bg-surface-raised"
             >
               <span className="t-label">{format(d, "EEE", { locale: es })}</span>
-              <span className={clsx("num flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[13px]", isToday(d) ? "bg-primary-fill font-semibold text-on-primary" : "text-text")}>{format(d, "d")}</span>
+              <span className={clsx("num flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[length:calc(13px*var(--ui-scale,1))]", isToday(d) ? "bg-primary-fill font-semibold text-on-primary" : "text-text")}>{format(d, "d")}</span>
             </button>
           ))}
         </div>
@@ -221,7 +221,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
 
       {/* Todo el día */}
       <div className="flex flex-none border-b border-border pr-[10px]">
-        <div className="t-label flex w-14 flex-none items-start justify-end px-1.5 pt-1.5 text-[10px]">todo el día</div>
+        <div className="t-label flex w-14 flex-none items-start justify-end px-1.5 pt-1.5 text-[length:calc(10px*var(--ui-scale,1))]">todo el día</div>
         <div className="relative grid flex-1" style={{ ...gridCols, minHeight: Math.max(28, count * 22 + 6) }}>
           {days.map((d, i) => (
             <div
@@ -250,7 +250,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
         <div className="flex" style={{ height: 24 * HOUR }}>
           <div className="relative w-14 flex-none">
             {Array.from({ length: 23 }, (_, i) => (
-              <span key={i} className="num absolute right-2 -translate-y-1/2 text-[11px] text-faint" style={{ top: (i + 1) * HOUR }}>
+              <span key={i} className="num absolute right-2 -translate-y-1/2 text-[length:calc(11px*var(--ui-scale,1))] text-faint" style={{ top: (i + 1) * HOUR }}>
                 {String(i + 1).padStart(2, "0")}:00
               </span>
             ))}
@@ -289,7 +289,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
                           if (!editable(it)) h.onOpen(it);
                         }}
                         className={clsx(
-                          "group absolute overflow-hidden rounded-sm border-l-[3px] px-1.5 py-0.5 text-[12px] leading-4 text-text shadow-sm",
+                          "group absolute overflow-hidden rounded-sm border-l-[3px] px-1.5 py-0.5 text-[length:calc(12px*var(--ui-scale,1))] leading-4 text-text shadow-sm",
                           BORDER_L[it.color],
                           TINT[it.color],
                           editable(it) ? "cursor-grab" : "cursor-default",
@@ -304,7 +304,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
                           <span className="truncate font-medium">{it.title}</span>
                         </div>
                         {height > 30 && (
-                          <div className="num truncate text-[11px] text-muted">
+                          <div className="num truncate text-[length:calc(11px*var(--ui-scale,1))] text-muted">
                             {format(it.start, "HH:mm")}
                             {it.kind !== "task" && ` – ${format(it.end, "HH:mm")}`}
                             {it.location && ` · ${it.location}`}
@@ -317,7 +317,7 @@ export function TimeGrid({ days, items, h }: { days: Date[]; items: CalItem[]; h
                     );
                   })}
                   {drag?.kind === "create" && drag.day === i && (
-                    <div className="pointer-events-none absolute inset-x-0.5 rounded-sm border border-primary bg-primary-tint px-1.5 text-[12px] text-primary-soft" style={{ top: (drag.from / 60) * HOUR, height: ((drag.to - drag.from) / 60) * HOUR }}>
+                    <div className="pointer-events-none absolute inset-x-0.5 rounded-sm border border-primary bg-primary-tint px-1.5 text-[length:calc(12px*var(--ui-scale,1))] text-primary-soft" style={{ top: (drag.from / 60) * HOUR, height: ((drag.to - drag.from) / 60) * HOUR }}>
                       {format(atMin(i, drag.from), "HH:mm")} – {format(atMin(i, drag.to), "HH:mm")}
                     </div>
                   )}

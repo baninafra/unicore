@@ -7,7 +7,7 @@ import { useAllSubjects } from "@/lib/hooks";
 import { Select } from "@/components/ui/select";
 
 // Formulario rápido para crear una tarjeta a mano. Vence ya, así que aparece en el repaso de hoy.
-export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }) {
+export function QuickCardForm({ defaultSubjectId, onClose }: { defaultSubjectId: string; onClose: () => void }) {
   const subjects = useAllSubjects();
   const [subjectId, setSubjectId] = useState(defaultSubjectId);
   const [front, setFront] = useState("");
@@ -49,9 +49,10 @@ export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }
   const sorted = [...subjects].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <form onSubmit={onSubmit} className="flex w-full max-w-xl flex-col gap-2">
+    <form onSubmit={onSubmit} className="flex w-full flex-col gap-3 rounded-md border border-border bg-surface p-4 text-left">
+      <p className="t-h3">Nueva tarjeta</p>
       <Select
-        className="input h-8 w-auto self-start"
+        className="input w-full"
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}
         aria-label="Materia"
@@ -70,8 +71,11 @@ export function QuickCardForm({ defaultSubjectId }: { defaultSubjectId: string }
 
       {error && <p className="t-small text-rose">{error}</p>}
 
-      <div className="flex justify-end">
-        <button type="submit" className="btn btn-sm" disabled={saving || subjects.length === 0}>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" className="btn" onClick={onClose}>
+          Cerrar
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={saving || subjects.length === 0}>
           Guardar tarjeta
         </button>
       </div>

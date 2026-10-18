@@ -121,7 +121,7 @@ export function SlidesView({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="num pb-4 text-center text-[13px] text-faint">
+      <div className="num pb-4 text-center text-[length:calc(13px*var(--ui-scale,1))] text-faint">
         {Math.min(index, last) + 1} / {slides.length}
       </div>
     </div>

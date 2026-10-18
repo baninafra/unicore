@@ -5,7 +5,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { compile, type EvalFunction } from "mathjs";
-import { RotateCcw } from "lucide-react";
+import { ImageDown, RotateCcw } from "lucide-react";
+import { saveFile } from "@/lib/db";
+import { toast } from "@/lib/undo";
 
 const LS_KEY = "uc-plot-functions";
 const COLORS = ["#8b7cf6", "#34d399", "#f59e0b", "#f472b6", "#22d3ee", "#f87171"];
@@ -208,6 +210,26 @@ export function PlotTool() {
         <button type="button" className="btn btn-ghost btn-sm ml-auto" onClick={() => setView(HOME)}>
           <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
           Centrar
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          title="Pega el gráfico como imagen donde está el cursor en la nota abierta"
+          onClick={() => {
+            const c = canvas.current;
+            if (!c) return;
+            c.toBlob(async (blob) => {
+              if (!blob) return;
+              const url = await saveFile(new File([blob], "grafico.png", { type: "image/png" }));
+              const caption = fns.map((f) => `y = ${f.line}`).join(" · ");
+              const detail = { blocks: [{ type: "image", props: { url, caption, previewWidth: 520 } }], handled: false };
+              window.dispatchEvent(new CustomEvent("uc:insert-blocks", { detail }));
+              toast(detail.handled ? "Pegué el gráfico en la nota." : "Abrí una nota para pegar el gráfico.", detail.handled ? {} : { tone: "error" });
+            }, "image/png");
+          }}
+        >
+          <ImageDown className="h-4 w-4" strokeWidth={1.75} />
+          Pegar en la nota
         </button>
       </div>
     </div>

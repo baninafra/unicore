@@ -1,97 +1,55 @@
 "use client";
 
-// Editores como app: los botones de la barra izquierda abren el editor a pantalla completa,
-// sobre todo UniCore, en vez de en una pestaña. Lo que se guarda queda en Notas; si se cierra
-// sin escribir nada, no queda un archivo vacío.
+// Los botones de Word, Excel, PowerPoint y PDF de la barra izquierda abren el editor en una pestaña
+// de UniCore (con las barras y las pestañas, como cualquier nota). El archivo nuevo queda en Notas;
+// si se cierra la pestaña sin haber escrito nada, no queda un archivo vacío.
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import { ExternalLink, FolderInput, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { pickFolder } from "./folder-picker";
-import { useAllSubjects } from "@/lib/hooks";
-import { FOLDER_NAME } from "@/lib/nav/actions";
-import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { createOfficeDoc, deleteOfficeDoc, EDITOR_KINDS } from "@/lib/editors/editors";
+import { createOfficeDoc, deleteOfficeDoc } from "@/lib/editors/editors";
 import { useWorkspace } from "@/lib/workspace";
-import { LOOSE_FOLDER, type OfficeKind } from "@/lib/types";
-
-const EditorView = dynamic(() => import("@/views/editor-view").then((m) => m.EditorView), { ssr: false });
+import type { OfficeKind } from "@/lib/types";
 
 const EVENT = "uc:editor-app";
 
-// Abre un editor como app. Con `file`, lo abre con ese archivo (el PDF).
+// Abre un editor nuevo. Con `file`, lo abre con ese archivo (el PDF).
 export function openEditorApp(kind: OfficeKind, file?: File) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: { kind, file } }));
 }
 
 export function EditorApp() {
-  const { openView } = useWorkspace();
-  const [id, setId] = useState<string | null>(null);
-  const doc = useLiveQuery(async () => (id ? ((await db.officeDocs.get(id)) ?? null) : null), [id]);
-  const subjects = useAllSubjects();
-  const place = doc ? (subjects?.find((x) => x.id === doc.subjectId)?.name ?? FOLDER_NAME[doc.subjectId] ?? "Notas") : "";
+  const { openView, panes } = useWorkspace();
+  // Archivos creados desde estos botones que todavía no se guardaron.
+  const fresh = useRef(new Set<string>());
 
   useEffect(() => {
     const onOpen = (e: Event) => {
       const { kind, file } = (e as CustomEvent<{ kind: OfficeKind; file?: File }>).detail;
-      void createOfficeDoc({ kind, subjectId: LOOSE_FOLDER, file }).then(setId);
+      void (async () => {
+        // Primero se elige dónde queda (materia o carpeta); si se cancela, no se crea nada.
+        const to = await pickFolder("¿Dónde lo guardo?");
+        if (!to) return;
+        const id = await createOfficeDoc({ kind, subjectId: to, file });
+        if (!file) fresh.current.add(id);
+        openView({ type: "editor", id }, "tab");
+      })();
     };
     window.addEventListener(EVENT, onOpen);
     return () => window.removeEventListener(EVENT, onOpen);
-  }, []);
+  }, [openView]);
 
-  const close = async () => {
-    const current = id ? await db.officeDocs.get(id) : undefined;
-    if (current && !current.fileId) await deleteOfficeDoc(current.id);
-    setId(null);
-  };
-
+  // Cuando se cierra la pestaña de un archivo nuevo que quedó vacío, se borra.
   useEffect(() => {
-    if (!id) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && e.shiftKey && void close();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+    const open = new Set(panes.flatMap((p) => p.tabs.map((t) => t.view)).flatMap((v) => (v.type === "editor" ? [v.id] : [])));
+    for (const id of [...fresh.current]) {
+      if (open.has(id)) continue;
+      fresh.current.delete(id);
+      void db.officeDocs.get(id).then((d) => {
+        if (d && !d.fileId) void deleteOfficeDoc(id);
+      });
+    }
+  }, [panes]);
 
-  if (!id) return null;
-  return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-bg">
-      <div className="flex h-9 flex-none items-center gap-2 border-b border-border px-3">
-        <span className="t-label text-muted">{doc ? EDITOR_KINDS[doc.kind].label : ""}</span>
-        <span className="truncate text-[13px] text-text">{doc?.name}</span>
-        <span className="t-small text-faint">· se guarda solo en {place}</span>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm ml-auto"
-          title="Elegir la materia o carpeta donde queda el archivo"
-          onClick={async () => {
-            const to = await pickFolder("¿Dónde lo guardo?");
-            if (to && id) await db.officeDocs.update(id, { subjectId: to });
-          }}
-        >
-          <FolderInput className="h-4 w-4" strokeWidth={1.75} />
-          Guardar en…
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          title="Seguir editando en una pestaña de UniCore"
-          onClick={() => {
-            openView({ type: "editor", id }, "tab");
-            setId(null);
-          }}
-        >
-          <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
-          Abrir en pestaña
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label="Cerrar" title="Cerrar" onClick={() => void close()}>
-          <X className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1">
-        <EditorView key={id} id={id} />
-      </div>
-    </div>
-  );
+  return null;
 }

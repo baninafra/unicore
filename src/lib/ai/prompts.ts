@@ -25,9 +25,8 @@ export interface EmailAnalysis {
 }
 
 const TASK_TYPES: TaskType[] = ["PARCIAL", "FINAL", "TP", "FORO", "LECTURA", "TAREA"];
-const MAX_SOURCE_CHARS = 5000; // la IA básica tiene ventana de 4096 tokens
 // La IA potente tiene 32k tokens: entra mucho más material.
-const sourceLimit = (ai: LocalAI) => (ai.engine === "servidor" ? 40000 : MAX_SOURCE_CHARS);
+const SOURCE_CHARS = 40000;
 const MAX_EMAIL_CHARS = 3000;
 const TEMPERATURE = 0.2;
 
@@ -137,7 +136,7 @@ function localDateKey(date: Date): string {
 
 // Devuelve entre 1 y `count` tarjetas pregunta/respuesta a partir de un texto.
 export async function generateFlashcards(ai: LocalAI, text: string, count = 8): Promise<FlashcardDraft[]> {
-  const source = cleanSource(text, sourceLimit(ai));
+  const source = cleanSource(text, SOURCE_CHARS);
   if (!source) throw new Error("No hay texto para armar tarjetas. Agregá un apunte o un PDF con texto.");
   const data = await askJson(
     ai,
@@ -181,7 +180,7 @@ export async function generateFlashcards(ai: LocalAI, text: string, count = 8): 
 
 // Examen multiple choice de autoevaluación.
 export async function generateQuiz(ai: LocalAI, text: string, count = 5): Promise<QuizQuestion[]> {
-  const source = cleanSource(text, sourceLimit(ai));
+  const source = cleanSource(text, SOURCE_CHARS);
   if (!source) throw new Error("No hay texto para armar el examen. Agregá un apunte o un PDF con texto.");
   const data = await askJson(
     ai,

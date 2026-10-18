@@ -19,7 +19,7 @@ import { noteTitle, specialFolderName } from "@/lib/panes/note-data";
 import { useActiveNoteId, useNote } from "@/lib/panes/hooks";
 import { LOCAL_MODELS, useAISettings, writeAISettings, type LocalModel } from "@/lib/ai/ai-settings";
 import { tierModels } from "@/lib/ai/models";
-import { AGENT_SYSTEM, runAgent, runAgentLocal } from "@/lib/ai/agent";
+import { AGENT_SYSTEM, runAgent } from "@/lib/ai/agent";
 import { situationText } from "@/lib/ai/tools";
 import type { ApiMessage, ContentPart } from "@/lib/ai/server";
 import { convertFile, fileKind, IMPORT_ACCEPT } from "@/lib/import/import-file";
@@ -219,8 +219,6 @@ export function AIChatPane() {
   const { activeView, openView } = useWorkspace();
   const ai = useLocalAI();
   const settings = useAISettings();
-  // Las dos IAs actúan en la app; la potente además ve imágenes y razona.
-  const powerful = ai.engine === "servidor";
   const agentMode = true;
 
   // Contexto: la materia de la vista activa, o la de la nota abierta.
@@ -243,8 +241,6 @@ export function AIChatPane() {
   const fileRef = useRef<HTMLInputElement>(null);
   const apiRef = useRef<ApiMessage[] | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  const unavailable = ai.status === "unsupported" && !agentMode;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -361,15 +357,14 @@ export function AIChatPane() {
     // Material de los apuntes (si hay una materia o nota en pantalla).
     let material = "";
     let sources: string[] = [];
-    // La IA básica tiene poca memoria: menos material.
-    const docChars = powerful ? DOC_CHARS : 5000;
-    const noteChars = powerful ? OPEN_NOTE_CHARS : 2500;
+    const docChars = DOC_CHARS;
+    const noteChars = OPEN_NOTE_CHARS;
     // Con una nota abierta, otras notas sólo suman si son de la misma materia y la pregunta no es sobre esta nota
     // (en Ideas o Notas sueltas cada nota es de un tema distinto y confunden a la IA).
     const searchOthers = !note || (!!subjectId && !SPECIAL_FOLDERS.has(subjectId) && !ABOUT_OPEN_NOTE.test(text));
     if (subjectId && text.length > 3 && searchOthers) {
       try {
-        const found = await buildSubjectContext(subjectId, text, powerful ? 3 : 1, note?.id);
+        const found = await buildSubjectContext(subjectId, text, 3, note?.id);
         material = found.context;
         sources = found.sources.map((s) => s.label);
       } catch {
@@ -387,7 +382,7 @@ export function AIChatPane() {
     for (const v of videoLinksIn(text).slice(0, 2)) {
       patchTurn(aiId, { working: tr("Leyendo el video…") });
       try {
-        const info = await videoInfo(v, powerful ? 20000 : 3500);
+        const info = await videoInfo(v, 20000);
         videoTexts.push(videoInfoText(info));
         const label = info.transcripcion ? `Leí el video «${info.titulo}»` : `«${info.titulo}» no tiene transcripción`;
         patchTurn(aiId, (t) => ({ steps: [...(t.steps ?? []), { label, ok: !!info.transcripcion }] }));
@@ -404,9 +399,9 @@ export function AIChatPane() {
     parts.push(...videoTexts);
     for (const a of atts.filter((a) => a.kind === "video")) {
       parts.push(
-        powerful && a.frames?.length
+        a.frames?.length
           ? `[Video adjunto: ${a.name}, dura ${fmtTime(a.duration ?? 0)}. Van ${a.frames.length} fotogramas en orden, de los minutos ${a.frames.map((f) => fmtTime(f.t)).join(", ")}. No tenés el audio.]`
-          : `[Video adjunto: ${a.name}, dura ${fmtTime(a.duration ?? 0)}. Esta IA no puede verlo: decile que elija la IA potente o que pegue el link de YouTube.]`,
+          : `[Video adjunto: ${a.name}, dura ${fmtTime(a.duration ?? 0)}. No se pudieron sacar fotogramas: pedile que pegue el link de YouTube.]`,
       );
     }
     for (const a of atts.filter((a) => a.kind === "doc" && a.text)) parts.push(`[Archivo adjunto: ${a.name}]\n"""\n${a.text!.slice(0, docChars)}\n"""`);
@@ -415,20 +410,18 @@ export function AIChatPane() {
     parts.push(text || "(mirá el adjunto)");
     const textPart = parts.join("\n\n");
     const images: ContentPart[] = [];
-    if (powerful) {
-      for (const a of atts) {
-        if (a.kind === "image" && a.dataUrl) images.push({ type: "image_url", image_url: { url: a.dataUrl } });
-        if (a.kind === "video")
-          for (const f of a.frames ?? []) {
-            images.push({ type: "text", text: `[${a.name} · ${fmtTime(f.t)}]` });
-            images.push({ type: "image_url", image_url: { url: f.dataUrl } });
-          }
-      }
+    for (const a of atts) {
+      if (a.kind === "image" && a.dataUrl) images.push({ type: "image_url", image_url: { url: a.dataUrl } });
+      if (a.kind === "video")
+        for (const f of a.frames ?? []) {
+          images.push({ type: "text", text: `[${a.name} · ${fmtTime(f.t)}]` });
+          images.push({ type: "image_url", image_url: { url: f.dataUrl } });
+        }
     }
     const content: string | ContentPart[] = images.length ? [...images, { type: "text" as const, text: textPart }] : textPart;
 
     apiRef.current.push({ role: "user", content });
-    const messages = compactHistory(apiRef.current, powerful ? AGENT_KEEP : 10);
+    const messages = compactHistory(apiRef.current, AGENT_KEEP);
     const sent = messages.length;
 
     const ctrl = new AbortController();
@@ -450,9 +443,7 @@ export function AIChatPane() {
           onTool: (label: string, ok: boolean) => patchTurn(aiId, (t) => ({ steps: [...(t.steps ?? []), { label, ok }], working: undefined })),
         },
       };
-      const final = powerful
-        ? await runAgent(messages, { ...common, think: settings.think })
-        : await runAgentLocal(messages, { ...common, ai });
+      const final = await runAgent(messages, { ...common, think: settings.think });
       // Lo nuevo (respuestas y resultados) queda en la conversación.
       apiRef.current.push(...messages.slice(sent));
       patchTurn(aiId, (t) => ({
@@ -515,7 +506,7 @@ export function AIChatPane() {
   async function send(raw: string) {
     const text = raw.trim();
     const atts = attachments.filter((a) => a.status === "ready");
-    if ((!text && !atts.length) || busy || unavailable) return;
+    if ((!text && !atts.length) || busy) return;
     if (attachments.some((a) => a.status === "reading")) return;
 
     const aiId = newId();
@@ -594,8 +585,6 @@ export function AIChatPane() {
 
   function renderStatus() {
     switch (ai.status) {
-      case "unsupported":
-        return <p className="t-small text-muted">{t("Tu navegador no puede correr la IA. Probá con Chrome o Edge actualizados.")}</p>;
       case "loading": {
         const pct = Math.round(ai.progress * 100);
         return (
@@ -661,7 +650,7 @@ export function AIChatPane() {
         </div>
         {agentMode && (
           <>
-            {powerful && <button
+            {<button
               type="button"
               className={clsx("icon-btn flex-none", settings.think && "text-primary-soft")}
               onClick={() => writeAISettings({ think: !settings.think })}
@@ -817,9 +806,6 @@ export function AIChatPane() {
             ))}
           </div>
         )}
-        {!powerful && attachments.some((a) => a.kind === "image" || a.kind === "video") && (
-          <p className="mb-1 text-[length:calc(12px*var(--ui-scale,1))] text-amber">{t("La IA liviana no ve imágenes ni videos. Elegí la IA potente arriba.")}</p>
-        )}
         <div className="flex items-end gap-2">
           <input
             ref={fileRef}
@@ -848,7 +834,7 @@ export function AIChatPane() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
-            disabled={unavailable}
+            
             placeholder={agentMode ? tr("Pedí o preguntá algo") : tr("Preguntá algo")}
             aria-label={t("Pregunta para el asistente")}
             className="min-h-[32px] min-w-0 flex-1 resize-none rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-[length:calc(13px*var(--ui-scale,1))] leading-5 text-text outline-none placeholder:text-faint hover:border-border-strong focus:border-primary disabled:opacity-50"
@@ -862,7 +848,7 @@ export function AIChatPane() {
               type="button"
               className={clsx("btn btn-primary btn-sm btn-icon flex-none", !canSend && "opacity-50")}
               onClick={() => void send(input)}
-              disabled={!canSend || unavailable}
+              disabled={!canSend}
               aria-label={t("Enviar")}
               title={t("Enviar (Enter)")}
             >

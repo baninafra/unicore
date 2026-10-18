@@ -3,7 +3,7 @@
 Leé esto antes de tocar código.
 
 ## Producto
-App para organizar una o más carreras universitarias en simultáneo. Todo en español rioplatense (de vos). Sin login. Los datos viven en el navegador (IndexedDB con Dexie); más adelante se migran a Supabase.
+App para organizar una o más carreras universitarias en simultáneo. Todo en español rioplatense (de vos). Sin login. Es sólo app de escritorio (Tauri): los datos viven en Documentos\UniCore (SQLite), con IndexedDB (Dexie) como caché de la interfaz.
 
 ## Stack
 Next.js 15 (App Router) + React 19.2 + TypeScript + Tailwind v4. Dependencias ya instaladas: dexie, dexie-react-hooks, @mlc-ai/web-llm, pdfjs-dist, tesseract.js, @blocknote/core/react/mantine, @mantine/core, ts-fsrs, chrono-node, @hello-pangea/dnd, @xyflow/react, lucide-react, clsx, date-fns, nanoid.

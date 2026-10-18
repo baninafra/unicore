@@ -6,7 +6,6 @@ import { useRef, useState } from "react";
 import { t } from "@/lib/i18n";
 import clsx from "clsx";
 import { FileUp, Link2, RefreshCw, Trash2 } from "lucide-react";
-import { isDesktop } from "@/lib/desktop";
 import { db } from "@/lib/db";
 import { shortDateTime } from "@/lib/format";
 import { toast } from "@/lib/undo";
@@ -21,7 +20,7 @@ import {
 } from "@/lib/calendars/sync";
 import type { CalendarColor, CalendarSource } from "@/lib/types";
 import { useSettings } from "./apply-settings";
-import { Heading, Hint, Row, Segmented, Toggle } from "./settings-ui";
+import { Heading, Row, Segmented, Toggle } from "./settings-ui";
 
 type Provider = "google" | "outlook" | "icloud" | "otro";
 
@@ -257,12 +256,6 @@ export function CalendarSection() {
 
   return (
     <>
-      {!isDesktop() && (
-        <Hint>
-          {t("Estás en el navegador: muchos calendarios (Google, por ejemplo) no dejan leer el enlace desde acá. En la app de escritorio funciona siempre; en el navegador podés importar el archivo .ics.")}
-        </Hint>
-      )}
-
       <Heading>{t("Calendarios conectados")}</Heading>
       <div className="flex flex-col gap-3">
         {calendars.length === 0 ? <p className="t-small py-1 text-faint">{t("Todavía no conectaste ningún calendario.")}</p> : calendars.map((c) => <CalendarCard key={c.id} cal={c} />)}

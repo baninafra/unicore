@@ -58,12 +58,11 @@ The assistant can create and edit tasks, courses, notes, flashcards and files, l
 
 ## Running it
 
-Requirements: Node.js 20+ and, for the desktop app, Rust with [Tauri 2](https://tauri.app/start/prerequisites/).
+UniCore is a desktop app only. Requirements: Node.js 20+ and Rust with [Tauri 2](https://tauri.app/start/prerequisites/).
 
 ```bash
 npm install
-npm run dev            # in the browser, at http://localhost:3000
-npx tauri dev          # as a desktop app
+npx tauri dev          # run the desktop app in development
 npx tauri build        # Windows installer (src-tauri/target/release/bundle)
 ```
 

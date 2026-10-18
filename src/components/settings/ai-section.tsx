@@ -9,11 +9,9 @@ import { Download, Trash2, Check } from "lucide-react";
 import { isDesktop } from "@/lib/desktop";
 import { useLocalAI } from "@/lib/ai/use-local-ai";
 import { useAISettings, writeAISettings } from "@/lib/ai/ai-settings";
-import { readCacheKind } from "@/lib/ai/ai-provider";
 import { t, intlLocale } from "@/lib/i18n";
 import { fits, maxModel, suggestedSet, tierModels, type Tier } from "@/lib/ai/models";
 
-const BASIC_MODEL = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
 const GB = 1e9;
 
 interface DownloadState {
@@ -77,7 +75,6 @@ export function AISection() {
 
   const [dl, setDl] = useState<DownloadState | null>(null);
   const [free, setFree] = useState<number>();
-  const [basicCached, setBasicCached] = useState<boolean>();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const { refreshModels } = ai;
 
@@ -91,10 +88,6 @@ export function AISection() {
   useEffect(() => {
     void refresh();
     if (desktop) invoke<number>("ia_free_space").then(setFree).catch(() => undefined);
-    import("@mlc-ai/web-llm")
-      .then((w) => w.hasModelInCache(BASIC_MODEL, { ...w.prebuiltAppConfig, cacheBackend: readCacheKind() ? "indexeddb" : "cache" }))
-      .then(setBasicCached)
-      .catch(() => setBasicCached(false));
   }, [desktop, refresh]);
 
   // Mientras se descarga, actualizamos el progreso cada segundo.
@@ -104,13 +97,7 @@ export function AISection() {
     return () => window.clearInterval(timer);
   }, [dl?.running, refresh]);
 
-  // Cuando la IA básica termina de cargar, ya está descargada.
-  useEffect(() => {
-    if (ai.engine === "navegador" && ai.status === "ready") setBasicCached(true);
-  }, [ai.engine, ai.status]);
-
   const usingGroq = settings.localModel === "groq";
-  const usingBasic = ai.engine === "navegador";
 
   const catalog = ai.catalog;
   const hw = catalog?.hardware;
@@ -130,12 +117,6 @@ export function AISection() {
     setConfirmRemove(null);
     await invoke("ia_remove", { model: id }).catch(() => undefined);
     await refresh();
-  }
-
-  async function removeBasic() {
-    const w = await import("@mlc-ai/web-llm");
-    await w.deleteModelAllInfoInCache(BASIC_MODEL, { ...w.prebuiltAppConfig, cacheBackend: readCacheKind() ? "indexeddb" : "cache" }).catch(() => undefined);
-    setBasicCached(false);
   }
 
   const pct = dl && dl.total ? Math.min(100, Math.round((dl.done / dl.total) * 100)) : 0;
@@ -309,47 +290,6 @@ export function AISection() {
         )}
       </Card>
 
-      {!desktop && (
-        <Card
-          title={t("IA básica")}
-          size={t("Qwen 2.5 7B · 4,5 GB · corre dentro de la app")}
-          text={t("Más liviana y rápida de bajar. También actúa en la app (tareas, notas, ideas, cronogramas, cuestionarios, búsqueda web), pero con menos memoria: conviene para pedidos cortos. No ve imágenes.")}
-          status={
-            usingBasic && ai.status === "loading" ? (
-              <div className="space-y-1">
-                <div className="progress h-1.5">
-                  <i style={{ width: `${Math.round(ai.progress * 100)}%` }} />
-                </div>
-                <p className="text-faint">{ai.progressText}</p>
-              </div>
-            ) : basicCached ? (
-              <span className="flex items-center gap-1 text-mint">
-                <Check className="h-3.5 w-3.5" strokeWidth={2} /> {t("Descargada")}
-              </span>
-            ) : (
-              <span className="text-muted">{t("No descargada.")}</span>
-            )
-          }
-          active={usingBasic}
-        >
-          {!usingBasic && (
-            <button type="button" className="btn btn-sm" onClick={() => ai.load().catch(() => undefined)}>
-              {basicCached ? (
-                t("Usar esta")
-              ) : (
-                <>
-                  <Download className="h-4 w-4" strokeWidth={1.75} /> {t("Descargar y usar")}
-                </>
-              )}
-            </button>
-          )}
-          {basicCached && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void removeBasic()}>
-              <Trash2 className="h-4 w-4" strokeWidth={1.75} /> {t("Eliminar")}
-            </button>
-          )}
-        </Card>
-      )}
 
       <div className="space-y-2">
         <label className="flex items-center justify-between gap-4 border-b border-border py-2">

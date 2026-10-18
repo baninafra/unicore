@@ -7,7 +7,6 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { addYears, subYears } from "date-fns";
 import { db, newId, nowIso } from "../db";
 import { get } from "../ai/web";
-import { isDesktop } from "../desktop";
 import type { CalendarColor, CalendarEvent, CalendarSource } from "../types";
 import { parseIcs } from "./ics";
 import { t } from "@/lib/i18n";
@@ -50,9 +49,7 @@ async function readUrl(url: string): Promise<string> {
     text = await get(url);
   } catch {
     throw new Error(
-      isDesktop()
-        ? t("No pudimos abrir el enlace. Revisá que esté bien copiado y que tengas internet.")
-        : t("Este navegador no deja leer ese enlace. Usá la app de escritorio o importá el archivo .ics."),
+      t("No pudimos abrir el enlace. Revisá que esté bien copiado y que tengas internet."),
     );
   }
   if (!/BEGIN:VCALENDAR/i.test(text)) {

@@ -1,9 +1,7 @@
 "use client";
 
-// Búsqueda web para la IA. En la app de escritorio las páginas se piden desde Rust (sin CORS);
-// en el navegador sólo queda Wikipedia, que permite pedidos desde cualquier página.
+// Búsqueda web para la IA. Las páginas se piden desde Rust (sin CORS).
 
-import { isDesktop } from "../desktop";
 import { readAISettings } from "./ai-settings";
 
 export interface WebResult {
@@ -13,16 +11,8 @@ export interface WebResult {
 }
 
 export async function get(url: string, body?: string): Promise<string> {
-  if (isDesktop()) {
-    const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<string>("web_get", { url, body: body ?? null });
-  }
-  const r = await fetch(url, {
-    signal: AbortSignal.timeout(15000),
-    ...(body ? { method: "POST", body, headers: { "Content-Type": "application/json" } } : {}),
-  });
-  if (!r.ok) throw new Error(`La página respondió ${r.status}`);
-  return r.text();
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("web_get", { url, body: body ?? null });
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -75,13 +65,11 @@ async function wikipedia(query: string): Promise<WebResult[]> {
 }
 
 export async function webSearch(query: string): Promise<WebResult[]> {
-  if (isDesktop()) {
-    try {
-      const r = await duckduckgo(query);
-      if (r.length) return r;
-    } catch (err) {
-      console.warn("[IA] DuckDuckGo falló", err);
-    }
+  try {
+    const r = await duckduckgo(query);
+    if (r.length) return r;
+  } catch (err) {
+    console.warn("[IA] DuckDuckGo falló", err);
   }
   const r = await wikipedia(query);
   if (!r.length) throw new Error("No hubo resultados.");

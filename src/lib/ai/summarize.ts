@@ -99,14 +99,13 @@ export interface SummaryProgress {
 
 // Devuelve el resumen en Markdown. `onText` recibe el texto de la respuesta final mientras se escribe.
 export async function summarize(
-  ai: Pick<LocalAI, "generate" | "engine">,
+  ai: Pick<LocalAI, "generate">,
   sources: SummarySource[],
   opts: { topic?: string; signal: AbortSignal; onProgress: SummaryProgress; onText: (text: string) => void },
 ): Promise<string> {
-  const powerful = ai.engine === "servidor";
-  const sectionChars = powerful ? 18000 : 4500;
-  const maxSections = powerful ? 8 : 12;
-  const notesTokens = powerful ? 500 : 220;
+  const sectionChars = 18000;
+  const maxSections = 8;
+  const notesTokens = 500;
   const perSource = Math.max(3, Math.floor(maxSections / sources.length));
 
   // 1) Notas de cada parte
@@ -144,7 +143,7 @@ export async function summarize(
 
   // 2) Resumen final con todas las notas
   opts.onProgress("Armando el resumen…");
-  const budget = powerful ? 30000 : 4800;
+  const budget = 30000;
   const per = Math.floor(budget / notes.length);
   const material = notes.map((n) => `### ${n.label}\n${n.body.slice(0, per)}`).join("\n\n");
   const partial = parts.some((p) => p.sections.length < splitBy(p.s.text, sectionChars).length);
@@ -162,7 +161,7 @@ export async function summarize(
           `Agrupalo por temas, con un título corto por tema y las ideas clave en viñetas.${sources.length > 1 ? " Separalo por documento." : ""}\n\nNOTAS:\n${material}`,
       },
     ],
-    { temperature: 0.3, maxTokens: powerful ? 2500 : 1100, onToken: (full) => opts.onText(full) },
+    { temperature: 0.3, maxTokens: 2500, onToken: (full) => opts.onText(full) },
   );
   const text = answer.trim();
   if (!text) return "";

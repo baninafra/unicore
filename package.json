@@ -16,7 +16,6 @@
     "@huggingface/transformers": "^4.3.1",
     "@mantine/core": "^8.3.18",
     "@mantine/hooks": "^8.3.18",
-    "@mlc-ai/web-llm": "^0.2.86",
     "@tauri-apps/api": "^2.12.3",
     "@tauri-apps/plugin-opener": "^2.7.1",
     "@tauri-apps/plugin-process": "^2.4.0",

@@ -80,8 +80,7 @@ export function DataSection() {
     <>
       <Heading>{t("Almacenamiento")}</Heading>
       <Row label={t("Carpeta de datos")}>
-        {desktop ? (
-          <>
+        <>
             <span className="t-small max-w-[320px] truncate text-muted" title={folder}>
               {folder ?? "–"}
             </span>
@@ -89,10 +88,7 @@ export function DataSection() {
               <FolderOpen strokeWidth={1.75} />
               {t("Abrir")}
             </button>
-          </>
-        ) : (
-          <span className="t-small text-faint">{t("Solo en la app de escritorio")}</span>
-        )}
+        </>
       </Row>
       {counts &&
         (

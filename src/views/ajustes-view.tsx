@@ -215,9 +215,6 @@ function Acerca() {
           </button>
         </Row>
       )}
-      <Row label={t("Plataforma")}>
-        <span className="t-small text-muted">{isDesktop() ? t("Aplicación de escritorio") : t("Navegador")}</span>
-      </Row>
       <Row label={t("Tus datos")}>
         <span className="t-small text-muted">{t("Se guardan en este equipo, sin cuenta")}</span>
       </Row>

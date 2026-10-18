@@ -1,20 +1,17 @@
 "use client";
 
 // CONTRATO de la IA local. Los demás módulos sólo usan useLocalAI() y estos tipos.
-// La implementación real (WebLLM en un Web Worker) vive en ./ai-provider.tsx.
+// La implementación (Qwen 3.5 en llama-server o Groq) vive en ./ai-provider.tsx.
 
 import { createContext, useContext } from "react";
 import type { Catalog, TaskHint } from "./models";
 
-export type AIStatus = "idle" | "unsupported" | "loading" | "ready" | "generating" | "error";
+export type AIStatus = "idle" | "loading" | "ready" | "generating" | "error";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
-
-// "servidor": Qwen 3.5 en esta PC (llama.cpp) o Groq, con herramientas. "navegador": WebLLM (sólo fuera de la app de escritorio).
-export type AIEngine = "servidor" | "navegador";
 
 export interface GenerateOptions {
   onToken?: (fullTextSoFar: string) => void; // streaming
@@ -24,7 +21,6 @@ export interface GenerateOptions {
 }
 
 export interface LocalAI {
-  engine: AIEngine;
   vision: boolean; // puede ver imágenes
   setBusy: (busy: boolean) => void; // el agente marca "generando" mientras trabaja
   status: AIStatus;

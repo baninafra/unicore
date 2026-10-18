@@ -117,6 +117,12 @@ const HEIGHT_RULES: [string, string, number][] = [
   [".nav-item", "height", 28],
   [".prop-row", "min-height", 30],
   [".uc-select", "min-height", 30],
+  [".row svg", "width", 15],
+  [".row svg", "height", 15],
+  [".icon-btn", "width", 26],
+  [".icon-btn", "height", 26],
+  [".icon-btn svg", "width", 16],
+  [".icon-btn svg", "height", 16],
 ];
 
 const scaled = (px: number) => `calc(${px}px * var(--ui-scale, 1))`;

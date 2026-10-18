@@ -5,7 +5,7 @@ import { renameFolder, useFolderNames } from "@/lib/folder-names";
 import { addIdea } from "@/views/ideas-view";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban, FolderPlus } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { useProfiles } from "@/lib/profiles";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
@@ -163,7 +163,7 @@ const safe = runSafe;
 export function FileExplorer() {
   const { activeView, openView } = useWorkspace();
   const { degreeFilter, openTaskDialog } = useAppState();
-  const { inScope, termsFor, termsForSubject } = useProfiles();
+  const { inScope, termsFor, termsForSubject, singleSpace, activeProfile, terms } = useProfiles();
   const open = useOpen();
   const data = useExplorerData();
   const bookmarks = useBookmarkSet();
@@ -176,7 +176,7 @@ export function FileExplorer() {
 
   const namesVersion = useFolderNames();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- namesVersion: los nombres de las carpetas fijas
-  const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort, inScope) : []), [data, degreeFilter, sort, inScope, namesVersion]);
+  const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort, inScope, singleSpace?.id) : []), [data, degreeFilter, sort, inScope, singleSpace?.id, namesVersion]);
   const dropTargets = useMemo(() => {
     const map = new Map<string, Target>();
     const walk = (nodes: TreeNode[]) => nodes.forEach((n) => (n.drop && map.set(n.key, n.drop), n.children && walk(n.children)));
@@ -461,12 +461,25 @@ export function FileExplorer() {
     onSelect: () => changeSort(mode),
   }));
 
+  const nuevoItem = `${terms.item.f ? "Nueva" : "Nuevo"} ${terms.item.one}`;
   const renameTitle = dialog?.type === "rename" ? (dialog.kind === "subject" ? `Renombrar ${termsForSubject(dialog.id).item.one}` : dialog.kind === "canvas" ? "Renombrar lienzo" : dialog.kind === "file" ? "Renombrar archivo" : dialog.kind === "folder" ? "Renombrar carpeta" : "Renombrar nota") : "";
   const deleteTitle = dialog?.type === "delete" ? dialog.title : "";
 
   return (
     <div className="flex flex-col">
-      <div className="sticky top-0 z-10 flex h-9 flex-none items-center justify-end gap-0.5 bg-bg px-2">
+      <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-0.5 bg-bg pl-3 pr-2">
+        <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? "Archivos"}</span>
+        {singleSpace && (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={nuevoItem}
+            title={nuevoItem}
+            onClick={() => setCareer({ type: "subject", degreeId: singleSpace.id })}
+          >
+            <FolderPlus strokeWidth={1.75} />
+          </button>
+        )}
         <button type="button" className="icon-btn" aria-label="Nueva nota" title="Nueva nota" onClick={headerNewNote}>
           <FilePlus strokeWidth={1.75} />
         </button>
@@ -493,6 +506,21 @@ export function FileExplorer() {
       <div role="tree" className="px-1 pb-4">
         <Rows nodes={tree} ctx={ctx} />
       </div>
+      {hasData && tree.every((n) => !n.children?.length && !n.view) && (
+        <div className="mx-3 mt-2 flex flex-col gap-2 rounded-lg border border-dashed border-border p-4 text-center">
+          <p className="t-small text-faint">Todavía no hay nada acá.</p>
+          {singleSpace && (
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => setCareer({ type: "subject", degreeId: singleSpace.id })}>
+              <FolderPlus strokeWidth={1.75} />
+              {nuevoItem}
+            </button>
+          )}
+          <button type="button" className="btn btn-sm" onClick={headerNewNote}>
+            <FilePlus strokeWidth={1.75} />
+            Nueva nota
+          </button>
+        </div>
+      )}
 
       <PromptModal
         open={dialog?.type === "rename"}
@@ -572,7 +600,7 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
         aria-current={active ? "page" : undefined}
         data-drop={node.drop ? node.key : undefined}
         data-expand={expandable && !expanded ? node.key : undefined}
-        className={clsx("row select-none", isLevel && "font-medium text-text", dropping && "bg-primary-tint text-text")}
+        className={clsx("row select-none", isLevel && "text-text", dropping && "bg-primary-tint text-text")}
         onClick={(e) => (node.view ? ctx.open(node.view, e) : ctx.toggle(node.key))}
         onAuxClick={(e) => {
           if (e.button === 1 && node.view) {

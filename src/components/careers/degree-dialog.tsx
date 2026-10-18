@@ -27,12 +27,14 @@ const COLORS: { value: DegreeColor; label: string; accent: string }[] = [
 export function DegreeDialog({ degree, onClose }: { degree?: Degree; onClose: () => void }) {
   const { activeKinds, activeProfile, profiles } = useProfiles();
   // Perfil del espacio: el suyo, el que se está viendo, o el primero.
-  const initialProfile = degree ? profileOfDegree(profiles, degree) : (activeProfile ?? profiles[0]);
+  const initialProfile = degree ? profileOfDegree(profiles, degree) : (activeProfile ?? profiles.find((p) => PROFILES[p.kind].study));
   const [profileId, setProfileId] = useState(initialProfile?.id ?? "");
   const [kind, setKind] = useState<ProfileKind>(degree ? kindOf(degree) : (initialProfile?.kind ?? activeKinds[0] ?? "universidad"));
   const t = PROFILES[kind];
   // Sin perfiles creados se elige directamente el tipo.
-  const options = profiles.length ? profiles : PROFILE_KINDS.map((k) => ({ id: "", name: PROFILES[k].label, kind: k }));
+  // Sólo los perfiles de estudio suman espacios (los demás tienen uno solo, el propio perfil).
+  const studyProfiles = profiles.filter((p) => PROFILES[p.kind].study || p.id === initialProfile?.id);
+  const options = studyProfiles.length ? studyProfiles : PROFILE_KINDS.filter((k) => PROFILES[k].study).map((k) => ({ id: "", name: PROFILES[k].label, kind: k }));
   const [name, setName] = useState(degree?.name ?? "");
   const [shortName, setShortName] = useState(degree?.shortName ?? "");
   const [institution, setInstitution] = useState(degree?.institution ?? "");

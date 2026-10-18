@@ -6,7 +6,7 @@ import { useWorkspace } from "@/lib/workspace";
 import { useContextMenu, type MenuItem } from "@/components/ui/menu";
 import { openOnboarding } from "@/components/onboarding/onboarding";
 
-// Perfil activo, en la columna de íconos: un clic abre la lista para cambiar de perfil o crear otro.
+// Perfil activo, abajo junto a Ajustes: un clic abre la lista para cambiar de perfil o crear otro.
 export function ProfileSwitcher() {
   const { profiles, activeProfile, setActive } = useProfiles();
   const { openView } = useWorkspace();

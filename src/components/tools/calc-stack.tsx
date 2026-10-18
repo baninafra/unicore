@@ -3,6 +3,7 @@
 // Panel "Cálculo": todas las herramientas una debajo de otra, como la barra lateral de Edge.
 // Cada una se puede minimizar y anclar (las ancladas van arriba). Se recuerda en este equipo.
 
+import { PROFILES, useProfiles } from "@/lib/profiles";
 import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
@@ -55,10 +56,14 @@ export function CalcStack() {
       closed: state.pinned.includes(k) ? state.closed : state.closed.filter((x) => x !== k),
     });
 
+  const { activeKinds } = useProfiles();
+  const studying = activeKinds.some((k) => PROFILES[k].study);
+  // El promedio de notas sólo tiene sentido en perfiles de estudio.
+  const visible = (t: (typeof TOOLS)[number]) => t.key !== "grades" || studying;
   const ordered = [
     ...state.pinned.map((k) => TOOLS.find((t) => t.key === k)!).filter(Boolean),
     ...TOOLS.filter((t) => !state.pinned.includes(t.key)),
-  ];
+  ].filter(visible);
 
   return (
     <div className="flex flex-col">

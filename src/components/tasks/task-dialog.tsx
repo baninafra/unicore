@@ -55,7 +55,7 @@ function Prop({ label, children }: { label: string; children: React.ReactNode })
 
 function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => void }) {
   const { degreeFilter } = useAppState();
-  const { termsFor, termsForSubject, inScope } = useProfiles();
+  const { termsFor, termsForSubject, inScope, singleSpace } = useProfiles();
   const allDegrees = useDegrees();
   const subjects = useAllSubjects();
   const editing = !!task?.id;
@@ -63,7 +63,7 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
 
   const [title, setTitle] = useState(task?.title ?? "");
   const [type, setType] = useState<TaskType>(task?.type ?? "TAREA");
-  const [degreeId, setDegreeId] = useState(task?.degreeId ?? (degreeFilter !== "all" ? degreeFilter : ""));
+  const [degreeId, setDegreeId] = useState(task?.degreeId ?? (degreeFilter !== "all" ? degreeFilter : (singleSpace?.id ?? "")));
   const [subjectId, setSubjectId] = useState(task?.subjectId ?? "");
   // Nombres según el espacio elegido (o el perfil que se está viendo).
   const terms = degreeId ? termsFor(degreeId) : subjectId ? termsForSubject(subjectId) : termsFor();
@@ -223,16 +223,18 @@ function TaskEditor({ task, onClose }: { task?: Partial<Task>; onClose: () => vo
             </Select>
           </Prop>
 
-          <Prop label={cap(terms.space.one)}>
-            <Select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
-              <option value="">Sin {terms.space.one}</option>
-              {degrees.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </Select>
-          </Prop>
+          {!(singleSpace && degreeId === singleSpace.id) && (
+            <Prop label={cap(terms.space.one)}>
+              <Select className={CONTROL} value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
+                <option value="">Sin {terms.space.one}</option>
+                {degrees.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
+            </Prop>
+          )}
 
           <Prop label={cap(terms.item.one)}>
             <Select className={CONTROL} value={subjectId} onChange={(e) => { setSubjectId(e.target.value); setNoteId(""); }}>

@@ -7,6 +7,7 @@
 // Se abre desde cualquier lado con openEventDialog(); askScope() pregunta si un cambio en un evento
 // que se repite va para esa vez, para las siguientes o para todas.
 
+import { cap, useProfiles } from "@/lib/profiles";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { format } from "date-fns";
@@ -165,7 +166,9 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
   const initEnd = ev && occurrence ? new Date(occurrence.getTime() + length) : base.end ? new Date(base.end) : new Date(initStart.getTime() + 3_600_000);
 
   const calendars = useLocalCalendars();
-  const subjects = useAllSubjects();
+  const { terms, inScope } = useProfiles();
+  // Sólo lo del perfil que se está viendo (y la que ya tenía el evento).
+  const subjects = useAllSubjects().filter((s) => inScope(s.degreeId) || s.id === ("defaults" in req ? req.defaults.subjectId : undefined));
   const { openTaskDialog } = useAppState();
   const tasks = useLiveQuery(() => db.tasks.filter((t) => t.status !== "DONE" && t.status !== "INBOX_EMAIL").toArray(), []) ?? [];
   const linkedTask = useLiveQuery(async () => (base.taskId ? ((await db.tasks.get(base.taskId)) ?? null) : null), [base.taskId]);
@@ -470,9 +473,9 @@ function EventEditor({ req, onClose }: { req: EventDialogRequest; onClose: () =>
               ))}
             </Select>
           </Prop>
-          <Prop label="Materia">
+          <Prop label={cap(terms.item.one)}>
             <Select className={CONTROL} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-              <option value="">Sin materia</option>
+              <option value="">Sin {terms.item.one}</option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}

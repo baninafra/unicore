@@ -99,6 +99,8 @@ function nextWorkday(days: string[], time: string): Date {
 async function createFromAnswers(a: Answers, profiles: Profile[]): Promise<string[]> {
   const kinds = profiles.map((p) => p.kind);
   const profileId = (k: ProfileKind) => profiles.find((p) => p.kind === k)?.id;
+  // Trabajo, proyectos y personal son un solo espacio con el nombre del perfil.
+  const profileName = (k: ProfileKind) => profiles.find((p) => p.kind === k)?.name ?? PROFILES[k].label;
   const degrees: Degree[] = [];
   const subjects: Subject[] = [];
   const facts: string[] = [];
@@ -121,20 +123,21 @@ async function createFromAnswers(a: Answers, profiles: Profile[]): Promise<strin
       subjects.push(...items(d.id, a.colegio.materias));
       facts.push(`Va al colegio: ${name}${a.colegio.escuela.trim() && a.colegio.curso.trim() ? ` en ${a.colegio.escuela.trim()}` : ""}.`);
     }
-    if (kind === "trabajo" && a.trabajo.empresa.trim()) {
-      const d = degree(kind, a.trabajo.empresa.trim(), color(), { profileId: profileId(kind) });
+    if (kind === "trabajo") {
+      const d = degree(kind, profileName(kind), color(), { profileId: profileId(kind) });
       degrees.push(d);
       subjects.push(...items(d.id, a.trabajo.proyectos));
-      facts.push(`Trabaja en ${d.name}${a.trabajo.puesto.trim() ? ` como ${a.trabajo.puesto.trim()}` : ""}.`);
+      if (a.trabajo.empresa.trim() || a.trabajo.puesto.trim())
+        facts.push(`Trabaja${a.trabajo.empresa.trim() ? ` en ${a.trabajo.empresa.trim()}` : ""}${a.trabajo.puesto.trim() ? ` como ${a.trabajo.puesto.trim()}` : ""}.`);
     }
-    if (kind === "proyectos" && (a.proyectos.espacio.trim() || a.proyectos.proyectos.length)) {
-      const d = degree(kind, a.proyectos.espacio.trim() || "Proyectos propios", color(), { profileId: profileId(kind) });
+    if (kind === "proyectos") {
+      const d = degree(kind, profileName(kind), color(), { profileId: profileId(kind) });
       degrees.push(d);
       subjects.push(...items(d.id, a.proyectos.proyectos));
       if (a.proyectos.proyectos.length) facts.push(`Tiene proyectos propios: ${a.proyectos.proyectos.join(", ")}.`);
     }
-    if (kind === "personal" && a.personal.areas.length) {
-      const d = degree(kind, "Personal", color(), { profileId: profileId(kind) });
+    if (kind === "personal") {
+      const d = degree(kind, profileName(kind), color(), { profileId: profileId(kind) });
       degrees.push(d);
       subjects.push(...items(d.id, a.personal.areas));
     }
@@ -147,7 +150,7 @@ async function createFromAnswers(a: Answers, profiles: Profile[]): Promise<strin
 
   // Horario laboral: un evento que se repite cada semana en un calendario "Trabajo".
   const work = a.trabajo;
-  if (kinds.includes("trabajo") && work.empresa.trim() && work.dias.length && work.desde < work.hasta) {
+  if (kinds.includes("trabajo") && work.dias.length && work.desde < work.hasta) {
     const start = nextWorkday(work.dias, work.desde);
     const [h, m] = work.hasta.split(":").map(Number);
     const end = new Date(start);
@@ -155,7 +158,7 @@ async function createFromAnswers(a: Answers, profiles: Profile[]): Promise<strin
     const calendarId = await createLocalCalendar("Trabajo");
     await saveEvent({
       calendarId,
-      title: `Trabajo · ${work.empresa.trim()}`,
+      title: `Trabajo · ${work.empresa.trim() || profileName("trabajo")}`,
       start: start.toISOString(),
       end: end.toISOString(),
       allDay: false,
@@ -181,7 +184,7 @@ function Field({ label, hint, group, children }: { label: string; hint?: string;
 }
 
 // Lista de nombres: se escribe y Enter (o coma) agrega; las sugerencias se agregan con un clic.
-function ChipInput({ value, onChange, placeholder, suggestions = [] }: { value: string[]; onChange: (v: string[]) => void; placeholder: string; suggestions?: string[] }) {
+function ChipInput({ value, onChange, placeholder, suggestions = [], autoFocus }: { value: string[]; onChange: (v: string[]) => void; placeholder: string; suggestions?: string[]; autoFocus?: boolean }) {
   const [text, setText] = useState("");
   const add = (raw: string) => {
     const parts = raw.split(/[,\n]/).map((p) => p.trim()).filter(Boolean);
@@ -204,6 +207,7 @@ function ChipInput({ value, onChange, placeholder, suggestions = [] }: { value: 
         ))}
         <input
           className="min-w-[140px] flex-1 bg-transparent outline-none"
+          autoFocus={autoFocus}
           value={text}
           placeholder={value.length ? "Agregar otra…" : placeholder}
           onChange={(e) => (e.target.value.includes(",") ? add(e.target.value) : setText(e.target.value))}
@@ -362,11 +366,8 @@ function KindStep({ kind, a, set }: { kind: ProfileKind; a: Answers; set: (patch
       return (
         <>
           <Heading big title="Tus proyectos" sub="Freelance, un emprendimiento, algo que estás armando por tu cuenta…" />
-          <Field label="¿Cómo le decís a este espacio?">
-            <input className="input" autoFocus value={p.espacio} onChange={(e) => up({ espacio: e.target.value })} placeholder="Freelance, Mi emprendimiento, Proyectos propios" />
-          </Field>
           <Field group label="¿En qué proyectos estás?" hint="Escribí uno y apretá Enter.">
-            <ChipInput value={p.proyectos} onChange={(proyectos) => up({ proyectos })} placeholder="App de recetas, Cliente Pérez, Canal de YouTube…" />
+            <ChipInput value={p.proyectos} onChange={(proyectos) => up({ proyectos })} placeholder="App de recetas, Cliente Pérez, Canal de YouTube…" autoFocus />
           </Field>
         </>
       );
@@ -400,7 +401,7 @@ function suggestedName(kind: ProfileKind, a: Answers): string {
     case "trabajo":
       return a.trabajo.empresa.trim() || "Trabajo";
     case "proyectos":
-      return a.proyectos.espacio.trim() || "Proyectos";
+      return "Proyectos";
     case "personal":
       return "Personal";
   }
@@ -613,14 +614,18 @@ function Wizard({ mode, onClose }: { mode: OnboardingMode; onClose: () => void }
                     <span className="t-small font-normal text-faint"> · perfil {def.label.toLowerCase()}</span>
                   </span>
                   <span className="t-small text-muted">
-                    {space
-                      ? `${space}${list.length ? ` · ${list.length} ${list.length === 1 ? def.item.one : def.item.many}: ${list.join(", ")}` : ""}`
-                      : `${def.space.f ? "La" : "El"} ${def.space.one} lo cargás después`}
+                    {!def.study
+                      ? list.length
+                        ? `${list.length} ${list.length === 1 ? def.item.one : def.item.many}: ${list.join(", ")}`
+                        : `Sin ${def.item.many} por ahora; los sumás cuando quieras`
+                      : space
+                        ? `${space}${list.length ? ` · ${list.length} ${list.length === 1 ? def.item.one : def.item.many}: ${list.join(", ")}` : ""}`
+                        : `${def.space.f ? "La" : "El"} ${def.space.one} lo cargás después`}
                   </span>
                 </div>
               </div>
             ))}
-            {kinds.includes("trabajo") && a.trabajo.empresa.trim() && a.trabajo.dias.length > 0 && (
+            {kinds.includes("trabajo") && a.trabajo.dias.length > 0 && a.trabajo.desde < a.trabajo.hasta && (
               <p className="t-small text-muted">
                 Horario de trabajo en el calendario: {a.trabajo.dias.map((d) => DAY_SHORT[d]).join(" ")} de {a.trabajo.desde} a {a.trabajo.hasta}.
               </p>

@@ -216,7 +216,7 @@ export function SubjectDialog({
           </FormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label={t.space.one.charAt(0).toUpperCase() + t.space.one.slice(1)}>
+            {study && <FormField label={t.space.one.charAt(0).toUpperCase() + t.space.one.slice(1)}>
               <Select className="input" value={degreeId} onChange={(e) => changeDegree(e.target.value)}>
                 {degrees.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -224,7 +224,7 @@ export function SubjectDialog({
                   </option>
                 ))}
               </Select>
-            </FormField>
+            </FormField>}
 
             <FormField label="Estado">
               <Select className="input" value={status} onChange={(e) => setStatus(e.target.value as SubjectStatus)}>

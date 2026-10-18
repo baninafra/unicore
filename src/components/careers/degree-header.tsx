@@ -34,19 +34,22 @@ export function DegreeHeader({
   // La barra es blurple por defecto; la carrera cian usa el token --cyan.
   const barStyle: CSSProperties | undefined = degree.color === "cyan" ? { background: "var(--cyan)" } : undefined;
 
-  const items: MenuItem[] = [
-    { label: `Editar ${t.space.one}`, icon: Pencil, onSelect: onEdit },
-    { label: add, icon: Plus, onSelect: onAddSubject },
-    exportMenuItem({ kind: "degree", id: degree.id }),
-    { type: "separator" },
-    { label: `Eliminar ${t.space.one}`, icon: Trash2, onSelect: onDelete, danger: true },
-  ];
+  // Trabajo, proyectos y personal: el espacio es el perfil (se renombra o borra desde Ajustes → Perfiles).
+  const items: MenuItem[] = t.study
+    ? [
+        { label: `Editar ${t.space.one}`, icon: Pencil, onSelect: onEdit },
+        { label: add, icon: Plus, onSelect: onAddSubject },
+        exportMenuItem({ kind: "degree", id: degree.id }),
+        { type: "separator" },
+        { label: `Eliminar ${t.space.one}`, icon: Trash2, onSelect: onDelete, danger: true },
+      ]
+    : [{ label: add, icon: Plus, onSelect: onAddSubject }, exportMenuItem({ kind: "degree", id: degree.id })];
 
   return (
     <div className="flex flex-col gap-2" onContextMenu={(e) => open(e, items)}>
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="t-h3 min-w-0 truncate font-semibold">{degree.name}</h2>
-        <span className="tag">{degree.shortName}</span>
+        {t.study && <span className="tag">{degree.shortName}</span>}
         {degree.kind && degree.kind !== "universidad" && <t.icon className="h-4 w-4 flex-none text-faint" strokeWidth={1.75} aria-label={t.label} />}
         <span className="t-small num ml-auto flex-none text-faint">{stats}</span>
         <button type="button" className="icon-btn" onClick={onAddSubject} aria-label={add} title={add}>

@@ -113,7 +113,8 @@ function group<T>(list: T[], keyOf: (t: T) => string | undefined): Record<string
   return out;
 }
 
-export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMode, inScope: (degreeId?: string) => boolean = () => true): TreeNode[] {
+// `flatId`: espacio único del perfil activo (trabajo, proyectos, personal); sus proyectos van al primer nivel.
+export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMode, inScope: (degreeId?: string) => boolean = () => true, flatId?: string): TreeNode[] {
   const subjectIds = new Set(data.subjects.map((s) => s.id));
 
   // Subnotas: cuelgan de su nota madre (si la madre está en la misma carpeta).
@@ -160,7 +161,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     sort,
   );
 
-  const folders: TreeNode[] = [
+  const allFolders: TreeNode[] = [
     {
       key: "f:diario",
       label: folderName(DAILY_FOLDER) ?? "Diario",
@@ -178,6 +179,9 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       children: [...looseNotes.map((n) => noteNode(n)), ...looseCanvases.map((c) => canvasNode(c, LOOSE_FOLDER)), ...looseFiles.map((f) => fileNode(f, LOOSE_FOLDER))],
     },
   ];
+
+  // El Diario sólo aparece cuando ya hay notas del día (se abre desde la columna de íconos).
+  const folders = allFolders.filter((f) => f.key !== "f:diario" || f.children?.length);
 
   // Materias con su contenido
   const notesBy = group(topLevel(data.notes), (n) => (subjectIds.has(n.subjectId) ? n.subjectId : undefined));
@@ -249,6 +253,8 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       };
     });
 
+  const flat = degrees.find((d) => d.key === `d:${flatId}`);
+  if (flat) return [...(flat.children ?? []), ...folders, ...degrees.filter((d) => d !== flat)];
   return [...folders, ...degrees];
 }
 

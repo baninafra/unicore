@@ -36,7 +36,7 @@ function ProfileRow({ p, spaces, onRename, onKind, onDelete }: { p: Profile; spa
         ))}
       </Select>
       <span className="t-small w-[92px] flex-none text-right text-faint">
-        {spaces} {spaces === 1 ? def.space.one : def.space.many}
+        {def.study ? `${spaces} ${spaces === 1 ? def.space.one : def.space.many}` : ""}
       </span>
       <button type="button" className="icon-btn flex-none" aria-label={`Borrar el perfil ${p.name}`} title="Borrar perfil" onClick={onDelete}>
         <Trash2 strokeWidth={1.75} />

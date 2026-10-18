@@ -66,6 +66,7 @@ export function Ribbon() {
   const { unread } = useNotifications();
   const { terms, activeKinds } = useProfiles();
   const studying = activeKinds.some((k) => PROFILES[k].study);
+  const showMail = activeKinds.some((k) => k === "universidad" || k === "colegio" || k === "trabajo");
   const view = (type: string, icon: LucideIcon, label: string): Item => ({
     id: type,
     node: <RibbonButton icon={icon} label={label} active={activeView.type === type} onClick={() => openView({ type } as ViewState)} />,
@@ -90,7 +91,7 @@ export function Ribbon() {
     view("plantillas", LayoutTemplate, "Plantillas"),
     view("ideas", Lightbulb, "Ideas"),
     ...(studying ? [view("repaso", Layers, "Repaso")] : []),
-    view("mails", Inbox, "Mails"),
+    ...(showMail ? [view("mails", Inbox, "Mails")] : []),
     view("grafo", GitFork, "Grafo"),
     { id: "unirse", node: <RibbonButton icon={UserPlus} label="Unirse a una nota compartida" onClick={openJoinDialog} /> },
     { id: "paleta", node: <RibbonButton icon={Terminal} label="Comandos (Ctrl+P)" onClick={() => runCommand("paleta:abrir")} /> },
@@ -113,11 +114,10 @@ export function Ribbon() {
       <div className="my-1 h-px w-5 bg-border" />
       <Group group="ribbon-views" items={views} />
       <div className="my-1 h-px w-5 bg-border" />
-      <ProfileSwitcher />
-      <div className="my-1 h-px w-5 bg-border" />
       <Group group="ribbon-editors" items={editors} />
       <div className="mt-auto flex flex-col items-center gap-1">
         {isDesktop() && <RibbonButton icon={FolderOpen} label="Carpeta de datos" onClick={() => openDataFolder()} />}
+        <ProfileSwitcher />
         <RibbonButton icon={Settings} label="Ajustes" active={activeView.type === "ajustes"} onClick={() => openView({ type: "ajustes" })} />
       </div>
     </nav>

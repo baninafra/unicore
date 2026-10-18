@@ -304,7 +304,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
       </div>
 
       <div className="flex flex-col">
-        <Prop label={cap(pt.space.one)}>
+        {pt.study && <Prop label={cap(pt.space.one)}>
           <Select className={CONTROL} value={subject.degreeId} onChange={(e) => {
             const degreeId = e.target.value;
             void save({
@@ -318,7 +318,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
               </option>
             ))}
           </Select>
-        </Prop>
+        </Prop>}
 
         {pt.study && <Prop label="Año">
           <Select className={CONTROL} value={subject.year} onChange={(e) => void save({ year: Number(e.target.value) })}>

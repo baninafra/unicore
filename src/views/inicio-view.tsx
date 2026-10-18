@@ -5,10 +5,10 @@ import { es } from "date-fns/locale";
 import { Agenda } from "@/components/dashboard/agenda";
 import { Kanban } from "@/components/dashboard/kanban";
 import { MailPanel } from "@/components/dashboard/mail-panel";
-import { SummaryLines } from "@/components/dashboard/summary-lines";
+import { ProfileSide, QuickActions } from "@/components/dashboard/profile-panel";
 import { useNow } from "@/components/dashboard/use-now";
 import { useOpen } from "@/components/workspace/use-open";
-import { useAllSubjects, useSubjectMap, useTasks } from "@/lib/hooks";
+import { useAllSubjects, useSubjectMap, useSubjects, useTasks } from "@/lib/hooks";
 import { useProfiles } from "@/lib/profiles";
 
 // "Buen día", "Buenas tardes" o "Buenas noches" según la hora.
@@ -28,7 +28,10 @@ export function InicioView() {
   const subjectMap = useSubjectMap();
   const allSubjects = useAllSubjects();
   const open = useOpen();
-  const { profile } = useProfiles();
+  const { profile, activeProfile } = useProfiles();
+  const subjects = useSubjects();
+  // Los mails sirven para la facultad y el trabajo; en proyectos y personal no aparecen.
+  const showMail = !activeProfile || ["universidad", "colegio", "trabajo"].includes(activeProfile.kind);
   const firstName = profile.name.trim().split(/\s+/)[0];
 
   // Sin la hora del navegador la fecha queda vacía un instante, para no diferir del servidor.
@@ -41,13 +44,14 @@ export function InicioView() {
           {now && firstName && <h1 className="t-h2 font-semibold">{`${greeting(now)}, ${firstName}`}</h1>}
           <p className="t-small text-faint">{dateLabel}</p>
         </div>
+        <QuickActions />
         <Agenda tasks={tasks} subjectMap={subjectMap} now={now} />
         <Kanban tasks={tasks} subjectMap={subjectMap} />
       </div>
 
       <aside className="flex min-w-0 flex-col gap-6">
-        <MailPanel tasks={tasks} subjects={allSubjects} onOpenAll={(e) => open({ type: "mails" }, e)} />
-        <SummaryLines now={now} />
+        <ProfileSide now={now} tasks={tasks} subjects={subjects} />
+        {showMail && <MailPanel tasks={tasks} subjects={allSubjects} onOpenAll={(e) => open({ type: "mails" }, e)} />}
       </aside>
     </div>
   );

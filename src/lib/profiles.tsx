@@ -5,7 +5,7 @@
 // y las secciones según el perfil activo. Lo que el usuario contó al arrancar (nombre, perfiles, sobre vos)
 // se guarda en este equipo y también lo usa la IA.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Briefcase, GraduationCap, Heart, Layers2, Rocket, School, type LucideIcon } from "lucide-react";
 import { db, newId } from "./db";
@@ -32,6 +32,7 @@ export interface ProfileDef {
   unit: string; // "Unidad", "Etapa"
   spacesView: string; // nombre de la pantalla que lista los espacios: "Mis carreras"
   study: boolean; // años, cuatrimestres, correlativas, notas y repaso con flashcards
+  // Los perfiles que no son de estudio son un solo espacio (el perfil mismo): adentro van directo los proyectos o áreas.
   taskTypes: Record<TaskType, string>;
   statuses: Record<SubjectStatus, string>;
 }
@@ -78,7 +79,7 @@ export const PROFILES: Record<ProfileKind, ProfileDef> = {
     spaceIcon: Briefcase,
     item: { one: "proyecto", many: "proyectos", f: false },
     unit: "Etapa",
-    spacesView: "Mis trabajos",
+    spacesView: "Proyectos",
     study: false,
     taskTypes: { PARCIAL: "Presentación", FINAL: "Entrega final", TP: "Entregable", FORO: "Reunión", LECTURA: "Lectura", TAREA: "Tarea" },
     statuses: PROJECT_STATUS,
@@ -92,7 +93,7 @@ export const PROFILES: Record<ProfileKind, ProfileDef> = {
     spaceIcon: Rocket,
     item: { one: "proyecto", many: "proyectos", f: false },
     unit: "Etapa",
-    spacesView: "Mis proyectos",
+    spacesView: "Proyectos",
     study: false,
     taskTypes: { PARCIAL: "Hito", FINAL: "Lanzamiento", TP: "Entregable", FORO: "Reunión", LECTURA: "Investigación", TAREA: "Tarea" },
     statuses: PROJECT_STATUS,
@@ -106,7 +107,7 @@ export const PROFILES: Record<ProfileKind, ProfileDef> = {
     spaceIcon: Heart,
     item: { one: "área", many: "áreas", f: true },
     unit: "Parte",
-    spacesView: "Mi vida",
+    spacesView: "Áreas",
     study: false,
     taskTypes: { PARCIAL: "Evento", FINAL: "Meta", TP: "Trámite", FORO: "Turno", LECTURA: "Lectura", TAREA: "Pendiente" },
     statuses: { PENDIENTE: "Más adelante", CURSANDO: "Activa", REGULAR: "En pausa", APROBADA: "Cumplida" },
@@ -226,12 +227,16 @@ interface ProfileState {
   termsFor: (degreeId?: string) => ProfileDef; // nombres de un espacio puntual
   termsForSubject: (subjectId?: string) => ProfileDef;
   profileFor: (degreeId?: string) => Profile | undefined;
+  singleSpace?: Degree; // el espacio único del perfil activo (trabajo, proyectos, personal)
   inScope: (degreeId?: string) => boolean; // el espacio entra en el perfil activo
   taskInScope: (task: Pick<Task, "degreeId" | "subjectId">) => boolean;
   taskLabel: (task: Pick<Task, "type" | "degreeId" | "subjectId">) => string;
 }
 
 const Ctx = createContext<ProfileState | null>(null);
+
+// Espacios únicos que se están creando (para no duplicarlos si el efecto corre dos veces).
+const creating = new Set<string>();
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(EMPTY);
@@ -248,13 +253,41 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Quien ya tenía datos de antes no pasa por las preguntas: se arma un perfil por cada tipo que hay.
+  // Sólo se mira al abrir la app (no mientras el asistente está creando cosas).
+  const legacyChecked = useRef(false);
   useEffect(() => {
-    if (!loaded || !degrees || profile.onboarded || degrees.length === 0) return;
+    if (!loaded || !degrees || legacyChecked.current) return;
+    legacyChecked.current = true;
+    if (profile.onboarded || degrees.length === 0) return;
     const kinds = PROFILE_KINDS.filter((k) => degrees.some((d) => kindOf(d) === k));
     writeProfile({ profiles: kinds.map((k) => ({ id: k, name: PROFILES[k].label, kind: k })), active: "todos", onboarded: true });
   }, [loaded, degrees, profile.onboarded]);
 
   const { profiles } = profile;
+
+  // Trabajo, proyectos y personal: cada perfil tiene su único espacio, con el mismo nombre que el perfil.
+  useEffect(() => {
+    if (!loaded || !degrees) return;
+    for (const p of profiles) {
+      if (PROFILES[p.kind].study) continue;
+      const own = degrees.filter((d) => profileOfDegree(profiles, d)?.id === p.id);
+      if (own.length === 0) {
+        if (creating.has(p.id)) continue;
+        creating.add(p.id);
+        // Se vuelve a mirar la base: el asistente puede haberlo creado recién (la consulta en vivo llega después).
+        void (async () => {
+          const fresh = await db.degrees.toArray();
+          if (!fresh.some((d) => profileOfDegree(profiles, d)?.id === p.id)) {
+            await db.degrees.add({ id: newId(), name: p.name, shortName: p.name.slice(0, 4).toUpperCase().padEnd(2, "X"), color: "primary", totalYears: 1, kind: p.kind, profileId: p.id, createdAt: new Date().toISOString() });
+          }
+          creating.delete(p.id);
+        })();
+      } else if (own.length === 1 && (own[0].name !== p.name || own[0].profileId !== p.id || own[0].kind !== p.kind)) {
+        void db.degrees.update(own[0].id, { name: p.name, profileId: p.id, kind: p.kind });
+      }
+    }
+  }, [loaded, degrees, profiles]);
+
   const activeProfile = profiles.find((p) => p.id === profile.active);
   const degreeById = useMemo(() => new Map((degrees ?? []).map((d) => [d.id, d])), [degrees]);
   const degreeOfSubject = useMemo(() => new Map((subjects ?? []).map((s) => [s.id, s.degreeId])), [subjects]);
@@ -301,6 +334,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     [termsFor, termsForSubject],
   );
 
+  const singleSpace = useMemo(
+    () => (activeProfile && !PROFILES[activeProfile.kind].study ? [...degreeById.values()].find((d) => profileOfDegree(profiles, d)?.id === activeProfile.id) : undefined),
+    [activeProfile, degreeById, profiles],
+  );
+
   const value: ProfileState = {
     profile,
     profiles,
@@ -314,6 +352,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     termsFor,
     termsForSubject,
     profileFor,
+    singleSpace,
     inScope,
     taskInScope,
     taskLabel,

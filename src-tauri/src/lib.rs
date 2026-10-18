@@ -82,9 +82,12 @@ pub(crate) fn open_store() -> Result<Store, String> {
     }
     // v3: número de revisión que sube con cada cambio (venga de la app o del MCP).
     // Si al abrir coincide con el que recuerda la interfaz, no hace falta recargar todo.
+    // Arranca en la cantidad de registros (una base con datos nunca está en 0) y `uid`
+    // distingue esta base de otra carpeta de datos.
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
-         INSERT OR IGNORE INTO meta (k, v) VALUES ('rev', 0);
+         INSERT OR IGNORE INTO meta (k, v) VALUES ('rev', (SELECT count(*) FROM records));
+         INSERT OR IGNORE INTO meta (k, v) VALUES ('uid', lower(hex(randomblob(8))));
          CREATE TRIGGER IF NOT EXISTS rev_ins AFTER INSERT ON records BEGIN UPDATE meta SET v = v + 1 WHERE k = 'rev'; END;
          CREATE TRIGGER IF NOT EXISTS rev_upd AFTER UPDATE ON records BEGIN UPDATE meta SET v = v + 1 WHERE k = 'rev'; END;
          CREATE TRIGGER IF NOT EXISTS rev_del AFTER DELETE ON records BEGIN UPDATE meta SET v = v + 1 WHERE k = 'rev'; END;",
@@ -113,10 +116,12 @@ fn rev(conn: &Connection) -> CmdResult<i64> {
     conn.query_row("SELECT v FROM meta WHERE k = 'rev'", [], |r| r.get(0)).map_err(err)
 }
 
+/// Identificador de esta base y su revisión actual.
 #[tauri::command]
-async fn db_rev(store: State<'_, Store>) -> CmdResult<i64> {
+async fn db_rev(store: State<'_, Store>) -> CmdResult<(String, i64)> {
     let conn = store.conn.lock().map_err(err)?;
-    rev(&conn)
+    let uid: String = conn.query_row("SELECT v FROM meta WHERE k = 'uid'", [], |r| r.get(0)).map_err(err)?;
+    Ok((uid, rev(&conn)?))
 }
 
 /// Devuelve todos los registros agrupados por tabla.

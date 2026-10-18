@@ -57,23 +57,29 @@ function diskName(f: Pick<StoredFile, "id" | "name" | "type">) {
   return `${f.id}.${ext}`;
 }
 
-// Última revisión del disco que IndexedDB tiene entera. Sin valor: hay que restaurar al abrir.
+// Última revisión del disco que IndexedDB tiene entera ("<uid de la base>:<revisión>").
+// Sin valor: hay que restaurar al abrir.
 const REV_KEY = "uc-disk-rev";
+let diskUid = "";
 let knownRev: number | null = null;
 function setKnownRev(rev: number | null) {
   knownRev = rev;
   try {
     if (rev === null) localStorage.removeItem(REV_KEY);
-    else localStorage.setItem(REV_KEY, String(rev));
+    else localStorage.setItem(REV_KEY, `${diskUid}:${rev}`);
   } catch {}
 }
-function readKnownRev(): number | null {
+function readKnownRev(): string | null {
   try {
-    const v = localStorage.getItem(REV_KEY);
-    return v === null ? null : Number(v);
+    return localStorage.getItem(REV_KEY);
   } catch {
     return null;
   }
+}
+async function diskRev(): Promise<number> {
+  const [uid, rev] = await call<[string, number]>("db_rev");
+  diskUid = uid;
+  return rev;
 }
 // Cada escritura propia sube la revisión en uno. Si saltó más, alguien más escribió (el MCP)
 // y al próximo arranque conviene restaurar.
@@ -145,8 +151,9 @@ export async function initDesktopStorage(): Promise<void> {
   installHooks();
 
   // IndexedDB ya tiene todo lo del disco: no hay nada que recargar.
-  const [rev, saved, localRows] = await Promise.all([call<number>("db_rev"), readKnownRev(), db.notes.count()]);
-  if (saved !== null && saved === rev && (rev === 0 || localRows > 0 || (await db.subjects.count()) > 0)) {
+  const rev = await diskRev();
+  const [notes, subjects] = await Promise.all([db.notes.count(), db.subjects.count()]);
+  if (readKnownRev() === `${diskUid}:${rev}` && (rev === 0 || notes + subjects > 0)) {
     knownRev = rev;
     return;
   }
@@ -162,7 +169,7 @@ export async function initDesktopStorage(): Promise<void> {
       if (t === "files") for (const r of rows) await pushPut("files", r);
       else await call("db_put_many", { table: t, records: rows });
     }
-    setKnownRev(await call<number>("db_rev"));
+    setKnownRev(await diskRev());
     return;
   }
 

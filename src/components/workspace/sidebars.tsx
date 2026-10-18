@@ -1,6 +1,5 @@
 "use client";
 
-import { ProfileSwitcher } from "./profile-switcher";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import {
@@ -162,7 +161,6 @@ export function LeftSidebar() {
   return (
     <aside className="relative flex flex-none flex-col border-r border-border bg-bg" style={{ width }}>
       <ResizeHandle side="left" width={width} onResize={setWidth} onReset={() => setWidth(260)} />
-      <ProfileSwitcher />
       <div className="flex h-10 flex-none items-center gap-0.5 px-2">
         {LEFT.map((v) => (
           <PaneTab key={v.key} icon={v.icon} label={v.label} active={leftView === v.key} onClick={() => setLeft(true, v.key)} />

@@ -3,7 +3,7 @@
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
 import { folderName } from "@/lib/folder-names";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CalendarDays, DraftingCompass, FileSpreadsheet, FileText, FileType, Folder, FolderKanban, Lightbulb, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, DraftingCompass, FileSpreadsheet, FileText, FileType, Folder, FolderKanban, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { DAILY_FOLDER, IDEAS_FOLDER, LOOSE_FOLDER, TEMPLATES_FOLDER, type Bookmark, type CanvasDoc, type Degree, type Note, type OfficeDoc, type OfficeKind, type Subject, type SubjectDocument } from "@/lib/types";
 import { sameView, type ViewState } from "@/lib/workspace";
@@ -176,19 +176,6 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       item: { kind: "folder", folder: LOOSE_FOLDER },
       drop: { subjectId: LOOSE_FOLDER },
       children: [...looseNotes.map((n) => noteNode(n)), ...looseCanvases.map((c) => canvasNode(c, LOOSE_FOLDER)), ...looseFiles.map((f) => fileNode(f, LOOSE_FOLDER))],
-    },
-    {
-      key: "f:ideas",
-      label: folderName(IDEAS_FOLDER) ?? "Ideas",
-      icon: Lightbulb,
-      view: { type: "ideas" },
-      item: { kind: "folder", folder: IDEAS_FOLDER },
-      drop: { subjectId: IDEAS_FOLDER },
-      children: sortItems(
-        topLevel(data.notes).filter((n) => n.subjectId === IDEAS_FOLDER),
-        (n) => n.title,
-        sort,
-      ).map((n) => noteNode(n)),
     },
   ];
 

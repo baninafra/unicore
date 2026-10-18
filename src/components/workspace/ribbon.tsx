@@ -11,6 +11,7 @@ import { EDITOR_KINDS } from "@/lib/editors/editors";
 import { openEditorApp } from "@/components/shell/editor-app";
 import { openJoinDialog } from "@/components/share/share-dialog";
 import { PROFILES, useProfiles } from "@/lib/profiles";
+import { ProfileSwitcher } from "./profile-switcher";
 
 // El PDF no se crea vacío: se elige uno del equipo y se abre en el editor.
 function pickPdf(onPick: (file: File) => void) {
@@ -111,6 +112,8 @@ export function Ribbon() {
       <RibbonButton icon={PanelLeft} label="Mostrar u ocultar la barra lateral" onClick={() => setLeft(!leftOpen)} />
       <div className="my-1 h-px w-5 bg-border" />
       <Group group="ribbon-views" items={views} />
+      <div className="my-1 h-px w-5 bg-border" />
+      <ProfileSwitcher />
       <div className="my-1 h-px w-5 bg-border" />
       <Group group="ribbon-editors" items={editors} />
       <div className="mt-auto flex flex-col items-center gap-1">

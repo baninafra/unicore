@@ -1,11 +1,12 @@
 "use client";
 
+import { openFolderDialog } from "./folder-dialog";
 import { newSubmenu, type NewMenuOpts } from "@/components/ui/new-menu";
 import { renameFolder, useFolderNames } from "@/lib/folder-names";
 import { addIdea } from "@/views/ideas-view";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban, FolderPlus } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban, FolderPlus, Palette } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { useProfiles } from "@/lib/profiles";
 import { taskFromNote } from "@/lib/tasks/class-tasks";
@@ -285,7 +286,7 @@ export function FileExplorer() {
     const openTab = (view: ViewState): MenuItem => ({ label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => open(view, { ctrlKey: true }) });
     const openSplit = (view: ViewState): MenuItem => ({ label: "Abrir a la derecha", icon: Columns2, onSelect: () => open(view, { ctrlKey: true, altKey: true }) });
     const rename = (kind: "note" | "canvas" | "subject" | "file", id: string, value: string): MenuItem => ({
-      label: kind === "subject" ? `Renombrar ${termsForSubject(id).item.one}` : "Renombrar",
+      label: kind === "subject" ? `Renombrar ${data?.subjects.find((x) => x.id === id)?.folder ? "carpeta" : termsForSubject(id).item.one}` : "Renombrar",
       icon: Pencil,
       onSelect: () => setDialog({ type: "rename", kind, id, value }),
     });
@@ -336,10 +337,18 @@ export function FileExplorer() {
       }
       case "subject":
         return [
-          nuevo({ subjectId: item.id }),
+          nuevo({ subjectId: item.id, degreeId: data?.subjects.find((x) => x.id === item.id)?.degreeId }),
           sep,
-          ...(node.view ? [{ label: `Abrir ${termsForSubject(item.id).item.one}`, onSelect: () => open(node.view!) }] : []),
+          ...(node.view ? [{ label: "Abrir", onSelect: () => open(node.view!) }] : []),
           rename("subject", item.id, node.label),
+          {
+            label: "Cambiar nombre e ícono",
+            icon: Palette,
+            onSelect: () => {
+              const subject = data?.subjects.find((x) => x.id === item.id);
+              if (subject) openFolderDialog({ subject });
+            },
+          },
           ...pdf({ kind: "subject", id: item.id }),
           sep,
           bm("subject", item.id),
@@ -415,7 +424,14 @@ export function FileExplorer() {
         return [
           nuevo({
             taskDefaults: { degreeId: item.id },
-            extra: [{ label: t.item.one.charAt(0).toUpperCase() + t.item.one.slice(1), icon: t.study ? GraduationCap : FolderKanban, onSelect: () => setCareer({ type: "subject", degreeId: item.id }) }],
+            degreeId: item.id,
+            extra: [
+              {
+                label: t.item.one.charAt(0).toUpperCase() + t.item.one.slice(1),
+                icon: t.study ? GraduationCap : FolderKanban,
+                onSelect: () => (t.study ? setCareer({ type: "subject", degreeId: item.id }) : openFolderDialog({ degreeId: item.id, item: true })),
+              },
+            ],
           }),
           { label: t.study ? "Ver plan de estudios" : `Ver ${t.item.many}`, icon: ExternalLink, onSelect: () => openView({ type: "carreras" }) },
           sep,
@@ -437,6 +453,7 @@ export function FileExplorer() {
         return [
           nuevo({
             taskDefaults: { degreeId: item.degreeId },
+            degreeId: item.degreeId,
             extra: [{ label: `Materia en ${node.label}`, icon: GraduationCap, onSelect: () => setCareer({ type: "subject", degreeId: item.degreeId, year: item.year }) }],
           }),
           sep,
@@ -470,16 +487,13 @@ export function FileExplorer() {
       <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-0.5 bg-bg pl-3 pr-2">
         <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? "Archivos"}</span>
         {singleSpace && (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={nuevoItem}
-            title={nuevoItem}
-            onClick={() => setCareer({ type: "subject", degreeId: singleSpace.id })}
-          >
-            <FolderPlus strokeWidth={1.75} />
+          <button type="button" className="icon-btn" aria-label={nuevoItem} title={nuevoItem} onClick={() => openFolderDialog({ degreeId: singleSpace.id, item: true })}>
+            <FolderKanban strokeWidth={1.75} />
           </button>
         )}
+        <button type="button" className="icon-btn" aria-label="Nueva carpeta" title="Nueva carpeta" onClick={() => openFolderDialog({})}>
+          <FolderPlus strokeWidth={1.75} />
+        </button>
         <button type="button" className="icon-btn" aria-label="Nueva nota" title="Nueva nota" onClick={headerNewNote}>
           <FilePlus strokeWidth={1.75} />
         </button>
@@ -510,11 +524,15 @@ export function FileExplorer() {
         <div className="mx-3 mt-2 flex flex-col gap-2 rounded-lg border border-dashed border-border p-4 text-center">
           <p className="t-small text-faint">Todavía no hay nada acá.</p>
           {singleSpace && (
-            <button type="button" className="btn btn-sm btn-primary" onClick={() => setCareer({ type: "subject", degreeId: singleSpace.id })}>
-              <FolderPlus strokeWidth={1.75} />
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => openFolderDialog({ degreeId: singleSpace.id, item: true })}>
+              <FolderKanban strokeWidth={1.75} />
               {nuevoItem}
             </button>
           )}
+          <button type="button" className="btn btn-sm" onClick={() => openFolderDialog({})}>
+            <FolderPlus strokeWidth={1.75} />
+            Nueva carpeta
+          </button>
           <button type="button" className="btn btn-sm" onClick={headerNewNote}>
             <FilePlus strokeWidth={1.75} />
             Nueva nota

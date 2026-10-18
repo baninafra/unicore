@@ -5,6 +5,8 @@ import type { Degree, Subject, SubjectStatus } from "@/lib/types";
 import { PROFILES, kindOf } from "@/lib/profiles";
 import { useOpen } from "@/components/workspace/use-open";
 import { useSubjectMenu } from "./subject-menu";
+import { FolderKanban } from "lucide-react";
+import { iconFor } from "@/lib/folder-icons";
 
 // Orden de los grupos: lo que está en curso primero.
 const ORDER: SubjectStatus[] = ["CURSANDO", "PENDIENTE", "REGULAR", "APROBADA"];
@@ -55,6 +57,10 @@ export function ItemList({
                 }}
                 onContextMenu={(e) => show(e, s)}
               >
+                {(() => {
+                  const Icon = iconFor(s.icon, FolderKanban);
+                  return <Icon className="h-4 w-4 flex-none text-faint" strokeWidth={1.75} />;
+                })()}
                 <span className="min-w-0 flex-1 truncate text-text">{s.name}</span>
                 <span className={clsx("t-small flex-none", TONE[status])}>{terms.statuses[status]}</span>
               </div>

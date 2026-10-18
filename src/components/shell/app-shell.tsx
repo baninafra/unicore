@@ -1,5 +1,6 @@
 "use client";
 
+import { FolderDialogHost } from "@/components/explorer/folder-dialog";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { AppStateProvider, useAppState } from "@/lib/app-state";
 import { AIProvider } from "@/lib/ai/ai-provider";
@@ -187,6 +188,7 @@ export function AppShell() {
           <GlobalMouse />
           <GlobalFiles />
           <OnboardingHost />
+          <FolderDialogHost />
         </AIProvider>
       </WorkspaceProvider>
       </ProfileProvider>

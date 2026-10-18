@@ -35,7 +35,8 @@ export function CarrerasView() {
   const addLabel = activeProfile ? terms.space.one : studyProfiles.length === 1 ? PROFILES[studyProfiles[0].kind].space.one : "carrera o curso";
   // undefined mientras carga: así no mostramos nada por un instante.
   const degrees = useLiveQuery(() => db.degrees.orderBy("createdAt").toArray(), []);
-  const subjects = useAllSubjects();
+  // Las carpetas libres no son materias ni proyectos: no van en el plan ni en el avance.
+  const subjects = useAllSubjects().filter((s) => !s.folder);
 
   const [mode, setMode] = useState<Mode>("tabla");
   const [degreeDialog, setDegreeDialog] = useState<{ degree?: Degree } | null>(null);

@@ -1,5 +1,8 @@
 "use client";
 
+import { openFolderDialog } from "@/components/explorer/folder-dialog";
+import { iconFor } from "@/lib/folder-icons";
+import { BookOpen as BookIcon, Folder as FolderIcon, FolderKanban as KanbanIcon } from "lucide-react";
 import { newSubmenu } from "@/components/ui/new-menu";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -268,10 +271,21 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
     exportMenuItem({ kind: "subject", id: subjectId }),
   ];
 
+  const SubjectIcon = iconFor(subject.icon, subject.folder ? FolderIcon : pt.study ? BookIcon : KanbanIcon);
+
   return (
     <div className="view-readable flex flex-col gap-7" onContextMenu={(e) => pageMenu.open(e, pageItems)}>
       {pageMenu.menu}
       <div className="flex items-start gap-3">
+        <button
+          type="button"
+          className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-md bg-primary-tint text-primary-soft hover:brightness-110"
+          aria-label="Cambiar ícono"
+          title="Cambiar nombre e ícono"
+          onClick={() => openFolderDialog({ subject })}
+        >
+          <SubjectIcon className="h-5 w-5" strokeWidth={1.75} />
+        </button>
         <input
           key={subject.name}
           defaultValue={subject.name}
@@ -303,7 +317,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         </button>
       </div>
 
-      <div className="flex flex-col">
+      {!subject.folder && <div className="flex flex-col">
         {pt.study && <Prop label={cap(pt.space.one)}>
           <Select className={CONTROL} value={subject.degreeId} onChange={(e) => {
             const degreeId = e.target.value;
@@ -417,9 +431,9 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         <Prop label="Drive">
           <LinkField value={subject.driveUrl} placeholder="Drive" onSave={(v) => void save({ driveUrl: v })} />
         </Prop>
-      </div>
+      </div>}
 
-      <CronogramaSection subject={subject} />
+      {!subject.folder && <CronogramaSection subject={subject} />}
 
       <Section
         title="Notas"
@@ -484,7 +498,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
         )}
       </Section>
 
-      {(pt.study || quizzes.length > 0) && <Section
+      {((pt.study && !subject.folder) || quizzes.length > 0) && <Section
         title="Cuestionarios"
         action={
           <button type="button" className="icon-btn" onClick={() => setQuizForm(true)} aria-label="Nuevo cuestionario" title="Nuevo cuestionario con IA">
@@ -506,7 +520,7 @@ function MateriaContent({ subjectId }: { subjectId: string }) {
       </Section>}
       {quizForm && <NewQuizDialog subjectId={subjectId} onClose={() => setQuizForm(false)} />}
 
-      {(pt.study || totalCards > 0) && <Section
+      {((pt.study && !subject.folder) || totalCards > 0) && <Section
         title="Flashcards"
         action={
           <button type="button" className="icon-btn" onClick={() => setCardForm(true)} aria-label="Nueva flashcard" title="Nueva flashcard">

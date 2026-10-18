@@ -1,6 +1,7 @@
 "use client";
 
 // Árbol del explorador: carpetas especiales, carreras → años → materias → unidades → notas, lienzos y PDFs.
+import { iconFor } from "@/lib/folder-icons";
 import { folderName } from "@/lib/folder-names";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BookOpen, CalendarDays, DraftingCompass, FileSpreadsheet, FileText, FileType, Folder, FolderKanban, NotebookPen, Presentation, Shapes, type LucideIcon } from "lucide-react";
@@ -211,7 +212,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     return {
       key: `s:${s.id}`,
       label: s.name,
-      icon: def.study ? BookOpen : FolderKanban,
+      icon: iconFor(s.icon, s.folder ? Folder : def.study ? BookOpen : FolderKanban),
       view: { type: "materia", id: s.id },
       item: { kind: "subject", id: s.id },
       drop: { subjectId: s.id },
@@ -224,8 +225,10 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     .map((d): TreeNode => {
       const def = PROFILES[kindOf(d)];
       const subjects = data.subjects.filter((s) => s.degreeId === d.id);
-      const years = [...new Set(subjects.map((s) => s.year))].sort((a, b) => a - b);
       const node = (s: Subject) => subjectNode(s, def);
+      // Las carpetas libres van arriba (no tienen año ni cuatrimestre).
+      const folderNodes = subjects.filter((s) => s.folder).sort((a, b) => a.name.localeCompare(b.name, "es")).map(node);
+      const years = [...new Set(subjects.filter((s) => !s.folder).map((s) => s.year))].sort((a, b) => a - b);
       // Trabajo, proyectos y personal no tienen años: van directo, ordenados por nombre.
       if (!def.study) {
         return {
@@ -233,7 +236,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
           label: d.name,
           icon: def.spaceIcon,
           item: { kind: "degree", id: d.id },
-          children: [...subjects].sort((a, b) => a.name.localeCompare(b.name, "es")).map(node),
+          children: [...folderNodes, ...subjects.filter((s) => !s.folder).sort((a, b) => a.name.localeCompare(b.name, "es")).map(node)],
         };
       }
       return {
@@ -241,15 +244,15 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         label: d.name,
         icon: def.spaceIcon,
         item: { kind: "degree", id: d.id },
-        children: years.map((y): TreeNode => ({
+        children: [...folderNodes, ...years.map((y): TreeNode => ({
           key: `y:${d.id}:${y}`,
           label: `${y}.º año`,
           item: { kind: "year", degreeId: d.id, year: y },
           children: subjects
-            .filter((s) => s.year === y)
+            .filter((s) => s.year === y && !s.folder)
             .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, "es"))
             .map(node),
-        })),
+        }))],
       };
     });
 

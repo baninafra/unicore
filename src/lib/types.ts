@@ -53,6 +53,8 @@ export interface Subject {
   campusUrl?: string;
   driveUrl?: string;
   schedule?: ScheduleEntry[]; // cronograma de la materia
+  icon?: string; // ícono elegido (nombre de FOLDER_ICONS)
+  folder?: boolean; // carpeta libre: guarda notas y archivos, pero no es una materia ni un proyecto
   createdAt: string;
 }
 

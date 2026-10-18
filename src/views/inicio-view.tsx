@@ -50,7 +50,7 @@ export function InicioView() {
       </div>
 
       <aside className="flex min-w-0 flex-col gap-6">
-        <ProfileSide now={now} tasks={tasks} subjects={subjects} />
+        <ProfileSide now={now} tasks={tasks} subjects={subjects.filter((s) => !s.folder)} />
         {showMail && <MailPanel tasks={tasks} subjects={allSubjects} onOpenAll={(e) => open({ type: "mails" }, e)} />}
       </aside>
     </div>

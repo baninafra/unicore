@@ -3,7 +3,8 @@
 // Submenú "Nuevo" (nota, nota del día, idea, tarea, lienzo, archivos de Office…) igual en todos
 // los clics derechos. `subjectId` es la carpeta donde se crea; sin él, la de la vista activa.
 
-import { CalendarDays, FilePlus, FileText, Lightbulb, ListPlus, Plus, Shapes } from "lucide-react";
+import { CalendarDays, FilePlus, FileText, FolderPlus, Lightbulb, ListPlus, Plus, Shapes } from "lucide-react";
+import { openFolderDialog } from "@/components/explorer/folder-dialog";
 import type { MenuItem } from "./menu";
 import { addCanvas, addNote, folderForView, openDailyNote, runSafe } from "@/lib/nav/actions";
 import { createOfficeDoc } from "@/lib/editors/editors";
@@ -19,6 +20,7 @@ export interface NewMenuOpts {
   subjectId?: string;
   unitNumber?: number;
   taskDefaults?: Partial<Task>;
+  degreeId?: string; // espacio donde va una carpeta nueva (sin él, el del perfil activo)
   extra?: MenuItem[]; // opciones propias del lugar (p. ej. "Materia" en una carrera)
 }
 
@@ -29,6 +31,7 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
     label: "Nuevo",
     icon: Plus,
     submenu: [
+      { label: "Carpeta", icon: FolderPlus, onSelect: () => openFolderDialog({ degreeId: o.degreeId }) },
       { label: "Nota", icon: FilePlus, onSelect: go(async () => ({ type: "nota", id: await addNote(await folder(), o.unitNumber ? { unitNumber: o.unitNumber } : undefined) })) },
       { label: "Nota del día", icon: CalendarDays, onSelect: go(async () => ({ type: "nota", id: await openDailyNote(new Date()) })) },
       { label: "Idea", icon: Lightbulb, onSelect: go(async () => ({ type: "nota", id: await addIdea("") })) },

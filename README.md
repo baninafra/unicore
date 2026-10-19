@@ -2,6 +2,8 @@
 
 **One desktop app for your studies, your job, your side projects and your personal life — and everything stays on your computer.**
 
+> **Windows desktop app only.** There is no web or browser version. [Download the latest installer](https://github.com/baninafra/unicore/releases/latest); installed apps update themselves with one click.
+
 UniCore started as a way to organize university life (degrees, courses, exams, notes) and grew into a general workspace: you can have a profile for college, another for your job, one for freelance projects and one for your personal life, and the app adapts its vocabulary, sections and home screen to each of them. It combines Obsidian-style notes, a task board, a full calendar, spaced-repetition flashcards, built-in office editors and an AI assistant that runs on your own machine.
 
 ![Welcome wizard](docs/capturas/onboarding.png)
@@ -11,7 +13,7 @@ UniCore started as a way to organize university life (degrees, courses, exams, n
 - **No sign-up, no login, no cloud.** You install it and start using it.
 - **Your data lives on your disk**, in `Documents\UniCore` (a SQLite database plus a folder with your files). You can back it up, sync it with your own tools or delete it at any time.
 - **No telemetry, no analytics, no tracking.** UniCore never sends your notes, tasks or files anywhere, and it has no server of its own.
-- **The AI runs locally.** The assistant uses an open model (Qwen) through `llama.cpp` on your own computer, or a smaller model directly in the app via WebGPU. Your questions and documents are not sent to anyone.
+- **The AI runs locally.** The assistant uses an open model (Qwen) through `llama.cpp` on your own computer. Your questions and documents are not sent to anyone.
 
 UniCore only goes online when **you** use a feature that needs it:
 
@@ -31,7 +33,7 @@ UniCore only goes online when **you** use a feature that needs it:
 - **Notes like Obsidian**: Markdown blocks, `[[links]]`, backlinks, tags, daily notes, templates, canvases, a graph view and version history.
 - **Tasks and calendar**: kanban board, agenda, local calendars with recurring events and reminders, iCal subscriptions, and a semester schedule for each course.
 - **Study tools**: spaced-repetition flashcards (FSRS), AI-generated quizzes, grade averages, a scientific calculator, a function plotter, unit and number-base converters, and a translator.
-- **Reading material**: import PDFs (with OCR for scans), highlight them, and turn them into notes; the AI can summarize them.
+- **Reading material**: import PDFs (scanned pages are read with Windows' built-in OCR), highlight them, and turn them into notes; the AI can summarize them.
 - **Document scanner**: take photos of pages, fix the perspective and save them as PDF or text.
 - **Custom folders** with any name and the icon you choose.
 - **Six languages**: Spanish, English, French, German, Portuguese and Chinese.
@@ -70,7 +72,7 @@ The embedded editors are fetched and built separately: `bash scripts/build-edito
 
 ## Tech stack
 
-Next.js 15 (static export) + React 19 + TypeScript + Tailwind CSS 4, wrapped in Tauri 2 for the desktop app. Local data with Dexie (IndexedDB) mirrored to SQLite on disk. BlockNote for notes, React Flow for canvases, ts-fsrs for flashcards, pdf.js and Tesseract for PDFs and OCR, llama.cpp and WebLLM for the AI.
+Next.js 15 (static export) + React 19 + TypeScript + Tailwind CSS 4, wrapped in Tauri 2 for the desktop app. Data lives in SQLite on disk (with a full-text index for search), with Dexie (IndexedDB) as the interface cache. BlockNote for notes, React Flow for canvases, ts-fsrs for flashcards, pdf.js for PDFs, Windows.Media.Ocr for OCR (Tesseract as a fallback), llama.cpp for the AI.
 
 ## Translations
 
@@ -85,7 +87,7 @@ node scripts/i18n-extract.mjs
 - `src/views/`: screens (Home, note, course or project, calendar, settings…).
 - `src/components/`: UI pieces.
 - `src/lib/`: local database, profiles, AI, calendar and languages.
-- `src-tauri/`: the desktop app (data folder, local AI server).
+- `src-tauri/`: the desktop app in Rust (data folder, search index, OCR, local AI server).
 - `editors/patches/`: the integration patches for the embedded editors.
 - `docs/convenciones.md`: coding conventions (in Spanish).
 

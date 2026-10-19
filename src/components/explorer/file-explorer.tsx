@@ -6,7 +6,7 @@ import { renameFolder, useFolderNames } from "@/lib/folder-names";
 import { addIdea } from "@/views/ideas-view";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import clsx from "clsx";
-import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, DraftingCompass, ExternalLink, FilePlus, FileSpreadsheet, FileText, Presentation, FolderInput, Pencil, Shapes, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban, FolderPlus, Palette } from "lucide-react";
+import { ArrowDownUp, Bookmark, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Columns2, Copy, Download, ExternalLink, FilePlus, FolderInput, Pencil, Trash2, CalendarDays, ListPlus, GraduationCap, FolderKanban, FolderPlus, Palette } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 import { t } from "@/lib/i18n";
 import { useProfiles } from "@/lib/profiles";
@@ -24,9 +24,7 @@ import {
   deleteNote,
   duplicateNote,
   moveItem,
-  newCanvasForView,
   newNoteForView,
-  newOfficeForView,
   openDailyNote,
   renameItem,
   runSafe,
@@ -36,7 +34,7 @@ import {
 import { MoveDialog } from "./move-dialog";
 import { createSubnote, nestNote } from "@/lib/notes/subnotes";
 import { toast } from "@/lib/undo";
-import { deleteOfficeDoc, downloadOfficeDoc, EDITOR_KINDS } from "@/lib/editors/editors";
+import { deleteOfficeDoc, downloadOfficeDoc } from "@/lib/editors/editors";
 import { SubjectDialog } from "@/components/careers/subject-dialog";
 import { DegreeDialog } from "@/components/careers/degree-dialog";
 import { deleteDegreeCascade } from "@/components/careers/actions";
@@ -142,8 +140,6 @@ type Dialog =
   | { type: "rename"; kind: "note" | "canvas" | "subject" | "file" | "folder"; id: string; value: string }
   | { type: "move"; kind: "note" | "canvas" | "file"; id: string }
   | { type: "delete"; kind: "note" | "canvas" | "file"; id: string; title: string };
-
-const FILE_ICONS = { doc: FileText, sheet: FileSpreadsheet, deck: Presentation, geo: DraftingCompass } as const;
 
 const SORT_LABEL: Record<SortMode, string> = { nombre: t("Nombre"), modificacion: t("Modificación"), creacion: t("Creación") };
 
@@ -467,12 +463,6 @@ export function FileExplorer() {
   }
 
   const headerNewNote = () => safe(async () => openView({ type: "nota", id: await newNoteForView(activeView) }));
-  const headerNewCanvas = () => safe(async () => openView({ type: "canvas", id: await newCanvasForView(activeView) }));
-  const headerNewFile: MenuItem[] = (["doc", "sheet", "deck", "geo"] as const).map((kind) => ({
-    label: EDITOR_KINDS[kind].newLabel,
-    icon: FILE_ICONS[kind],
-    onSelect: () => safe(async () => openView({ type: "editor", id: await newOfficeForView(kind, activeView) })),
-  }));
   const sortMenu: MenuItem[] = (Object.keys(SORT_LABEL) as SortMode[]).map((mode) => ({
     label: SORT_LABEL[mode],
     icon: sort === mode ? Check : undefined,
@@ -487,22 +477,8 @@ export function FileExplorer() {
     <div className="flex flex-col">
       <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-0.5 bg-bg pl-3 pr-2">
         <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? t("Archivos")}</span>
-        {singleSpace && (
-          <button type="button" className="icon-btn" aria-label={nuevoItem} title={nuevoItem} onClick={() => openFolderDialog({ degreeId: singleSpace.id, item: true })}>
-            <FolderKanban strokeWidth={1.75} />
-          </button>
-        )}
         <button type="button" className="icon-btn" aria-label={t("Nueva carpeta")} title={t("Nueva carpeta")} onClick={() => openFolderDialog({})}>
           <FolderPlus strokeWidth={1.75} />
-        </button>
-        <button type="button" className="icon-btn" aria-label={t("Nueva nota")} title={t("Nueva nota")} onClick={headerNewNote}>
-          <FilePlus strokeWidth={1.75} />
-        </button>
-        <button type="button" className="icon-btn" aria-label={t("Nuevo lienzo")} title={t("Nuevo lienzo")} onClick={headerNewCanvas}>
-          <Shapes strokeWidth={1.75} />
-        </button>
-        <button type="button" className="icon-btn" aria-label={t("Nuevo archivo")} title={t("Nuevo documento, planilla o presentación")} onClick={(e) => menu.open(e, headerNewFile)}>
-          <FileSpreadsheet strokeWidth={1.75} />
         </button>
         <button
           type="button"
@@ -593,16 +569,18 @@ export function FileExplorer() {
 }
 
 function Rows({ nodes, ctx }: { nodes: TreeNode[]; ctx: Ctx }) {
+  // El lugar de la flecha sólo se reserva si alguno de los hermanos se puede expandir.
+  const slot = nodes.some((n) => !!n.children?.length);
   return (
     <>
       {nodes.map((node) => (
-        <Row key={node.key} node={node} ctx={ctx} />
+        <Row key={node.key} node={node} ctx={ctx} slot={slot} />
       ))}
     </>
   );
 }
 
-function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
+function Row({ node, ctx, slot }: { node: TreeNode; ctx: Ctx; slot: boolean }) {
   const expandable = !!node.children?.length;
   const expanded = expandable && ctx.isOpen(node.key);
   const active = !!node.view && sameView(node.view, ctx.activeView);
@@ -630,7 +608,7 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
         onContextMenu={(e) => ctx.onContext(e, node)}
         onPointerDown={(e) => node.drag && ctx.startDrag(e, node)}
       >
-        <span
+        {slot && <span
           className="flex h-4 w-4 flex-none items-center justify-center text-faint"
           onClick={(e) => {
             if (!expandable) return;
@@ -639,12 +617,12 @@ function Row({ node, ctx }: { node: TreeNode; ctx: Ctx }) {
           }}
         >
           {expandable && (expanded ? <ChevronDown strokeWidth={1.75} /> : <ChevronRight strokeWidth={1.75} />)}
-        </span>
+        </span>}
         {Icon && <Icon strokeWidth={1.75} />}
         <span className="min-w-0 flex-1 truncate">{node.label}</span>
       </div>
       {expanded && node.children && (
-        <div role="group" className="ml-[7px] border-l border-border pl-1">
+        <div role="group" className="ml-[14.5px] border-l border-border">
           <Rows nodes={node.children} ctx={ctx} />
         </div>
       )}

@@ -71,6 +71,24 @@ export function NoteEditor({ note, active = true, editable = true, findMode = nu
     resolveFileUrl: (url: string) => resolveFileUrl(url),
     // Pegar sólo un link de YouTube o Vimeo lo inserta como video.
     pasteHandler: ({ event, editor: ed, defaultPasteHandler }: PasteArgs) => {
+      // Imágenes y archivos: se guardan primero y se insertan ya completos, en un solo paso,
+      // así Ctrl+Z los saca del todo (BlockNote inserta un bloque vacío y después le pone la imagen).
+      const files = [...(event.clipboardData?.files ?? [])];
+      if (files.length) {
+        event.preventDefault();
+        const at = ed.getTextCursorPosition().block;
+        void Promise.all(files.map(async (f) => ({ f, url: await saveFile(f) }))).then((saved) => {
+          const blocks = saved.map(({ f, url }) => ({
+            type: (f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : f.type.startsWith("audio/") ? "audio" : "file") as "image",
+            props: { url, name: f.name },
+          }));
+          const current = ed.getBlock(at.id) ?? at;
+          const empty = Array.isArray(current.content) && current.content.length === 0;
+          if (empty) ed.replaceBlocks([current], blocks);
+          else ed.insertBlocks(blocks, current, "after");
+        });
+        return true;
+      }
       const text = event.clipboardData?.getData("text/plain")?.trim() ?? "";
       const video = !/\s/.test(text) ? parseVideoUrl(text) : null;
       if (!video) return defaultPasteHandler();

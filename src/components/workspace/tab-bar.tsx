@@ -7,8 +7,43 @@ import { useWorkspace, type Pane, type Tab } from "@/lib/workspace";
 import { useViewTitle } from "./view-title";
 import { t } from "@/lib/i18n";
 
+// Arrastrar una pestaña la reordena en vivo, como en el navegador: al pasar la mitad de la vecina
+// cambian de lugar.
+function dragTab(e: React.MouseEvent<HTMLDivElement>, pane: Pane, tab: Tab, moveTab: (paneId: string, from: number, to: number) => void) {
+  const list = e.currentTarget.parentElement;
+  if (!list) return;
+  const startX = e.clientX;
+  let index = pane.tabs.findIndex((t) => t.id === tab.id);
+  let dragging = false;
+  const onMove = (ev: PointerEvent) => {
+    if (!dragging && Math.abs(ev.clientX - startX) < 5) return;
+    dragging = true;
+    document.body.style.cursor = "grabbing";
+    const tabs = [...list.querySelectorAll<HTMLElement>("[role=tab]")];
+    let to = index;
+    tabs.forEach((el, i) => {
+      if (i === index) return;
+      const r = el.getBoundingClientRect();
+      const mid = r.left + r.width / 2;
+      if (i > index && ev.clientX > mid) to = Math.max(to, i);
+      if (i < index && ev.clientX < mid) to = Math.min(to, i);
+    });
+    if (to !== index) {
+      moveTab(pane.id, index, to);
+      index = to;
+    }
+  };
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    document.body.style.cursor = "";
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+}
+
 function TabButton({ pane, tab, active, divider }: { pane: Pane; tab: Tab; active: boolean; divider: boolean }) {
-  const { activateTab, closeTab, togglePin } = useWorkspace();
+  const { activateTab, closeTab, togglePin, moveTab } = useWorkspace();
   const title = useViewTitle(tab.view);
   return (
     <div
@@ -19,7 +54,10 @@ function TabButton({ pane, tab, active, divider }: { pane: Pane; tab: Tab; activ
         if (e.button === 1) {
           e.preventDefault();
           closeTab(pane.id, tab.id);
-        } else activateTab(pane.id, tab.id);
+        } else if (e.button === 0) {
+          activateTab(pane.id, tab.id);
+          dragTab(e, pane, tab, moveTab);
+        }
       }}
       onDoubleClick={() => togglePin(pane.id, tab.id)}
       className={clsx(

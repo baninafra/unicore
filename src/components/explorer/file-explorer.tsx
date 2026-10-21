@@ -24,6 +24,7 @@ import {
   deleteNote,
   duplicateNote,
   moveItem,
+  moveSubject,
   newNoteForView,
   openDailyNote,
   renameItem,
@@ -45,13 +46,13 @@ import { allKeys, ancestorsOf, buildTree, defaultOpen, useBookmarkSet, useExplor
 
 const LS_OPEN = "uc-explorer-open";
 const LS_SORT = "uc-explorer-sort";
-// Arrastrar notas, lienzos y archivos a otra carpeta o materia. Con pointer events (el arrastre
+// Arrastrar notas, lienzos y archivos a otra carpeta o materia, y materias o carpetas a otro espacio o año. Con pointer events (el arrastre
 // nativo del navegador no es confiable dentro de la app de escritorio): arranca al mantener
 // apretado o al mover el mouse con el botón apretado. Quedarse encima de una carpeta cerrada la abre.
 function startDrag(
   e: ReactPointerEvent,
   node: TreeNode,
-  h: { findDrop: (key: string) => Target | undefined; setDropKey: (k: string | null) => void; moveTo: (p: Payload, t: Target) => void; toggle: (key: string) => void },
+  h: { findDrop: (key: string, p: Payload) => Target | undefined; setDropKey: (k: string | null) => void; moveTo: (p: Payload, t: Target) => void; toggle: (key: string) => void },
 ) {
   if (e.button !== 0 || !node.drag) return;
   const payload = node.drag;
@@ -89,7 +90,8 @@ function startDrag(
     }
     const el = document.elementFromPoint(ev.clientX, ev.clientY);
     const dropEl = el?.closest<HTMLElement>("[data-drop]");
-    const key = dropEl && dropEl.dataset.drop !== `n:${payload.id}` ? dropEl.dataset.drop! : null;
+    const k = dropEl?.dataset.drop;
+    const key = k && k !== `n:${payload.id}` && k !== `s:${payload.id}` && h.findDrop(k, payload) ? k : null;
     if (key !== overKey) {
       overKey = key;
       h.setDropKey(key);
@@ -103,7 +105,7 @@ function startDrag(
   };
   const onUp = () => {
     if (active) {
-      const target = overKey ? h.findDrop(overKey) : undefined;
+      const target = overKey ? h.findDrop(overKey, payload) : undefined;
       if (target) h.moveTo(payload, target);
       // El clic que llega al soltar no tiene que abrir la nota.
       const swallow = (ev: Event) => {
@@ -133,8 +135,8 @@ function startDrag(
   window.addEventListener("pointercancel", cleanup);
 }
 
-type Payload = { kind: "note" | "canvas" | "file"; id: string };
-type Target = { subjectId: string; unit?: number; parentId?: string };
+type Payload = { kind: "note" | "canvas" | "file" | "subject"; id: string };
+type Target = { subjectId: string; unit?: number; parentId?: string } | { place: { degreeId: string; year?: number } };
 
 type Dialog =
   | { type: "rename"; kind: "note" | "canvas" | "subject" | "file" | "folder"; id: string; value: string }
@@ -176,8 +178,8 @@ export function FileExplorer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- namesVersion: los nombres de las carpetas fijas
   const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort, inScope, singleSpace?.id) : []), [data, degreeFilter, sort, inScope, singleSpace?.id, namesVersion]);
   const dropTargets = useMemo(() => {
-    const map = new Map<string, Target>();
-    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => (n.drop && map.set(n.key, n.drop), n.children && walk(n.children)));
+    const map = new Map<string, TreeNode>();
+    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => ((n.drop || n.place) && map.set(n.key, n), n.children && walk(n.children)));
     walk(tree);
     return map;
   }, [tree]);
@@ -236,6 +238,11 @@ export function FileExplorer() {
   // Soltar sobre la misma carpeta (y unidad) no hace nada.
   const moveTo = (payload: Payload, target: Target) => {
     safe(async () => {
+      if ("place" in target) {
+        if (payload.kind === "subject") await moveSubject(payload.id, target.place);
+        return;
+      }
+      if (payload.kind === "subject") return;
       if (payload.kind === "note") {
         const note = await db.notes.get(payload.id);
         if (!note) return;
@@ -267,7 +274,11 @@ export function FileExplorer() {
     dropKey,
     setDropKey,
     onDrop: moveTo,
-    startDrag: (e, node) => startDrag(e, node, { findDrop: (key) => dropTargets.get(key), setDropKey, moveTo, toggle }),
+    startDrag: (e, node) => startDrag(e, node, { findDrop: (key, p) => {
+        const n = dropTargets.get(key);
+        if (p.kind === "subject") return n?.place ? { place: n.place } : undefined;
+        return n?.drop;
+      }, setDropKey, moveTo, toggle }),
     onContext: (e, node) => {
       const items = menuFor(node);
       if (items.length) menu.open(e, items);
@@ -586,7 +597,7 @@ function Row({ node, ctx, slot }: { node: TreeNode; ctx: Ctx; slot: boolean }) {
   const active = !!node.view && sameView(node.view, ctx.activeView);
   const isLevel = !node.view; // carpetas, carreras, años y unidades
   const Icon = node.icon;
-  const dropping = !!node.drop && ctx.dropKey === node.key;
+  const dropping = ctx.dropKey === node.key;
 
   return (
     <>
@@ -595,7 +606,7 @@ function Row({ node, ctx, slot }: { node: TreeNode; ctx: Ctx; slot: boolean }) {
         aria-expanded={expandable ? expanded : undefined}
         aria-selected={active}
         aria-current={active ? "page" : undefined}
-        data-drop={node.drop ? node.key : undefined}
+        data-drop={node.drop || node.place ? node.key : undefined}
         data-expand={expandable && !expanded ? node.key : undefined}
         className={clsx("row select-none", isLevel && "text-text", dropping && "bg-primary-tint text-text")}
         onClick={(e) => (node.view ? ctx.open(node.view, e) : ctx.toggle(node.key))}

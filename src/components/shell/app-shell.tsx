@@ -172,6 +172,12 @@ export function AppShell() {
       requestAnimationFrame(() => {
         void import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
           const w = getCurrentWindow();
+          // Maximizada mientras estaba oculta, el contenido queda con el tamaño viejo (una franja
+          // blanca abajo): se vuelve a maximizar para que se acomode antes de mostrarla.
+          if (await w.isMaximized()) {
+            await w.unmaximize();
+            await w.maximize();
+          }
           await w.show();
           await w.setFocus();
         });

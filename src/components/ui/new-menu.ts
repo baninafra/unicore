@@ -5,6 +5,7 @@
 
 import { CalendarDays, FilePlus, FileText, FolderPlus, Lightbulb, ListPlus, Plus, Shapes } from "lucide-react";
 import { openFolderDialog } from "@/components/explorer/folder-dialog";
+import { db } from "@/lib/db";
 import type { MenuItem } from "./menu";
 import { addCanvas, addNote, folderForView, openDailyNote, runSafe } from "@/lib/nav/actions";
 import { createOfficeDoc } from "@/lib/editors/editors";
@@ -32,7 +33,15 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
     label: t("Nuevo"),
     icon: Plus,
     submenu: [
-      { label: t("Carpeta"), icon: FolderPlus, onSelect: () => openFolderDialog({ degreeId: o.degreeId }) },
+      {
+        label: t("Carpeta"),
+        icon: FolderPlus,
+        // Dentro de una materia o carpeta, la nueva va al mismo espacio.
+        onSelect: () =>
+          void (o.subjectId && !o.degreeId ? db.subjects.get(o.subjectId) : Promise.resolve(undefined)).then((s) =>
+            openFolderDialog({ degreeId: o.degreeId ?? s?.degreeId }),
+          ),
+      },
       { label: t("Nota"), icon: FilePlus, onSelect: go(async () => ({ type: "nota", id: await addNote(await folder(), o.unitNumber ? { unitNumber: o.unitNumber } : undefined) })) },
       { label: t("Nota del día"), icon: CalendarDays, onSelect: go(async () => ({ type: "nota", id: await openDailyNote(new Date()) })) },
       { label: t("Idea"), icon: Lightbulb, onSelect: go(async () => ({ type: "nota", id: await addIdea("") })) },

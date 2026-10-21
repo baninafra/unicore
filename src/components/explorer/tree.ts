@@ -40,9 +40,11 @@ export interface TreeNode {
   view?: ViewState;
   children?: TreeNode[];
   item: NodeItem;
-  drag?: { kind: "note" | "canvas" | "file"; id: string };
-  // Destino al soltar algo arrastrado
+  drag?: { kind: "note" | "canvas" | "file" | "subject"; id: string };
+  // Destino al soltar una nota, un lienzo o un archivo
   drop?: { subjectId: string; unit?: number; parentId?: string };
+  // Destino al soltar una materia o carpeta: el espacio (y el año) donde queda
+  place?: { degreeId: string; year?: number };
 }
 
 export function useExplorerData(): ExplorerData | undefined {
@@ -216,7 +218,9 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       icon: iconFor(s.icon, s.folder ? Folder : def.study ? BookOpen : FolderKanban),
       view: { type: "materia", id: s.id },
       item: { kind: "subject", id: s.id },
+      drag: { kind: "subject", id: s.id },
       drop: { subjectId: s.id },
+      place: { degreeId: s.degreeId, year: s.folder || !def.study ? undefined : s.year },
       children,
     };
   };
@@ -237,6 +241,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
           label: d.name,
           icon: def.spaceIcon,
           item: { kind: "degree", id: d.id },
+          place: { degreeId: d.id },
           children: [...folderNodes, ...subjects.filter((s) => !s.folder).sort((a, b) => a.name.localeCompare(b.name, intlLocale())).map(node)],
         };
       }
@@ -245,10 +250,12 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         label: d.name,
         icon: def.spaceIcon,
         item: { kind: "degree", id: d.id },
+        place: { degreeId: d.id },
         children: [...folderNodes, ...years.map((y): TreeNode => ({
           key: `y:${d.id}:${y}`,
           label: t("{año}.º año", { año: y }),
           item: { kind: "year", degreeId: d.id, year: y },
+          place: { degreeId: d.id, year: y },
           children: subjects
             .filter((s) => s.year === y && !s.folder)
             .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, intlLocale()))

@@ -8,7 +8,7 @@ import clsx from "clsx";
 import { db, newId, nowIso } from "@/lib/db";
 import { FOLDER_ICONS } from "@/lib/folder-icons";
 import { useDegrees } from "@/lib/hooks";
-import { kindOf, profileOfDegree, PROFILES, useProfiles } from "@/lib/profiles";
+import { profileOfDegree, useProfiles } from "@/lib/profiles";
 import type { Subject } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { useWorkspace } from "@/lib/workspace";
@@ -44,7 +44,6 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
   const what = editing ? (editing.folder ? t("carpeta") : terms.item.one) : asItem ? terms.item.one : t("carpeta");
   const fem = editing ? editing.folder || terms.item.f : asItem ? terms.item.f : true;
   const title = editing ? t("Editar {what}", { what }) : fem ? t("Nueva {what}", { what }) : t("Nuevo {what}", { what });
-  const options = degrees.filter((d) => inScope(d.id) || d.id === degreeId);
 
   async function save() {
     const clean = name.trim();
@@ -103,18 +102,6 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
           />
         </div>
 
-        {!editing && options.length > 1 && (
-          <label className="flex flex-col gap-1.5">
-            <span className="t-small font-medium text-muted">{t("Dónde")}</span>
-            <select className="input" value={degreeId} onChange={(e) => setDegreeId(e.target.value)}>
-              {options.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} · {PROFILES[kindOf(d)].label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         {!degrees.length && <p className="t-small text-rose">{t("Primero creá un perfil (abajo a la izquierda, junto a Ajustes).")}</p>}
 
         <div className="flex flex-col gap-1.5">

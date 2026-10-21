@@ -36,10 +36,11 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
       {
         label: t("Carpeta"),
         icon: FolderPlus,
-        // Dentro de una materia o carpeta, la nueva va al mismo espacio.
+        // Dentro de una materia o carpeta, la nueva va adentro; en un espacio, en ese espacio;
+        // en otro lado (el fondo, Notas), en el primer nivel.
         onSelect: () =>
-          void (o.subjectId && !o.degreeId ? db.subjects.get(o.subjectId) : Promise.resolve(undefined)).then((s) =>
-            openFolderDialog({ degreeId: o.degreeId ?? s?.degreeId }),
+          void (o.subjectId ? db.subjects.get(o.subjectId) : Promise.resolve(undefined)).then((s) =>
+            openFolderDialog(s ? { parentId: s.id } : o.degreeId ? { degreeId: o.degreeId } : { root: true }),
           ),
       },
       { label: t("Nota"), icon: FilePlus, onSelect: go(async () => ({ type: "nota", id: await addNote(await folder(), o.unitNumber ? { unitNumber: o.unitNumber } : undefined) })) },

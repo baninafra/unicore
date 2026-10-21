@@ -57,6 +57,7 @@ export interface Subject {
   schedule?: ScheduleEntry[]; // cronograma de la materia
   icon?: string; // ícono elegido (nombre de FOLDER_ICONS)
   folder?: boolean; // carpeta libre: guarda notas y archivos, pero no es una materia ni un proyecto
+  parentId?: string; // carpeta, materia o proyecto que la contiene (sin él, va directo en su espacio; sin espacio, en el primer nivel)
   createdAt: string;
 }
 

@@ -43,8 +43,8 @@ export interface TreeNode {
   drag?: { kind: "note" | "canvas" | "file" | "subject"; id: string };
   // Destino al soltar una nota, un lienzo o un archivo
   drop?: { subjectId: string; unit?: number; parentId?: string };
-  // Destino al soltar una materia o carpeta: el espacio (y el año) donde queda
-  place?: { degreeId: string; year?: number };
+  // Destino al soltar una materia o carpeta: el espacio (y el año) donde queda, o la carpeta que la contiene
+  place?: { degreeId: string; year?: number; parentId?: string };
 }
 
 export function useExplorerData(): ExplorerData | undefined {
@@ -120,6 +120,10 @@ function group<T>(list: T[], keyOf: (t: T) => string | undefined): Record<string
 // `flatId`: espacio único del perfil activo (trabajo, proyectos, personal); sus proyectos van al primer nivel.
 export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMode, inScope: (degreeId?: string) => boolean = () => true, flatId?: string): TreeNode[] {
   const subjectIds = new Set(data.subjects.map((s) => s.id));
+  // Carpetas dentro de otra carpeta (o materia): cuelgan de ella, no de su espacio.
+  const nested = (s: Subject) => !!s.parentId && s.parentId !== s.id && subjectIds.has(s.parentId);
+  const childFolders = group(data.subjects.filter(nested), (s) => s.parentId);
+  const byName = (a: Subject, b: Subject) => a.name.localeCompare(b.name, intlLocale(), { numeric: true });
 
   // Subnotas: cuelgan de su nota madre (si la madre está en la misma carpeta).
   const noteById = new Map(data.notes.map((n) => [n.id, n]));
@@ -192,7 +196,8 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
   const canvasesBy = group(data.canvases, (c) => (c.subjectId && subjectIds.has(c.subjectId) ? c.subjectId : undefined));
   const filesBy = group(data.officeDocs, (f) => (subjectIds.has(f.subjectId) ? f.subjectId : undefined));
 
-  const subjectNode = (s: Subject, def: ProfileDef = PROFILES.universidad): TreeNode => {
+  const subjectNode = (s: Subject, def: ProfileDef = PROFILES.universidad, depth = 0): TreeNode => {
+    const subfolders = depth < 8 ? (childFolders[s.id] ?? []).sort(byName).map((c) => subjectNode(c, def, depth + 1)) : [];
     const notes = sortItems(notesBy[s.id] ?? [], (n) => n.title, sort);
     const canvases = sortItems(canvasesBy[s.id] ?? [], (c) => c.name, sort);
     const files = sortItems(filesBy[s.id] ?? [], (f) => f.name, sort).map((f) => fileNode(f, s.id));
@@ -212,6 +217,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
             ...files,
           ]
         : [...notes.map((n) => noteNode(n)), ...canvases.map((c) => canvasNode(c, s.id)), ...files];
+    children.unshift(...subfolders);
     return {
       key: `s:${s.id}`,
       label: s.name,
@@ -220,7 +226,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       item: { kind: "subject", id: s.id },
       drag: { kind: "subject", id: s.id },
       drop: { subjectId: s.id },
-      place: { degreeId: s.degreeId, year: s.folder || !def.study ? undefined : s.year },
+      place: { degreeId: s.degreeId, year: s.folder || !def.study ? undefined : s.year, parentId: s.id },
       children,
     };
   };
@@ -229,7 +235,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
     .filter((d) => (degreeFilter === "all" || d.id === degreeFilter) && inScope(d.id))
     .map((d): TreeNode => {
       const def = PROFILES[kindOf(d)];
-      const subjects = data.subjects.filter((s) => s.degreeId === d.id);
+      const subjects = data.subjects.filter((s) => s.degreeId === d.id && !nested(s));
       const node = (s: Subject) => subjectNode(s, def);
       // Las carpetas libres van arriba (no tienen año ni cuatrimestre).
       const folderNodes = subjects.filter((s) => s.folder).sort((a, b) => a.name.localeCompare(b.name, intlLocale())).map(node);
@@ -264,9 +270,16 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       };
     });
 
+  // Carpetas de primer nivel (sin espacio), al lado de las carreras y espacios.
+  const degreeIds = new Set(data.degrees.map((d) => d.id));
+  const rootFolders = data.subjects
+    .filter((s) => !nested(s) && !degreeIds.has(s.degreeId))
+    .sort(byName)
+    .map((s) => subjectNode(s));
+
   const flat = degrees.find((d) => d.key === `d:${flatId}`);
-  if (flat) return [...(flat.children ?? []), ...folders, ...degrees.filter((d) => d !== flat)];
-  return [...folders, ...degrees];
+  if (flat) return [...(flat.children ?? []), ...folders, ...rootFolders, ...degrees.filter((d) => d !== flat)];
+  return [...folders, ...rootFolders, ...degrees];
 }
 
 // Claves de todos los nodos que tienen hijos (para colapsar todo).

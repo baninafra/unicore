@@ -240,23 +240,43 @@ export async function moveItem(kind: "note" | "canvas" | "file", id: string, tar
   else if (target.subjectId !== TEMPLATES_FOLDER) await moveCanvas(id, target.subjectId);
 }
 
-// Mueve una materia o carpeta a otro espacio (y año). Sus tareas pasan con ella; si cambia de
-// espacio, se sueltan las correlativas, que sólo tienen sentido dentro de la misma carrera.
-export async function moveSubject(id: string, place: { degreeId: string; year?: number }): Promise<void> {
-  await db.transaction("rw", db.subjects, db.tasks, async () => {
+// Mueve una materia o carpeta a otro espacio (y año), o adentro de otra carpeta (`parentId`).
+// Sus tareas y subcarpetas pasan con ella; si cambia de espacio, se sueltan las correlativas,
+// que sólo tienen sentido dentro de la misma carrera. Devuelve false si no se pudo (dentro de sí misma).
+export async function moveSubject(id: string, place: { degreeId: string; year?: number; parentId?: string }): Promise<boolean> {
+  return db.transaction("rw", db.subjects, db.tasks, async () => {
     const s = await db.subjects.get(id);
-    if (!s) return;
-    const year = s.folder ? s.year : (place.year ?? s.year);
-    if (s.degreeId === place.degreeId && s.year === year) return;
-    if (s.degreeId !== place.degreeId) {
-      await db.subjects.update(id, { degreeId: place.degreeId, year, correlatives: [] });
+    if (!s) return false;
+    let target = { degreeId: place.degreeId, year: place.year, parentId: undefined as string | undefined };
+    if (place.parentId) {
+      const parent = await db.subjects.get(place.parentId);
+      if (!parent) return false;
+      // Una carpeta (o cualquier cosa soltada sobre una carpeta) queda adentro; una materia soltada
+      // sobre otra materia queda a su lado.
+      if (s.folder || parent.folder) target = { degreeId: parent.degreeId, year: undefined, parentId: parent.id };
+      else target = { degreeId: parent.degreeId, year: parent.year, parentId: parent.parentId };
+      // No se puede meter una carpeta dentro de sí misma ni de una de sus subcarpetas.
+      for (let p: typeof parent | undefined = target.parentId ? await db.subjects.get(target.parentId) : undefined, n = 0; p && n < 20; n++) {
+        if (p.id === id) return false;
+        p = p.parentId ? await db.subjects.get(p.parentId) : undefined;
+      }
+    }
+    const year = s.folder ? s.year : (target.year ?? s.year);
+    if (s.degreeId === target.degreeId && s.year === year && (s.parentId ?? undefined) === target.parentId) return true;
+    const changes: Partial<typeof s> = { degreeId: target.degreeId, year, parentId: target.parentId };
+    if (s.degreeId !== target.degreeId) {
+      changes.correlatives = [];
       const old = await db.subjects.where("degreeId").equals(s.degreeId).toArray();
       for (const o of old)
         if (o.correlatives?.includes(id)) await db.subjects.update(o.id, { correlatives: o.correlatives.filter((c) => c !== id) });
-      await db.tasks.where("subjectId").equals(id).modify({ degreeId: place.degreeId });
-    } else {
-      await db.subjects.update(id, { year });
+      // Lo que cuelga de ella cambia de espacio también.
+      const ids = [id];
+      for (let i = 0; i < ids.length; i++) ids.push(...(await db.subjects.filter((x) => x.parentId === ids[i]).primaryKeys()));
+      for (const sub of ids.slice(1)) await db.subjects.update(sub, { degreeId: target.degreeId });
+      await db.tasks.where("subjectId").anyOf(ids).modify({ degreeId: target.degreeId });
     }
+    await db.subjects.update(id, changes);
+    return true;
   });
 }
 

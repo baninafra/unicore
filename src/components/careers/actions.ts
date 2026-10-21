@@ -54,7 +54,7 @@ export async function saveSubject(input: SubjectInput, existing?: Subject): Prom
 }
 
 // Todo lo que cuelga de una materia (además de las tareas).
-const SUBJECT_TABLES = [db.subjects, db.tasks, db.notes, db.documents, db.files, db.flashcards, db.studySessions, db.snapshots, db.bookmarks, db.canvases];
+const SUBJECT_TABLES = [db.subjects, db.tasks, db.notes, db.documents, db.files, db.flashcards, db.studySessions, db.snapshots, db.bookmarks, db.canvases, db.officeDocs];
 
 // Borra materias con sus tareas, apuntes, PDFs, fotos, flashcards y sesiones,
 // y saca sus ids de las correlativas de las demás.
@@ -72,6 +72,7 @@ async function removeSubjects(ids: string[]) {
   await db.snapshots.where("noteId").anyOf(noteIds).delete();
   await db.bookmarks.where("targetId").anyOf([...noteIds, ...ids]).delete();
   await db.canvases.where("subjectId").anyOf(ids).delete();
+  await db.officeDocs.where("subjectId").anyOf(ids).delete();
   await db.notes.where("subjectId").anyOf(ids).delete();
   await db.documents.where("subjectId").anyOf(ids).delete();
   await db.flashcards.where("subjectId").anyOf(ids).delete();
@@ -87,7 +88,10 @@ async function removeSubjects(ids: string[]) {
 
 export async function deleteSubjectCascade(subjectId: string) {
   await db.transaction("rw", SUBJECT_TABLES, async () => {
-    await removeSubjects([subjectId]);
+    // Con sus subcarpetas (y lo que tengan adentro).
+    const ids = [subjectId];
+    for (let i = 0; i < ids.length; i++) ids.push(...(await db.subjects.filter((s) => s.parentId === ids[i]).primaryKeys()));
+    await removeSubjects(ids);
   });
 }
 

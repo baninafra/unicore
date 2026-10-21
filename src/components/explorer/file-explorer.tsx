@@ -38,7 +38,7 @@ import { toast } from "@/lib/undo";
 import { deleteOfficeDoc, downloadOfficeDoc } from "@/lib/editors/editors";
 import { SubjectDialog } from "@/components/careers/subject-dialog";
 import { DegreeDialog } from "@/components/careers/degree-dialog";
-import { deleteDegreeCascade } from "@/components/careers/actions";
+import { deleteDegreeCascade, deleteSubjectCascade } from "@/components/careers/actions";
 import { deleteWithUndo } from "@/lib/undo";
 import { type ExportTarget } from "@/lib/export/export-pdf";
 import { exportMenuItem } from "@/components/export/export-menu";
@@ -136,7 +136,7 @@ function startDrag(
 }
 
 type Payload = { kind: "note" | "canvas" | "file" | "subject"; id: string };
-type Target = { subjectId: string; unit?: number; parentId?: string } | { place: { degreeId: string; year?: number } };
+type Target = { subjectId: string; unit?: number; parentId?: string } | { place: { degreeId: string; year?: number; parentId?: string } };
 
 type Dialog =
   | { type: "rename"; kind: "note" | "canvas" | "subject" | "file" | "folder"; id: string; value: string }
@@ -239,7 +239,8 @@ export function FileExplorer() {
   const moveTo = (payload: Payload, target: Target) => {
     safe(async () => {
       if ("place" in target) {
-        if (payload.kind === "subject") await moveSubject(payload.id, target.place);
+        if (payload.kind === "subject" && !(await moveSubject(payload.id, target.place)))
+          toast(t("No se puede mover una carpeta adentro de sí misma."), { tone: "error" });
         return;
       }
       if (payload.kind === "subject") return;
@@ -343,9 +344,11 @@ export function FileExplorer() {
           ...pdf({ kind: "folder", folder: LOOSE_FOLDER }),
         ];
       }
-      case "subject":
+      case "subject": {
+        const subject = data?.subjects.find((x) => x.id === item.id);
+        const kindName = subject?.folder ? t("carpeta") : termsForSubject(item.id).item.one;
         return [
-          nuevo({ subjectId: item.id, degreeId: data?.subjects.find((x) => x.id === item.id)?.degreeId }),
+          nuevo({ subjectId: item.id, degreeId: subject?.degreeId }),
           sep,
           ...(node.view ? [{ label: t("Abrir"), onSelect: () => open(node.view!) }] : []),
           rename("subject", item.id, node.label),
@@ -357,10 +360,25 @@ export function FileExplorer() {
               if (subject) openFolderDialog({ subject });
             },
           },
+          ...(subject?.parentId || (subject?.folder && data?.degrees.some((d) => d.id === subject.degreeId))
+            ? [
+                subject.folder
+                  ? { label: t("Mover al primer nivel"), icon: FolderInput, onSelect: () => safe(async () => void (await moveSubject(item.id, { degreeId: "" }))) }
+                  : { label: t("Sacar de la carpeta"), icon: FolderInput, onSelect: () => safe(async () => void (await moveSubject(item.id, { degreeId: subject.degreeId }))) },
+              ]
+            : []),
           ...pdf({ kind: "subject", id: item.id }),
           sep,
           bm("subject", item.id),
+          sep,
+          {
+            label: t("Eliminar {what}", { what: kindName }),
+            icon: Trash2,
+            danger: true,
+            onSelect: () => safe(() => deleteWithUndo(t("Se eliminó «{nombre}»", { nombre: node.label }), () => deleteSubjectCascade(item.id))),
+          },
         ];
+      }
       case "unit":
         return [nuevo({ subjectId: item.subjectId, unitNumber: item.unit })];
       case "note":
@@ -488,7 +506,7 @@ export function FileExplorer() {
     <div className="flex flex-col">
       <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-0.5 bg-bg pl-3 pr-2">
         <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? t("Archivos")}</span>
-        <button type="button" className="icon-btn" aria-label={t("Nueva carpeta")} title={t("Nueva carpeta")} onClick={() => openFolderDialog({})}>
+        <button type="button" className="icon-btn" aria-label={t("Nueva carpeta")} title={t("Nueva carpeta")} onClick={() => openFolderDialog({ root: true })}>
           <FolderPlus strokeWidth={1.75} />
         </button>
         <button
@@ -517,7 +535,7 @@ export function FileExplorer() {
               {nuevoItem}
             </button>
           )}
-          <button type="button" className="btn btn-sm" onClick={() => openFolderDialog({})}>
+          <button type="button" className="btn btn-sm" onClick={() => openFolderDialog({ root: true })}>
             <FolderPlus strokeWidth={1.75} />
             {t("Nueva carpeta")}
           </button>

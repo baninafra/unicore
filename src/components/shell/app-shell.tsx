@@ -180,6 +180,17 @@ export function AppShell() {
             await w.maximize();
           }
           await w.show();
+          // A veces el contenido queda con el tamaño de antes de maximizar (franja blanca abajo):
+          // si no ocupa toda la ventana, se vuelve a maximizar para que se acomode.
+          for (const ms of [150, 600, 1500]) {
+            await new Promise((r) => setTimeout(r, ms));
+            const [size, scale] = await Promise.all([w.innerSize(), w.scaleFactor()]);
+            if (Math.abs(size.height / scale - window.innerHeight) <= 2 && Math.abs(size.width / scale - window.innerWidth) <= 2) continue;
+            if (await w.isMaximized()) {
+              await w.unmaximize();
+              await w.maximize();
+            }
+          }
           await w.setFocus();
         });
       }),

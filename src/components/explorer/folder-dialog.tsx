@@ -15,7 +15,9 @@ import { useWorkspace } from "@/lib/workspace";
 import { t } from "@/lib/i18n";
 
 export type FolderDialogRequest =
-  | { degreeId?: string; item?: boolean } // nueva carpeta (item: un proyecto/materia en vez de una carpeta libre)
+  // Nueva carpeta: en un espacio (degreeId), adentro de otra carpeta o materia (parentId) o en el primer
+  // nivel (root). item: un proyecto/materia en vez de una carpeta libre.
+  | { degreeId?: string; parentId?: string; root?: boolean; item?: boolean }
   | { subject: Subject }; // cambiar nombre o ícono
 
 const EVENT = "uc:folder-dialog";
@@ -32,13 +34,21 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
   const [icon, setIcon] = useState(editing?.icon ?? (asItem ? "kanban" : "folder"));
   const [degreeId, setDegreeId] = useState(editing?.degreeId ?? ("degreeId" in req ? req.degreeId : undefined) ?? "");
   const degrees = useDegrees();
+  const parentId = "parentId" in req ? req.parentId : undefined;
+  // Primer nivel: sin espacio, salvo en los perfiles de un solo espacio (ahí el primer nivel es ese espacio).
+  const root = "root" in req && !!req.root && !asItem && !singleSpace;
+
+  // Adentro de otra: el espacio de la que la contiene.
+  useEffect(() => {
+    if (parentId) void db.subjects.get(parentId).then((p) => p && setDegreeId(p.degreeId));
+  }, [parentId]);
 
   // Sin un espacio elegido: el del perfil activo, o el primero que se ve.
   useEffect(() => {
-    if (degreeId || !degrees.length) return;
+    if (degreeId || root || parentId || !degrees.length) return;
     const own = activeProfile ? degrees.find((d) => profileOfDegree(profiles, d)?.id === activeProfile.id) : undefined;
     setDegreeId(singleSpace?.id ?? own?.id ?? degrees.find((d) => inScope(d.id))?.id ?? degrees[0].id);
-  }, [degreeId, degrees, singleSpace, activeProfile, profiles, inScope]);
+  }, [degreeId, root, parentId, degrees, singleSpace, activeProfile, profiles, inScope]);
 
   const terms = termsFor(degreeId || undefined);
   const what = editing ? (editing.folder ? t("carpeta") : terms.item.one) : asItem ? terms.item.one : t("carpeta");
@@ -47,14 +57,16 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
 
   async function save() {
     const clean = name.trim();
-    if (!clean || !degreeId) return;
+    if (!clean || (!degreeId && (asItem || !root) && !parentId)) return;
     if (editing) {
       await db.subjects.update(editing.id, { name: clean, icon });
     } else {
       const id = newId();
+      const parent = parentId ? await db.subjects.get(parentId) : undefined;
       await db.subjects.add({
         id,
-        degreeId,
+        degreeId: parent?.degreeId ?? degreeId,
+        ...(parentId ? { parentId } : {}),
         name: clean,
         icon,
         folder: asItem ? undefined : true,
@@ -81,7 +93,7 @@ function FolderDialog({ req, onClose }: { req: FolderDialogRequest; onClose: () 
           <button type="button" className="btn" onClick={onClose}>
             {t("Cancelar")}
           </button>
-          <button type="button" className="btn btn-primary" disabled={!name.trim() || !degreeId} onClick={() => void save()}>
+          <button type="button" className="btn btn-primary" disabled={!name.trim() || (!degreeId && !root && !parentId)} onClick={() => void save()}>
             {editing ? t("Guardar") : t("Crear")}
           </button>
         </>

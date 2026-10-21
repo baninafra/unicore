@@ -58,11 +58,11 @@ export function newSubmenu(o: NewMenuOpts): MenuItem {
       ).map(([kind, label]) => ({
         label,
         icon: FileText,
-        // Sin una carpeta clara (clic derecho en un espacio vacío), se pregunta dónde guardarlo.
+        // Va a la misma carpeta que una nota nueva; sólo si no hay ninguna clara se pregunta dónde.
         onSelect: () =>
           runSafe(async () => {
             const what = kind === "deck" ? t("la presentación") : kind === "geo" ? t("la construcción") : t("el {what}", { what: label.split(" ")[0].toLowerCase() });
-            const subjectId = o.subjectId ?? (await pickFolder(t("¿Dónde guardo {what}?", { what })));
+            const subjectId = o.subjectId ?? (o.activeView ? await folder() : await pickFolder(t("¿Dónde guardo {what}?", { what })));
             if (subjectId) o.open({ type: "editor", id: await createOfficeDoc({ kind, subjectId }) });
           }),
       })),

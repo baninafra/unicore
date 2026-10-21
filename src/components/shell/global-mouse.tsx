@@ -33,7 +33,7 @@ import { newSubmenu } from "@/components/ui/new-menu";
 import { openPalette } from "@/lib/nav/palette-bus";
 import { saveBlob, safeFileName } from "@/lib/export/save";
 import { db, resolveFileUrl } from "@/lib/db";
-import type { Task } from "@/lib/types";
+import { LOOSE_FOLDER, type Task } from "@/lib/types";
 import type { ViewState } from "@/lib/workspace";
 import { isDesktop } from "@/lib/desktop";
 import { t } from "@/lib/i18n";
@@ -244,11 +244,14 @@ export function GlobalMouse() {
 
       if (!items.length || items.every((i) => i.type === "separator")) {
         items.length = 0;
+        // Sobre una vista, lo nuevo va a su carpeta (el clic ya enfocó ese panel). Fuera de las vistas
+        // (el fondo del explorador o de las barras), a Notas, no a lo que esté abierto.
+        const inPane = !!(e.target as Element).closest?.("[data-pane]");
         items.push(
           newSubmenu({
             open: (v) => ctx.current.openView(v, "tab"),
             openTask: () => void taskDefaults(ctx.current.activeView, "").then((d) => ctx.current.openTaskDialog(d)),
-            activeView: ctx.current.activeView,
+            ...(inPane ? { activeView: ctx.current.activeView } : { subjectId: LOOSE_FOLDER }),
             extra: [{ label: t("Materia o carrera"), icon: GraduationCap, onSelect: () => ctx.current.openView({ type: "carreras" }, "tab") }],
           }),
           { label: t("Preguntar a la IA"), icon: Sparkles, onSelect: () => ctx.current.setRight(true, "ia") },
@@ -259,6 +262,22 @@ export function GlobalMouse() {
       }
       while (items[items.length - 1]?.type === "separator") items.pop();
       setMenu({ x: e.clientX, y: e.clientY, items });
+    };
+
+    // Un texto cortado con "…" muestra el texto completo al pasar el mouse (si no tiene ya su descripción).
+    const onOver = (e: MouseEvent) => {
+      const el = (e.target as Element).closest?.<HTMLElement>(".truncate");
+      if (!el) return;
+      const auto = el.dataset.autoTitle !== undefined;
+      if (el.title && !auto) return;
+      const text = el.textContent?.trim() ?? "";
+      if (text && el.scrollWidth > el.clientWidth + 1) {
+        el.title = text;
+        el.dataset.autoTitle = "";
+      } else if (auto) {
+        el.removeAttribute("title");
+        delete el.dataset.autoTitle;
+      }
     };
 
     // La ruedita no tiene que activar el auto-desplazamiento sobre cosas que se abren.
@@ -291,10 +310,12 @@ export function GlobalMouse() {
     };
 
     window.addEventListener("contextmenu", onContext);
+    window.addEventListener("mouseover", onOver);
     window.addEventListener("mousedown", onDown, true);
     window.addEventListener("auxclick", onAux);
     return () => {
       window.removeEventListener("contextmenu", onContext);
+      window.removeEventListener("mouseover", onOver);
       window.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("auxclick", onAux);
     };

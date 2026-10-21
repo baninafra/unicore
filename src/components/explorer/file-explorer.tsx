@@ -307,7 +307,7 @@ export function FileExplorer() {
     const sep: MenuItem = { type: "separator" };
     const pdf = (target: ExportTarget): MenuItem[] => [exportMenuItem(target)];
     const item = node.item;
-    const nuevo = (o: Partial<NewMenuOpts> = {}) => newSubmenu({ open: (v) => openView(v), openTask: (d) => openTaskDialog(d), activeView, ...o });
+    const nuevo = (o: Partial<NewMenuOpts> = {}) => newSubmenu({ open: (v) => openView(v), openTask: (d) => openTaskDialog(d), subjectId: LOOSE_FOLDER, ...o });
 
     switch (item.kind) {
       case "folder": {
@@ -319,7 +319,7 @@ export function FileExplorer() {
         if (item.folder === DAILY_FOLDER)
           return [
             { label: t("Nota del día"), icon: CalendarDays, onSelect: () => safe(async () => openView({ type: "nota", id: await openDailyNote(new Date()) })) },
-            nuevo(),
+            nuevo({ subjectId: LOOSE_FOLDER }),
             renameFolderItem,
             sep,
             ...pdf({ kind: "folder", folder: DAILY_FOLDER }),
@@ -327,7 +327,7 @@ export function FileExplorer() {
         if (item.folder === IDEAS_FOLDER)
           return [
             { label: t("Nueva idea"), icon: FilePlus, onSelect: () => safe(async () => openView({ type: "nota", id: await addIdea("") })) },
-            nuevo(),
+            nuevo({ subjectId: LOOSE_FOLDER }),
             { label: t("Ver ideas"), icon: ExternalLink, onSelect: () => openView({ type: "ideas" }) },
             renameFolderItem,
           ];
@@ -630,7 +630,7 @@ function Row({ node, ctx, slot }: { node: TreeNode; ctx: Ctx; slot: boolean }) {
           {expandable && (expanded ? <ChevronDown strokeWidth={1.75} /> : <ChevronRight strokeWidth={1.75} />)}
         </span>}
         {Icon && <Icon strokeWidth={1.75} />}
-        <span className="min-w-0 flex-1 truncate">{node.label}</span>
+        <span className="min-w-0 flex-1 truncate" title={node.label}>{node.label}</span>
       </div>
       {expanded && node.children && (
         <div role="group" className="ml-[14.5px] border-l border-border">

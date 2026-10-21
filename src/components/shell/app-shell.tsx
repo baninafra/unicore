@@ -40,6 +40,7 @@ function PaneView({ pane, active, last, grow }: { pane: Pane; active: boolean; l
   const reserve = controls && last && railHidden ? WINDOW_CONTROLS_W : 0;
   return (
     <section
+      data-pane
       className="flex min-w-[160px] flex-col"
       style={{ flex: `${grow} 1 0` }}
       onMouseDownCapture={() => !active && focusPane(pane.id)}

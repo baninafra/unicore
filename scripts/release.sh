@@ -3,6 +3,7 @@
 #
 # 1. Subí el número de versión en src-tauri/tauri.conf.json, src-tauri/Cargo.toml y package.json.
 # 2. Corré: bash scripts/release.sh "Qué cambió en esta versión"
+#    Antes de compilar trae las versiones nuevas de los editores incrustados (scripts/update-editors.sh).
 #
 # Compila el instalador firmado con la clave de ~/.tauri/unicore.key (nunca va al repo), arma latest.json
 # y crea el release v<versión> en el repo público. La app busca ahí:
@@ -18,6 +19,18 @@ VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
 [ -f "$KEY" ] || { echo "No encuentro la clave de firma en $KEY"; exit 1; }
 if gh release view "v$VERSION" --repo "$REPO" >/dev/null 2>&1; then
   echo "La versión v$VERSION ya está publicada: subí el número de versión primero."; exit 1
+fi
+
+# Editores incrustados: si sus autores publicaron versiones nuevas y nuestro parche entra, se suben
+# solos (UNICORE_SIN_EDITORES=1 para saltearlo). Lo que no se pueda actualizar sigue como estaba.
+if [ -z "${UNICORE_SIN_EDITORES:-}" ]; then
+  echo "== Buscando versiones nuevas de los editores"
+  bash "$ROOT/scripts/update-editors.sh"
+  if ! git diff --quiet -- scripts/build-editors.sh; then
+    git add scripts/build-editors.sh
+    git commit -q -m "Editores incrustados al día para la versión $VERSION"
+    echo "   (commit hecho con las versiones nuevas de los editores; subilo con git push)"
+  fi
 fi
 
 echo "== Compilando UniCore $VERSION"

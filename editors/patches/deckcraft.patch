@@ -1,8 +1,8 @@
 diff --git a/apps/deckcraft-cli/src/help.rs b/apps/deckcraft-cli/src/help.rs
-index 535ce84..8dbe2d3 100644
+index 4227905..45ef6d9 100644
 --- a/apps/deckcraft-cli/src/help.rs
 +++ b/apps/deckcraft-cli/src/help.rs
-@@ -116,8 +116,8 @@ calls it.
+@@ -117,8 +117,8 @@ calls it.
      Subcommand {
          name: "app",
          usage: "app [--port PORT] COMMAND [PARAMS] | --method METHOD [PARAMS]",
@@ -13,7 +13,7 @@ index 535ce84..8dbe2d3 100644
  and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd does; --method METHOD
  [PARAMS] calls a control-channel method such as ui.screenshot. PARAMS is a JSON object.
  
-@@ -129,7 +129,7 @@ and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd doe
+@@ -130,7 +130,7 @@ and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd doe
          usage: "mcp [--connect PORT] [--sample] [--automation-read-root DIR] [--automation-write-root DIR]",
          summary: "serve the commands to an agent over MCP on stdio",
          details: "Runs a Model Context Protocol server on stdin and stdout. It works on its own presentation without a
@@ -22,7 +22,7 @@ index 535ce84..8dbe2d3 100644
  --sample opens the sample presentation.
  
  --automation-read-root DIR and --automation-write-root DIR confine every file the agent's commands read
-@@ -147,12 +147,6 @@ median and slowest of N runs (5 by default, 1 to 1000) as a table, or as JSON wi
+@@ -148,12 +148,6 @@ median and slowest of N runs (5 by default, 1 to 1000) as a table, or as JSON wi
  
    deckcraft-cli bench deck.pptx --runs 10",
      },
@@ -35,7 +35,7 @@ index 535ce84..8dbe2d3 100644
      Subcommand { name: "version", usage: "--version", summary: "print the version", details: "Prints the version of deckcraft-cli." },
  ];
  
-@@ -170,7 +164,7 @@ pub fn overview() -> String {
+@@ -171,7 +165,7 @@ pub fn overview() -> String {
      let list: Vec<String> =
          SUBCOMMANDS.iter().map(|s| format!("  {:<width$}  {}", s.usage.split(' ').next().unwrap_or_default(), s.summary)).collect();
      format!(
@@ -45,7 +45,7 @@ index 535ce84..8dbe2d3 100644
  {}
  
 diff --git a/apps/deckcraft-cli/src/main.rs b/apps/deckcraft-cli/src/main.rs
-index 5934973..7bd3b53 100644
+index c6276ef..5cd3d7b 100644
 --- a/apps/deckcraft-cli/src/main.rs
 +++ b/apps/deckcraft-cli/src/main.rs
 @@ -1,4 +1,4 @@
@@ -74,7 +74,7 @@ index 5934973..7bd3b53 100644
      ExitCode::FAILURE
  }
  
-@@ -570,7 +564,7 @@ fn app(args: &[String]) -> Result<(), String> {
+@@ -588,7 +582,7 @@ fn app(args: &[String]) -> Result<(), String> {
          }
      }
      let mut r = Remote::connect(&control_addr(&port))
@@ -673,7 +673,7 @@ index a0ca504..f31a167 100644
          assert!(logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("deckcraft_engine::recovery").build()));
          assert!(!logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("naga").build()));
 diff --git a/apps/deckcraft/src/main.rs b/apps/deckcraft/src/main.rs
-index ef80daa..7774751 100644
+index e6bd6c4..d0aab9b 100644
 --- a/apps/deckcraft/src/main.rs
 +++ b/apps/deckcraft/src/main.rs
 @@ -1,4 +1,4 @@
@@ -681,8 +681,8 @@ index ef80daa..7774751 100644
 +//! UniCore desktop app.
  //!
  //! Usage: `deckcraft [--control <port>] [--sample] [--show] [files…]`
- //! `deckcraft --help` prints the flags and exits. `deckcraft --version` prints the version and exits.
-@@ -47,7 +47,7 @@ impl eframe::App for App {
+ //! A PowerPoint Show (`.ppsx`) given last starts its slide show, as a double-click does in PowerPoint.
+@@ -57,7 +57,7 @@ impl eframe::App for App {
          // in a crash report. eframe calls `on_exit` on every way of quitting (⌘Q, the close
          // button, `app.quit`), once the unsaved-changes prompt has let the window close, and
          // nothing after it is needed: the preferences are saved and the log file is unbuffered.
@@ -691,7 +691,7 @@ index ef80daa..7774751 100644
          #[cfg(target_os = "macos")]
          std::process::exit(0);
      }
-@@ -56,9 +56,9 @@ impl eframe::App for App {
+@@ -66,9 +66,9 @@ impl eframe::App for App {
  /// The per-user settings directory: `ui.json`, `prefs.json` and `logs/` live here.
  fn config_dir() -> Option<std::path::PathBuf> {
      if cfg!(target_os = "macos") {
@@ -703,7 +703,7 @@ index ef80daa..7774751 100644
      } else {
          std::env::var_os("XDG_CONFIG_HOME")
              .map(std::path::PathBuf::from)
-@@ -104,7 +104,7 @@ fn services() -> Services {
+@@ -114,7 +114,7 @@ fn services() -> Services {
                  "theme" => d.add_filter("Themes and presentations", &["thmx", "pptx", "potx", "ppsx"]).add_filter("Office Theme", &["thmx"]),
                  _ => d
                      .add_filter("Presentations", &["deckcraft", "pptx", "potx", "ppsx"])
@@ -712,7 +712,7 @@ index ef80daa..7774751 100644
                      .add_filter("PowerPoint", &["pptx", "potx", "ppsx"])
                      .add_filter("Outline", &["txt", "md"]),
              };
-@@ -182,7 +182,7 @@ fn main() -> eframe::Result {
+@@ -196,7 +196,7 @@ fn main() -> eframe::Result {
              }
              Startup::Run { control_port, files, sample, show } => (control_port, files, sample, show),
          };
@@ -721,7 +721,7 @@ index ef80daa..7774751 100644
      // The log file lives under the settings directory; opened after the arguments, so `--help` and
      // `--version` leave no file behind. Records logged until now are written to it first.
      if let Some(logger) = logger {
-@@ -197,7 +197,7 @@ fn main() -> eframe::Result {
+@@ -211,7 +211,7 @@ fn main() -> eframe::Result {
      }
      let mut options = eframe::NativeOptions {
          viewport: egui::ViewportBuilder::default()
@@ -730,7 +730,7 @@ index ef80daa..7774751 100644
              .with_inner_size([1440.0, 900.0])
              .with_min_inner_size([900.0, 560.0])
              .with_drag_and_drop(true)
-@@ -215,9 +215,9 @@ fn main() -> eframe::Result {
+@@ -229,9 +229,9 @@ fn main() -> eframe::Result {
          display::Choice::X11 => true,
          display::Choice::Default => false,
          display::Choice::None => {
@@ -742,9 +742,9 @@ index ef80daa..7774751 100644
              false
          }
      };
-@@ -232,7 +232,7 @@ fn main() -> eframe::Result {
-     #[cfg(target_os = "windows")]
-     graphics::configure(&mut options, eframe::wgpu::Backends::from_env(), eframe::wgpu::Dx12Compiler::from_env());
+@@ -252,7 +252,7 @@ fn main() -> eframe::Result {
+     #[cfg(target_os = "macos")]
+     let apple_events = &apple_events;
      eframe::run_native(
 -        "DeckCraft",
 +        "UniCore",
@@ -826,11 +826,11 @@ index 03468f3..72f551d 100644
          let err = s.execute("design.effects", &json!({"name": "Office"})).unwrap_err().to_string();
          assert!(err.contains("no effect scheme"), "{err}");
 diff --git a/crates/engine/src/cmd/file.rs b/crates/engine/src/cmd/file.rs
-index 4761dc1..b07479a 100644
+index ba56757..ba3d499 100644
 --- a/crates/engine/src/cmd/file.rs
 +++ b/crates/engine/src/cmd/file.rs
-@@ -143,7 +143,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<Presentation> {
-         return Ok(p);
+@@ -159,7 +159,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
+         return Ok((p, lost_slides));
      }
      if deckcraft_pptx::is_encrypted(bytes) {
 -        return Err(EngineError::Other(format!("{name} is password-protected. DeckCraft can't open password-protected presentations yet.")));
@@ -838,16 +838,16 @@ index 4761dc1..b07479a 100644
      }
      let lower = name.to_ascii_lowercase();
      if lower.ends_with(".txt") || lower.ends_with(".md") {
-@@ -159,7 +159,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<Presentation> {
+@@ -175,7 +175,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
          }
-         return Ok(p);
+         return Ok((p, vec![]));
      }
 -    Err(EngineError::Other(format!("{name}: not a presentation DeckCraft can read")))
 +    Err(EngineError::Other(format!("{name}: not a presentation UniCore can read")))
  }
  
  pub fn add_opened(s: &mut Session, name: &str, path: Option<String>, p: Presentation) -> usize {
-@@ -340,7 +340,7 @@ pub fn pdf_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
+@@ -371,7 +371,7 @@ pub fn pdf_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
  pub const WRITABLE_EXTENSIONS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "pdf", "png", "jpg", "jpeg", "gif", "txt", "md"];
  
  /// The format a file named `path` is written in, or `None` when its extension names no format
@@ -857,10 +857,10 @@ index 4761dc1..b07479a 100644
  pub fn writable_format_for_path(path: &str) -> Option<&'static str> {
      let ext = std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
 diff --git a/crates/engine/src/cmd/format.rs b/crates/engine/src/cmd/format.rs
-index 36d54de..1e9b1db 100644
+index 75952c9..ac6a008 100644
 --- a/crates/engine/src/cmd/format.rs
 +++ b/crates/engine/src/cmd/format.rs
-@@ -1212,12 +1212,12 @@ fn font_add(_s: &mut Session, p: &Value) -> Result<Value> {
+@@ -1222,12 +1222,12 @@ fn font_add(_s: &mut Session, p: &Value) -> Result<Value> {
      }
      let faces = deckcraft_fonts::FontDb::global().add_font(data);
      if faces == 0 {
@@ -907,7 +907,7 @@ index 149957d..91fe2d4 100644
  
      #[test]
 diff --git a/crates/engine/src/cmd/richclip.rs b/crates/engine/src/cmd/richclip.rs
-index 69f7068..53ee7a5 100644
+index fc63314..9a8ae46 100644
 --- a/crates/engine/src/cmd/richclip.rs
 +++ b/crates/engine/src/cmd/richclip.rs
 @@ -1,6 +1,6 @@
@@ -932,7 +932,7 @@ index c58d183..b69e7ea 100644
      ("list", "Vertical Bullet List"),
      ("blockList", "Basic Block List"),
 diff --git a/crates/engine/src/cmd/text.rs b/crates/engine/src/cmd/text.rs
-index a0408ef..b6a2b57 100644
+index fc6fcac..20faa36 100644
 --- a/crates/engine/src/cmd/text.rs
 +++ b/crates/engine/src/cmd/text.rs
 @@ -180,7 +180,7 @@ pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
@@ -967,7 +967,7 @@ index 89c7218..b05680d 100644
      outline(name).and_then(deck_path)
  }
 diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
-index ac25d66..6932c69 100644
+index 418bff0..fae9618 100644
 --- a/crates/engine/src/lib.rs
 +++ b/crates/engine/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -984,7 +984,7 @@ index ac25d66..6932c69 100644
  pub mod media_refs;
  pub mod recovery;
  pub mod sample;
-@@ -469,7 +468,7 @@ pub struct Session {
+@@ -471,7 +470,7 @@ pub struct Session {
      pub gif_paused: std::collections::HashSet<ShapeId>,
      /// Text keys follow the Mac (Option+arrows move by word, Cmd+arrows to the line or text
      /// ends) instead of Windows and Linux (Ctrl+arrows by word or paragraph). Defaults to the
@@ -994,7 +994,7 @@ index ac25d66..6932c69 100644
      /// Command panics caught by the guard (the document was rolled back); soak tests require 0.
      pub panics_caught: u64,
 diff --git a/crates/engine/src/recovery.rs b/crates/engine/src/recovery.rs
-index 707d0aa..70948c2 100644
+index 646a143..ca95fe1 100644
 --- a/crates/engine/src/recovery.rs
 +++ b/crates/engine/src/recovery.rs
 @@ -26,10 +26,10 @@ use crate::{DocState, EngineError, Result, Session};
@@ -1010,17 +1010,14 @@ index 707d0aa..70948c2 100644
      }
      std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| home.map(|h| h.join(".local/share"))).map(|d| d.join("deckcraft/recovery"))
  }
-@@ -43,7 +43,10 @@ pub fn instance_id() -> u64 {
+@@ -43,6 +43,7 @@ pub fn instance_id() -> u64 {
      static ID: OnceLock<u64> = OnceLock::new();
      *ID.get_or_init(|| {
          use std::hash::{BuildHasher, Hasher};
 +        #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
          let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-+        // The browser has no process ids (std panics there).
-+        #[cfg(not(target_arch = "wasm32"))]
-         h.write_u32(std::process::id());
-         #[cfg(not(target_arch = "wasm32"))]
-         if let Ok(d) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+         // No PIDs and no std::time on wasm (`std::process::id()` and
+         // `SystemTime::now()` panic there): the browser clock stands in.
 diff --git a/crates/engine/src/sample.rs b/crates/engine/src/sample.rs
 index 80c11ca..4462b23 100644
 --- a/crates/engine/src/sample.rs
@@ -1109,10 +1106,10 @@ index 2c94783..58f51e5 100644
          std::env::var_os("XDG_DATA_HOME")
              .map(PathBuf::from)
 diff --git a/crates/engine/src/tests.rs b/crates/engine/src/tests.rs
-index cc872e6..995a1ef 100644
+index dd64b08..d722ec7 100644
 --- a/crates/engine/src/tests.rs
 +++ b/crates/engine/src/tests.rs
-@@ -115,7 +115,7 @@ fn editing_text_refits_a_saved_shrink() {
+@@ -135,7 +135,7 @@ fn editing_text_refits_a_saved_shrink() {
  }
  
  /// After an edit, the shrink-on-overflow scale the layout computes is stored, so the saved file
@@ -1121,7 +1118,7 @@ index cc872e6..995a1ef 100644
  #[test]
  fn editing_shrink_text_stores_the_layout_scale() {
      use deckcraft_model::text::AutoFit;
-@@ -128,7 +128,7 @@ fn editing_shrink_text_stores_the_layout_scale() {
+@@ -148,7 +148,7 @@ fn editing_shrink_text_stores_the_layout_scale() {
      let sh = s.doc().unwrap().shape(id).cloned().unwrap();
      let Some(AutoFit::Shrink { font_scale, line_reduction }) = sh.text.unwrap().body.autofit else { panic!("shrink") };
      assert!(font_scale.is_some_and(|s| s < 1.0), "the computed fit is stored: {font_scale:?} / {line_reduction}");
@@ -1130,7 +1127,7 @@ index cc872e6..995a1ef 100644
      let bytes = deckcraft_pptx::export(&s.doc().unwrap().doc).unwrap();
      let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
      let mut xml = String::new();
-@@ -1099,18 +1099,18 @@ fn an_embedded_face_is_used_when_the_machine_lacks_it() {
+@@ -1119,18 +1119,18 @@ fn an_embedded_face_is_used_when_the_machine_lacks_it() {
      let mut p = deckcraft_model::Presentation::default();
      let slide = std::sync::Arc::make_mut(&mut p.slides[0]);
      let mut body = deckcraft_model::text::TextBody::from_text("Hello");
@@ -1152,7 +1149,7 @@ index cc872e6..995a1ef 100644
      assert!(font.regular.is_some());
  }
  
-@@ -3102,8 +3102,8 @@ fn autocorrect_options_as_you_type() {
+@@ -3149,8 +3149,8 @@ fn autocorrect_options_as_you_type() {
      s.execute("text.autocorrect", &json!({"sentenceCaps": false, "days": false})).unwrap();
      assert_eq!(typed(&mut s, "hello monday "), "hello monday ");
      // Your own entries, and deleting a built-in one.
@@ -1163,7 +1160,7 @@ index cc872e6..995a1ef 100644
      let v = s.execute("text.autocorrect", &json!({})).unwrap();
      let entries = v["entries"].as_array().unwrap();
      assert!(entries.iter().any(|e| e[0] == "dc"));
-@@ -3258,7 +3258,7 @@ fn the_caret_takes_the_colour_of_the_text() {
+@@ -3336,7 +3336,7 @@ fn the_caret_takes_the_colour_of_the_text() {
          empty
      };
      // Dark text on the light theme, light text on the dark one: never black on a dark slide.
@@ -1173,10 +1170,10 @@ index cc872e6..995a1ef 100644
      assert!(dark.r > 0xC0 && dark.g > 0xC0 && dark.b > 0xC0, "{dark:?}");
      // Text set to red gets a red caret.
 diff --git a/crates/engine/src/tools.rs b/crates/engine/src/tools.rs
-index f1acd9e..ec124bb 100644
+index a7190b7..ec3bd22 100644
 --- a/crates/engine/src/tools.rs
 +++ b/crates/engine/src/tools.rs
-@@ -303,7 +303,7 @@ pub fn box_handles(x: &Xfrm) -> ([Point; 8], Point) {
+@@ -308,7 +308,7 @@ pub fn box_handles(x: &Xfrm) -> ([Point; 8], Point) {
  }
  
  /// WordArt adjust handles for `sh`, in shape-local points (the text rectangle). Empty when the
@@ -1341,12 +1338,34 @@ index a9f0c05..b9ae516 100644
          // So do Office's cloud fonts, which PowerPoint downloads and draws as themselves.
          for kept in ["Arial", "Times New Roman", "Cambria", "Courier New", FALLBACK_FAMILY, "Aptos", "Aptos Display", "Grandview"] {
              assert_eq!(db.document_face(kept, "Regular").family, db.face(kept, "Regular").family, "{kept}");
+diff --git a/crates/format/src/chart_parts.rs b/crates/format/src/chart_parts.rs
+index f57c086..3e05329 100644
+--- a/crates/format/src/chart_parts.rs
++++ b/crates/format/src/chart_parts.rs
+@@ -50,7 +50,7 @@ pub(super) fn restore(
+                 return Ok(());
+             }
+             if z.by_name(&entry).is_ok_and(|f| f.size() > *left) {
+-                return Err(FormatError::Damaged("embedded media and chart parts are larger than DeckCraft can open".into()));
++                return Err(FormatError::Damaged("embedded media and chart parts are larger than UniCore can open".into()));
+             }
+             // A CRC/decode error may already have inflated bytes. Stop on that first error
+             // rather than letting later corrupt members reuse the unchanged byte budget.
+@@ -62,7 +62,7 @@ pub(super) fn restore(
+             // bounded manifest parser has read them, so resaving migrates them losslessly.
+             let size = part.bytes.len() as u64;
+             if size > (*left).min(MAX_ENTRY) {
+-                return Err(FormatError::Damaged("inline chart part is larger than DeckCraft can open".into()));
++                return Err(FormatError::Damaged("inline chart part is larger than UniCore can open".into()));
+             }
+             *left -= size;
+         }
 diff --git a/crates/format/src/lib.rs b/crates/format/src/lib.rs
-index f1d0dc8..4f6c0fc 100644
+index 093cbaa..89fff84 100644
 --- a/crates/format/src/lib.rs
 +++ b/crates/format/src/lib.rs
-@@ -13,7 +13,7 @@ use deckcraft_model::text::{Paragraph, TextBody};
- use deckcraft_model::{LayoutType, Presentation, defaults};
+@@ -17,7 +17,7 @@ use deckcraft_model::text::{Paragraph, TextBody};
+ use deckcraft_model::{LayoutType, Presentation, ShapeKind, defaults};
  
  pub const MIMETYPE: &str = "application/vnd.storyteller.deckcraft+zip";
 -/// Files written before the SlideCraft → DeckCraft rename (`.slidecraft`) are still read.
@@ -1354,7 +1373,7 @@ index f1d0dc8..4f6c0fc 100644
  pub const LEGACY_MIMETYPE: &str = concat!("application/vnd.storyteller.", "slide", "craft+zip");
  pub const EXTENSION: &str = "deckcraft";
  /// Format version written into the manifest.
-@@ -34,7 +34,7 @@ struct Budget {
+@@ -38,7 +38,7 @@ struct Budget {
  
  #[derive(Debug, thiserror::Error)]
  pub enum FormatError {
@@ -1363,16 +1382,16 @@ index f1d0dc8..4f6c0fc 100644
      NotOurs(String),
      #[error("damaged file: {0}")]
      Damaged(String),
-@@ -65,7 +65,7 @@ pub fn save(p: &Presentation) -> Result<Vec<u8>> {
-         let m = Manifest {
-             format: "deckcraft".into(),
-             version: VERSION,
--            generator: format!("DeckCraft {}", env!("CARGO_PKG_VERSION")),
-+            generator: format!("UniCore {}", env!("CARGO_PKG_VERSION")),
-             presentation: p.clone(),
-         };
+@@ -69,7 +69,7 @@ pub fn save(p: &Presentation) -> Result<Vec<u8>> {
+         let mut presentation = p.clone();
+         let parts = chart_parts::separate(&mut presentation)?;
+         let m =
+-            Manifest { format: "deckcraft".into(), version: VERSION, generator: format!("DeckCraft {}", env!("CARGO_PKG_VERSION")), presentation };
++            Manifest { format: "deckcraft".into(), version: VERSION, generator: format!("UniCore {}", env!("CARGO_PKG_VERSION")), presentation };
          let json = serde_json::to_vec(&finite::Finite(&m)).map_err(|e| FormatError::Write(e.to_string()))?;
-@@ -152,7 +152,7 @@ fn load_within(bytes: &[u8], budget: Budget) -> Result<(Presentation, Vec<String
+         z.start_file("presentation.json", deflate).map_err(w)?;
+         z.write_all(&json).map_err(|e| FormatError::Write(e.to_string()))?;
+@@ -161,7 +161,7 @@ fn load_within(bytes: &[u8], budget: Budget) -> Result<(Presentation, Vec<String
          let name = format!("media/{}", item.id.0);
          let linked_only = item.link.is_some() && z.index_for_name(&name).is_none();
          if z.by_name(&name).is_ok_and(|f| f.size() > left) {
@@ -1381,7 +1400,7 @@ index f1d0dc8..4f6c0fc 100644
          }
          match read_entry_max(&mut z, &name, left.min(MAX_ENTRY)) {
              Ok(data) => {
-@@ -259,7 +259,7 @@ fn failure(src: &[u8]) -> std::result::Result<Manifest, (String, (usize, usize))
+@@ -321,7 +321,7 @@ fn failure(src: &[u8]) -> std::result::Result<Manifest, (String, (usize, usize))
  }
  
  /// Parse `presentation.json`. serde_json writes a NaN or infinite number as `null`, which then
@@ -1662,7 +1681,7 @@ index a3402a0..cc29da6 100644
  with only `std` enabled, to inspect the generated PDFs.
  
 diff --git a/crates/pdf/src/lib.rs b/crates/pdf/src/lib.rs
-index 3faec84..a43176c 100644
+index 22dc42d..565b4f1 100644
 --- a/crates/pdf/src/lib.rs
 +++ b/crates/pdf/src/lib.rs
 @@ -1,6 +1,6 @@
@@ -1685,7 +1704,7 @@ index 3faec84..a43176c 100644
          authors: if pres.props.author.trim().is_empty() { Vec::new() } else { vec![pres.props.author.clone()] },
          ..Default::default()
 diff --git a/crates/pdf/src/tests.rs b/crates/pdf/src/tests.rs
-index fd85888..db24592 100644
+index 2bc5c41..af17f47 100644
 --- a/crates/pdf/src/tests.rs
 +++ b/crates/pdf/src/tests.rs
 @@ -93,8 +93,8 @@ fn metadata_retains_values_and_omits_blank_fields() {
@@ -1779,7 +1798,7 @@ index 5f85db0..73fe5be 100644
          assert_eq!(kind_for("urn:microsoft.com/office/officeart/2005/8/layout/pList2", "list"), "pictureHList");
          for k in [
 diff --git a/crates/pptx/src/lib.rs b/crates/pptx/src/lib.rs
-index ec37b76..67b99c6 100644
+index 1b1dc5b..b9fff94 100644
 --- a/crates/pptx/src/lib.rs
 +++ b/crates/pptx/src/lib.rs
 @@ -2,7 +2,7 @@
@@ -1818,7 +1837,7 @@ index d8f3e9c..e8dcf45 100644
      let doc = crate::xml::parse(bytes).ok()?;
      let mut root = doc.root;
 diff --git a/crates/pptx/src/read/mod.rs b/crates/pptx/src/read/mod.rs
-index ac83dfc..d3d2e26 100644
+index 979cdb7..82fe0fc 100644
 --- a/crates/pptx/src/read/mod.rs
 +++ b/crates/pptx/src/read/mod.rs
 @@ -159,7 +159,7 @@ pub fn keep_xml(el: &El, ns: &[(String, String)]) -> String {
@@ -1930,7 +1949,7 @@ index e62105e..40e290c 100644
  /// the map itself is not drawn.
  fn region_tiles(ctx: &mut RenderContext, rctx: &Ctx, c: &Chart, m: Affine, area: Rect, base: f64, text_col: Rgba) {
 diff --git a/crates/render/src/lib.rs b/crates/render/src/lib.rs
-index 93b0dc9..6a60201 100644
+index cf124a9..ec067b2 100644
 --- a/crates/render/src/lib.rs
 +++ b/crates/render/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1939,7 +1958,7 @@ index 93b0dc9..6a60201 100644
  //!
  //! One code path serves the editor canvas, thumbnails, image/PDF-raster export and the slide show:
  //! [`render_slide`] draws the background, the master and layout graphics, then the slide's shapes
-@@ -1074,7 +1074,7 @@ impl Renderer {
+@@ -1083,7 +1083,7 @@ impl Renderer {
                  paint::picture(ctx, f.pres, &paint::resolved(rctx, pf, None), bounds, m, t);
                  ctx.pop_layer();
              }
@@ -1948,7 +1967,7 @@ index 93b0dc9..6a60201 100644
              // preview picture, stretched over the frame, as PowerPoint draws it.
              ShapeKind::Opaque { preview: Some(media), .. } => {
                  ctx.set_transform(m);
-@@ -2079,7 +2079,7 @@ pub fn text_transform(m: Affine, tr: Rect, rotation: f64) -> Affine {
+@@ -2088,7 +2088,7 @@ pub fn text_transform(m: Affine, tr: Rect, rotation: f64) -> Affine {
      t
  }
  
@@ -1958,10 +1977,10 @@ index 93b0dc9..6a60201 100644
      let bp = resolve::body(rctx, s);
      let name = bp.warp.as_deref()?;
 diff --git a/crates/render/src/tests.rs b/crates/render/src/tests.rs
-index 05d7c91..82d1c8a 100644
+index 4ee1c88..69a48c9 100644
 --- a/crates/render/src/tests.rs
 +++ b/crates/render/src/tests.rs
-@@ -1001,7 +1001,7 @@ fn colour_glyphs_paint_their_layers() {
+@@ -1028,7 +1028,7 @@ fn colour_glyphs_paint_their_layers() {
      let mut t = TextBody::from_text("\u{E000} \u{E001}");
      let props = &mut t.paragraphs[0].runs[0].props;
      props.size = Some(72.0);
@@ -1970,7 +1989,7 @@ index 05d7c91..82d1c8a 100644
      props.fill = Some(deckcraft_model::style::Fill::solid(ColorRef::rgb(deckcraft_color::Rgba::rgb(0, 160, 0))));
      sh.text = Some(t);
      let p = deck_with(vec![sh]);
-@@ -1237,7 +1237,7 @@ fn soft_edges_fade_to_the_outline() {
+@@ -1264,7 +1264,7 @@ fn soft_edges_fade_to_the_outline() {
  #[test]
  fn a_file_defined_table_style_draws_its_parts() {
      // Red table background (tblBg), see-through white on banded rows, a 4 pt blue left border and
@@ -1980,7 +1999,7 @@ index 05d7c91..82d1c8a 100644
      use deckcraft_model::table::{TableBorder, TablePart, TablePartStyle, TableStyleDef};
      let rgb = |r, g, b| ColorRef::rgb(deckcraft_color::Rgba::rgb(r, g, b));
 diff --git a/crates/text/src/tests.rs b/crates/text/src/tests.rs
-index a9d936c..34b17e0 100644
+index bc0f24f..128fc41 100644
 --- a/crates/text/src/tests.rs
 +++ b/crates/text/src/tests.rs
 @@ -207,7 +207,7 @@ fn saved_shrink_scale_is_drawn() {
@@ -2003,10 +2022,10 @@ index 6b1a38a..d0cfd87 100644
  //! ```sh
  //! cargo run -p deckcraft-ui-egui --example icon_gallery -- /tmp/gallery.png
 diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
-index f7bfe25..acf079a 100644
+index 999900d..0f8badb 100644
 --- a/crates/ui-egui/src/backstage.rs
 +++ b/crates/ui-egui/src/backstage.rs
-@@ -213,7 +213,7 @@ impl Backstage {
+@@ -216,7 +216,7 @@ impl Backstage {
  /// Save As and Change File Type: (id for [`SlideApp::export_as`], label, detail).
  pub const SAVE_TYPES: [(&str, &str, &str); 6] = [
      ("pptx", "PowerPoint Presentation (*.pptx)", "Opens in PowerPoint and other presentation apps"),
@@ -2015,7 +2034,7 @@ index f7bfe25..acf079a 100644
      ("pdf", "PDF (*.pdf)", "A fixed copy that keeps its layout on any device"),
      ("outline", "Outline (*.txt)", "The slide titles and bullet text as plain text"),
      ("png", "PNG Picture (*.png)", "The current slide as a picture"),
-@@ -537,7 +537,7 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank:
+@@ -540,7 +540,7 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank:
              shown += 1;
          }
          if sample && shown < limit {
@@ -2024,7 +2043,7 @@ index f7bfe25..acf079a 100644
              if tile(ui, "Sample deck: Northern Lights", th.as_ref(), false).clicked()
                  && let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session)
              {
-@@ -685,15 +685,11 @@ fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &str, enable
+@@ -688,15 +688,11 @@ fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &str, enable
  
  // ---------------------------------------------------------------- pages
  
@@ -2042,7 +2061,7 @@ index f7bfe25..acf079a 100644
      ui.add_space(18.0);
      ui.horizontal(|ui| {
          ui.label(RichText::new("New").font(theme::bold(16.0)).color(t.text));
-@@ -733,8 +729,6 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome)
+@@ -736,8 +732,6 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome)
              }
          });
      }
@@ -2051,7 +2070,7 @@ index f7bfe25..acf079a 100644
  }
  
  /// New: a blank presentation, then every theme and starter template, with a search box.
-@@ -1040,9 +1034,9 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
+@@ -1043,9 +1037,9 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
              dim(
                  ui,
                  if app.services.pick_save.is_some() {
@@ -2063,7 +2082,7 @@ index f7bfe25..acf079a 100644
                  },
              );
              ui.add_space(14.0);
-@@ -1330,7 +1324,7 @@ fn bullets(ui: &mut Ui, items: &[&str]) {
+@@ -1340,7 +1334,7 @@ fn bullets(ui: &mut Ui, items: &[&str]) {
      ui.add_space(10.0);
  }
  
@@ -2072,7 +2091,7 @@ index f7bfe25..acf079a 100644
  /// there is nothing to sign in to.
  fn account(app: &mut SlideApp, ui: &mut Ui) {
      let t = Tokens::get(ui.ctx());
-@@ -1348,31 +1342,18 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
+@@ -1358,31 +1352,18 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
              });
              ui.add_space(16.0);
              heading(ui, "User Information");
@@ -2108,7 +2127,7 @@ index f7bfe25..acf079a 100644
      });
  }
 diff --git a/crates/ui-egui/src/backstage_tests.rs b/crates/ui-egui/src/backstage_tests.rs
-index 9b3906a..575b952 100644
+index c29ef47..41b4829 100644
 --- a/crates/ui-egui/src/backstage_tests.rs
 +++ b/crates/ui-egui/src/backstage_tests.rs
 @@ -166,7 +166,7 @@ fn every_page_renders() {
@@ -2120,7 +2139,7 @@ index 9b3906a..575b952 100644
      ];
      for (p, marker) in checks {
          h.state_mut().run("app.backstage", json!({"page": p.id()})).unwrap();
-@@ -454,7 +454,7 @@ fn a_file_that_cant_be_opened_says_why() {
+@@ -480,7 +480,7 @@ fn a_file_that_cant_be_opened_says_why() {
      }
      h.run_steps(2);
      assert!(h.state().session.documents().is_empty());
@@ -2130,7 +2149,7 @@ index 9b3906a..575b952 100644
  }
  
 diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
-index 576a229..dd61319 100644
+index 2393bd6..096c026 100644
 --- a/crates/ui-egui/src/dialogs.rs
 +++ b/crates/ui-egui/src/dialogs.rs
 @@ -2,7 +2,7 @@
@@ -2200,7 +2219,7 @@ index 576a229..dd61319 100644
          let theme_was = d.fields.get("themeWas").cloned().unwrap_or_default();
          let mut payload = json!({"pictures": list, "layout": layout, "frame": frame, "captions": captions, "grayscale": grayscale});
          if theme != theme_was
-@@ -2067,24 +2067,7 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+@@ -2080,24 +2080,7 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
              ok || cancel
          }
          "about" => {
@@ -2226,7 +2245,7 @@ index 576a229..dd61319 100644
              let (ok, _) = buttons(ui, "Close");
              ok
          }
-@@ -2603,21 +2586,9 @@ fn pretty_equation(s: &str) -> String {
+@@ -2617,21 +2600,9 @@ fn pretty_equation(s: &str) -> String {
  }
  
  pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
@@ -2250,7 +2269,7 @@ index 576a229..dd61319 100644
      });
  }
  
-@@ -2636,22 +2607,6 @@ pub fn version_line() -> String {
+@@ -2650,22 +2621,6 @@ pub fn version_line() -> String {
      s
  }
  
@@ -2273,7 +2292,7 @@ index 576a229..dd61319 100644
  /// The selection's proofing language and whether it's marked Do Not Check Spelling: the run at
  /// the caret, else the first run of the first selected shape; US English when none says.
  pub fn selected_language(app: &SlideApp) -> (String, bool) {
-@@ -3217,7 +3172,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+@@ -3231,7 +3186,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                  p["with"] = json!(d.get("with", ""));
                  let msg = match app.session.execute("text.replace", &p) {
                      Ok(v) => format!("Replaced {} occurrence(s).", v.get("replaced").and_then(Value::as_u64).unwrap_or(0)),
@@ -2282,7 +2301,7 @@ index 576a229..dd61319 100644
                  };
                  d.fields.insert("status".into(), msg);
                  d.fields.remove("cur");
-@@ -3232,7 +3187,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+@@ -3246,7 +3201,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
      if find_next {
          let list = app.session.execute("text.find", &q).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default();
          if list.is_empty() {
@@ -2327,7 +2346,7 @@ index 5450914..3924578 100644
          pub enum Icon {
              $($(#[$m])* $v,)*
 diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
-index 8867407..5563e8a 100644
+index eef9b1b..f042237 100644
 --- a/crates/ui-egui/src/lib.rs
 +++ b/crates/ui-egui/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -2380,7 +2399,7 @@ index 8867407..5563e8a 100644
      /// Table Design's border pen (`color`, `width`, `dash` for `table.borders`).
      pub table_pen: serde_json::Value,
      pub session: Session,
-@@ -531,6 +532,7 @@ impl SlideApp {
+@@ -533,6 +534,7 @@ impl SlideApp {
      pub fn new(session: Session, mut services: Services) -> Self {
          let audio_out = services.audio_out.take();
          SlideApp {
@@ -2388,7 +2407,7 @@ index 8867407..5563e8a 100644
              table_pen: serde_json::json!({"width": 1.0}),
              session,
              services,
-@@ -744,7 +746,7 @@ impl SlideApp {
+@@ -747,7 +749,7 @@ impl SlideApp {
              "deckcraft" => ("deckcraft", "deckcraft", false),
              "gif" => ("gif", "gif", false),
              other => {
@@ -2397,7 +2416,7 @@ index 8867407..5563e8a 100644
                  return false;
              }
          };
-@@ -800,7 +802,7 @@ impl SlideApp {
+@@ -804,7 +806,7 @@ impl SlideApp {
          }
      }
  
@@ -2406,7 +2425,7 @@ index 8867407..5563e8a 100644
      /// layout, slides and options) is written to the temporary folder and opened in the system's
      /// PDF viewer, which has the printers; on the web it downloads.
      pub fn print_pdf(&mut self, params: Value) -> bool {
-@@ -1012,7 +1014,7 @@ impl SlideApp {
+@@ -1016,7 +1018,7 @@ impl SlideApp {
              "app.insertAudioDialog" => self.pick_and_insert("audio", "insert.audio"),
              "app.reuseSlidesDialog" => self.pick_and_reuse(p.get("keepFormatting").and_then(Value::as_bool).unwrap_or(false)),
              "app.insertVideoDialog" => self.pick_and_insert("video", "insert.video"),
@@ -2415,7 +2434,7 @@ index 8867407..5563e8a 100644
              "app.exportDialog" => self.dialog = Some(dialogs::Dialog::new("export")),
              "app.pasteSpecial" => self.dialog = Some(dialogs::Dialog::new("pasteSpecial")),
              "app.browseThemeDialog" => {
-@@ -1048,10 +1050,6 @@ impl SlideApp {
+@@ -1052,10 +1054,6 @@ impl SlideApp {
                  let d = p.get("id").and_then(Value::as_str).ok_or("missing `id`")?;
                  self.dialog = Some(dialogs::Dialog::new(d));
              }
@@ -2426,7 +2445,7 @@ index 8867407..5563e8a 100644
              _ => return Err(format!("unknown UI command `{id}`")),
          }
          Ok(Value::Null)
-@@ -1300,7 +1298,7 @@ impl SlideApp {
+@@ -1324,7 +1322,7 @@ impl SlideApp {
                  Err(e) => self.set_status(e.to_string()),
              }
          } else {
@@ -2435,7 +2454,7 @@ index 8867407..5563e8a 100644
          }
      }
  
-@@ -1318,7 +1316,7 @@ impl SlideApp {
+@@ -1342,7 +1340,7 @@ impl SlideApp {
                  UiRequest::Message { text } => self.set_status(text),
                  UiRequest::PickFile { purpose } => {
                      if purpose == "saveAs" {
@@ -2444,7 +2463,7 @@ index 8867407..5563e8a 100644
                      }
                  }
                  UiRequest::Media { action, shape, ms } => {
-@@ -1755,7 +1753,7 @@ impl SlideApp {
+@@ -1779,7 +1777,7 @@ impl SlideApp {
      /// Offer the copy or cut on the system clipboard.
      ///
      /// Slides go out as plain text. Text goes out as HTML plus the same plain words, so a paste
@@ -2467,7 +2486,7 @@ index 440fd93..498e3ed 100644
  }
  
 diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
-index 3e43a68..15f0ae6 100644
+index 3a679dd..e794b72 100644
 --- a/crates/ui-egui/src/ribbon.rs
 +++ b/crates/ui-egui/src/ribbon.rs
 @@ -76,7 +76,7 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
@@ -2488,7 +2507,7 @@ index 3e43a68..15f0ae6 100644
                      if ui.button("Rescan Installed Fonts").clicked() {
                          run(app, "font.rescan", json!({}));
                          ui.close();
-@@ -2113,11 +2113,6 @@ fn record(app: &mut SlideApp, ui: &mut Ui) {
+@@ -2133,11 +2133,6 @@ fn record(app: &mut SlideApp, ui: &mut Ui) {
              }
          }
      });
@@ -2501,10 +2520,10 @@ index 3e43a68..15f0ae6 100644
  
  fn comment_nav(app: &mut SlideApp, ui: &mut Ui, forward: bool) {
 diff --git a/crates/ui-egui/src/show.rs b/crates/ui-egui/src/show.rs
-index a875773..0a04dfd 100644
+index 51f859a..0624d23 100644
 --- a/crates/ui-egui/src/show.rs
 +++ b/crates/ui-egui/src/show.rs
-@@ -1754,7 +1754,7 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
+@@ -1756,7 +1756,7 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
      };
      ctx.show_viewport_immediate(
          egui::ViewportId::from_hash_of("deckcraft_presenter"),

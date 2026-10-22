@@ -1,5 +1,5 @@
 diff --git a/apps/gridcraft-cli/src/check.rs b/apps/gridcraft-cli/src/check.rs
-index 2b85298..f6878eb 100644
+index 74d2fca7..69a39b29 100644
 --- a/apps/gridcraft-cli/src/check.rs
 +++ b/apps/gridcraft-cli/src/check.rs
 @@ -2,12 +2,12 @@
@@ -44,16 +44,7 @@ index 2b85298..f6878eb 100644
      /// `t="b"`, as Business Central's Excel exports do); counted in `matched` too.
      pub bool_as_number: usize,
      /// The first `max_report` mismatches, primary ones first.
-@@ -139,7 +139,7 @@ impl RoundTrip {
- #[derive(Clone, Debug, Default, PartialEq)]
- pub struct FileReport {
-     pub path: String,
--    /// GridCraft couldn't open the file: its message.
-+    /// UniCore couldn't open the file: its message.
-     pub error: Option<String>,
-     pub warnings: usize,
-     pub calc: CalcReport,
-@@ -268,7 +268,7 @@ fn walk(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+@@ -314,7 +314,7 @@ fn walk(dir: &Path, depth: usize, out: &mut Discovery) -> bool {
  }
  
  /// Checks one file's bytes. Never fails: problems are recorded in the report. A panic escaping
@@ -62,7 +53,7 @@ index 2b85298..f6878eb 100644
  /// bad file doesn't end a corpus run.
  pub fn check_bytes(path: &str, bytes: &[u8], opts: &Options) -> FileReport {
      let guarded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| check_inner(path, bytes, opts)));
-@@ -354,14 +354,14 @@ fn cell_name(wb: &Workbook, (sheet, c): Key) -> String {
+@@ -400,14 +400,14 @@ fn cell_name(wb: &Workbook, (sheet, c): Key) -> String {
      format!("{}!{}", quote_sheet(name), c.a1())
  }
  
@@ -79,7 +70,7 @@ index 2b85298..f6878eb 100644
  pub fn values_match(expected: &Value, actual: &Value, tolerance: f64) -> bool {
      match (expected, actual) {
          (Value::Number(a), Value::Number(b)) => (a - b).abs() <= tolerance * a.abs().max(b.abs()).max(1.0),
-@@ -420,7 +420,7 @@ impl MismatchIndex {
+@@ -466,7 +466,7 @@ impl MismatchIndex {
  }
  
  /// Compares every formula cell of `cached` (as the producer saved it) with `fresh` (recalculated
@@ -88,7 +79,7 @@ index 2b85298..f6878eb 100644
  pub fn oracle(cached: &Workbook, fresh: &Workbook, calc: &Calc, trust_cache: bool, opts: &Options) -> CalcReport {
      let mut r = CalcReport { stale_cache: !trust_cache, ..Default::default() };
      let vnames = volatile_names(cached);
-@@ -532,7 +532,7 @@ pub fn oracle(cached: &Workbook, fresh: &Workbook, calc: &Calc, trust_cache: boo
+@@ -578,7 +578,7 @@ pub fn oracle(cached: &Workbook, fresh: &Workbook, calc: &Calc, trust_cache: boo
  
  // ---------------------------------------------------------------- round trip
  
@@ -97,7 +88,7 @@ index 2b85298..f6878eb 100644
  /// `source` (the file `wb` was read from), reads it back and compares.
  pub fn round_trip(wb: &Workbook, source: &[u8], opts: &Options) -> RoundTrip {
      let bytes = match gridcraft_engine::io::save_bytes(wb, "roundtrip.xlsx") {
-@@ -1231,7 +1231,7 @@ fn print_human(reports: &[FileReport], opts: &Options) {
+@@ -1277,7 +1277,7 @@ fn print_human(reports: &[FileReport], opts: &Options) {
      sigs.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
      if !sigs.is_empty() {
          outln!("");
@@ -106,7 +97,7 @@ index 2b85298..f6878eb 100644
          for (sig, n) in sigs.iter().take(opts.max_report.max(1)) {
              outln!("  {n:>8}  {sig}");
          }
-@@ -1310,7 +1310,7 @@ mod tests {
+@@ -1380,7 +1380,7 @@ mod tests {
  
      #[test]
      fn wrong_cached_value_is_a_mismatch_and_ranks_its_function() {
@@ -115,7 +106,7 @@ index 2b85298..f6878eb 100644
          // Excel's 7, so it mismatches too, but only as a downstream effect.
          let wb = book(&[("A1", "2", n(2.0)), ("A2", "4", n(4.0)), ("B1", "=SUM(A1:A2)", n(7.0)), ("C1", "=B1+1", n(8.0))]);
          let r = check(&wb, &Options::default());
-@@ -1389,7 +1389,7 @@ mod tests {
+@@ -1459,7 +1459,7 @@ mod tests {
  
      #[test]
      fn full_calc_on_load_means_no_oracle() {
@@ -124,7 +115,7 @@ index 2b85298..f6878eb 100644
          // `fullCalcOnLoad`, like libraries that store 0 for every formula: B1's wrong "cached"
          // value must not count as a mismatch then.
          let wb = book(&[("A1", "=1+1", Value::Empty), ("B1", "=2+2", n(0.0))]);
-@@ -1552,7 +1552,7 @@ mod tests {
+@@ -1622,7 +1622,7 @@ mod tests {
  
      #[test]
      fn package_reports_relationship_kinds_the_output_lost() {
@@ -133,7 +124,7 @@ index 2b85298..f6878eb 100644
          // (Excel rebuilds it), so its absence isn't a loss.
          let calc_chain = r#"<Relationship Id="rId91" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/calcChain" Target="calcChain.xml"/>"#;
          let source = with_rels(&plain(), &[(WB_RELS, &format!("{MADE_UP}{calc_chain}"))], &[MADE_UP_PART, ("xl/calcChain.xml", "<calcChain/>")]);
-@@ -1564,7 +1564,7 @@ mod tests {
+@@ -1634,7 +1634,7 @@ mod tests {
  
      #[test]
      fn an_internal_link_written_as_a_relationship_is_not_a_loss() {
@@ -143,7 +134,7 @@ index 2b85298..f6878eb 100644
          let source = with_rels(&plain(), &[(WB_RELS, MADE_UP), (SHEET_RELS, link)], &[MADE_UP_PART]);
          assert_eq!(package_of(&source), ["lost relationship madeUp"]);
 diff --git a/apps/gridcraft-cli/src/main.rs b/apps/gridcraft-cli/src/main.rs
-index 152ddbc..a0e3254 100644
+index 0b763e37..ca1ace55 100644
 --- a/apps/gridcraft-cli/src/main.rs
 +++ b/apps/gridcraft-cli/src/main.rs
 @@ -1,4 +1,4 @@
@@ -152,7 +143,7 @@ index 152ddbc..a0e3254 100644
  //!
  //! ```text
  //! gridcraft-cli info <file> [--json]
-@@ -503,7 +503,7 @@ fn mcp(args: &[String]) -> Result<(), String> {
+@@ -509,7 +509,7 @@ fn mcp(args: &[String]) -> Result<(), String> {
              let addr = control_addr(c);
              Box::new(
                  Remote::connect(&addr)
@@ -161,7 +152,7 @@ index 152ddbc..a0e3254 100644
              )
          }
          None => {
-@@ -539,7 +539,7 @@ fn send(args: &[String]) -> Result<(), String> {
+@@ -545,7 +545,7 @@ fn send(args: &[String]) -> Result<(), String> {
      }
      let addr = control_addr(port);
      let mut r = Remote::connect(&addr)
@@ -171,7 +162,7 @@ index 152ddbc..a0e3254 100644
      outln!("{}", pretty(&v));
      Ok(())
 diff --git a/apps/gridcraft-web/index.html b/apps/gridcraft-web/index.html
-index 5fdd1ea..8178308 100644
+index 5fdd1ea5..81783084 100644
 --- a/apps/gridcraft-web/index.html
 +++ b/apps/gridcraft-web/index.html
 @@ -3,8 +3,7 @@
@@ -193,7 +184,7 @@ index 5fdd1ea..8178308 100644
  </body>
  </html>
 diff --git a/apps/gridcraft-web/src/host.rs b/apps/gridcraft-web/src/host.rs
-index 2286023..136c4de 100644
+index 2286023e..136c4dea 100644
 --- a/apps/gridcraft-web/src/host.rs
 +++ b/apps/gridcraft-web/src/host.rs
 @@ -1,33 +1,57 @@
@@ -491,7 +482,7 @@ index 2286023..136c4de 100644
  fn bytes(data: &JsValue) -> Option<Vec<u8>> {
      let bytes = js_sys::Reflect::get(data, &JsValue::from_str("bytes")).ok()?;
 diff --git a/apps/gridcraft-web/src/main.rs b/apps/gridcraft-web/src/main.rs
-index 2920a87..6e310f8 100644
+index 36f3f3ec..c0d0553a 100644
 --- a/apps/gridcraft-web/src/main.rs
 +++ b/apps/gridcraft-web/src/main.rs
 @@ -1,4 +1,4 @@
@@ -506,14 +497,14 @@ index 2920a87..6e310f8 100644
  //! `?host=parent` (inside an `<iframe>`) talks to a same-origin parent page instead: it sends the
 -//! workbook to open and stores what GridCraft saves (`host`), and `&author=` names the user for
 +//! workbook to open and stores what UniCore saves (`host`), and `&author=` names the user for
- //! notes and comments.
+ //! notes and comments. Preferences (theme, interface size, editing options…) are kept in
+ //! `localStorage` (`prefs`).
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
- 
 diff --git a/apps/gridcraft-web/src/web.rs b/apps/gridcraft-web/src/web.rs
-index c0fcb22..dab6dad 100644
+index 8e2e6083..dfd2edcb 100644
 --- a/apps/gridcraft-web/src/web.rs
 +++ b/apps/gridcraft-web/src/web.rs
-@@ -25,7 +25,7 @@ pub fn start() {
+@@ -36,7 +36,7 @@ pub fn start() {
          {
              create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
          }
@@ -522,7 +513,7 @@ index c0fcb22..dab6dad 100644
          // workbooks in it and stores what it saves (`host`).
          let bridge = if query_param("host").as_deref() == Some("parent") { crate::host::Bridge::new() } else { None };
          let app_bridge = bridge.clone();
-@@ -75,7 +75,7 @@ pub fn start() {
+@@ -92,7 +92,7 @@ pub fn start() {
          if let Some(el) = document.get_element_by_id(LOADING_ID) {
              match result {
                  Ok(()) => el.remove(),
@@ -531,10 +522,10 @@ index c0fcb22..dab6dad 100644
              }
          }
      });
-@@ -113,6 +113,10 @@ impl eframe::App for WebShell {
-             });
+@@ -154,6 +154,10 @@ impl eframe::App for WebShell {
+                 None => log::warn!("preferences: browser storage is unavailable"),
+             }
          }
-         self.app.logic(ctx);
 +        // Commands queued from the host since the last frame run now, with the whole app mutable.
 +        if let Some(bridge) = &self.bridge {
 +            bridge.drain(&mut self.app);
@@ -543,7 +534,7 @@ index c0fcb22..dab6dad 100644
  
      fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
 diff --git a/apps/gridcraft/build.rs b/apps/gridcraft/build.rs
-index 95d8da3..e9272e2 100644
+index 95d8da38..e9272e28 100644
 --- a/apps/gridcraft/build.rs
 +++ b/apps/gridcraft/build.rs
 @@ -14,10 +14,10 @@ fn main() {
@@ -561,7 +552,7 @@ index 95d8da3..e9272e2 100644
          .set("InternalName", "gridcraft");
      if let Err(e) = res.compile() {
 diff --git a/apps/gridcraft/src/apple_events.rs b/apps/gridcraft/src/apple_events.rs
-index 405ee89..ddb54fa 100644
+index 405ee89a..ddb54fac 100644
 --- a/apps/gridcraft/src/apple_events.rs
 +++ b/apps/gridcraft/src/apple_events.rs
 @@ -1,11 +1,11 @@
@@ -580,7 +571,7 @@ index 405ee89..ddb54fa 100644
  //! that leaves winit's delegate alone, behind a safe main-thread API.
  
 diff --git a/apps/gridcraft/src/graphics.rs b/apps/gridcraft/src/graphics.rs
-index 83478ed..77d25bd 100644
+index 83478edd..77d25bda 100644
 --- a/apps/gridcraft/src/graphics.rs
 +++ b/apps/gridcraft/src/graphics.rs
 @@ -66,7 +66,7 @@ pub fn fallback_backends(backend_override: Option<Backends>, first: Backends) ->
@@ -593,7 +584,7 @@ index 83478ed..77d25bd 100644
  /// `PATH`). Without a matching `dxil.dll` beside it, DXC prints "DXIL signing library not found",
  /// wgpu treats that warning as a compile error, its internal compute pipelines fail, the device is
 diff --git a/apps/gridcraft/src/logging.rs b/apps/gridcraft/src/logging.rs
-index e3b56a8..ff6913b 100644
+index e3b56a8c..ff6913bc 100644
 --- a/apps/gridcraft/src/logging.rs
 +++ b/apps/gridcraft/src/logging.rs
 @@ -8,7 +8,7 @@
@@ -606,7 +597,7 @@ index e3b56a8..ff6913b 100644
  //! `warn,gridcraft_engine=trace`, `wgpu_core=info`. A directive ending in `*` matches every target
  //! that starts with it (`gridcraft*=debug`).
 diff --git a/apps/gridcraft/src/main.rs b/apps/gridcraft/src/main.rs
-index 7c0eb04..2840d67 100644
+index 7c0eb04e..2840d67b 100644
 --- a/apps/gridcraft/src/main.rs
 +++ b/apps/gridcraft/src/main.rs
 @@ -1,4 +1,4 @@
@@ -684,7 +675,7 @@ index 7c0eb04..2840d67 100644
      }
  }
 diff --git a/apps/gridcraft/src/native_menu.rs b/apps/gridcraft/src/native_menu.rs
-index 6985af3..4b6a287 100644
+index 6985af3c..4b6a2873 100644
 --- a/apps/gridcraft/src/native_menu.rs
 +++ b/apps/gridcraft/src/native_menu.rs
 @@ -171,12 +171,7 @@ fn tree() -> Vec<(&'static str, Vec<Entry>)> {
@@ -726,7 +717,7 @@ index 6985af3..4b6a287 100644
                  let params: Value = match (name, arg) {
                      ("saveCopy", fmt) => json!({"format": fmt}),
 diff --git a/apps/gridcraft/src/print.rs b/apps/gridcraft/src/print.rs
-index 09bb801..6ea8963 100644
+index 09bb801b..6ea89632 100644
 --- a/apps/gridcraft/src/print.rs
 +++ b/apps/gridcraft/src/print.rs
 @@ -39,7 +39,7 @@ pub fn submit() -> Submit {
@@ -739,7 +730,7 @@ index 09bb801..6ea8963 100644
              };
              let _ = sender.send(craft_print::submit(&bytes, &job).map_err(|error| error.to_string()));
 diff --git a/crates/calc/src/lib.rs b/crates/calc/src/lib.rs
-index 27c9e19..3022b34 100644
+index 27c9e196..3022b34a 100644
 --- a/crates/calc/src/lib.rs
 +++ b/crates/calc/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -749,7 +740,7 @@ index 27c9e19..3022b34 100644
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
  #![forbid(unsafe_code)]
 diff --git a/crates/chart/src/lib.rs b/crates/chart/src/lib.rs
-index 697e2a7..df1d721 100644
+index 4b68b8d1..56e632ce 100644
 --- a/crates/chart/src/lib.rs
 +++ b/crates/chart/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -768,7 +759,7 @@ index 697e2a7..df1d721 100644
  #![forbid(unsafe_code)]
  
 diff --git a/crates/core/src/lib.rs b/crates/core/src/lib.rs
-index d5adbc0..e6e0aac 100644
+index 96f485cd..e5474eac 100644
 --- a/crates/core/src/lib.rs
 +++ b/crates/core/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -778,7 +769,7 @@ index d5adbc0..e6e0aac 100644
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
  #![forbid(unsafe_code)]
 diff --git a/crates/engine/src/cmd/analysis.rs b/crates/engine/src/cmd/analysis.rs
-index 189a95a..c7af890 100644
+index 8ff7e358..3577ee76 100644
 --- a/crates/engine/src/cmd/analysis.rs
 +++ b/crates/engine/src/cmd/analysis.rs
 @@ -5,7 +5,7 @@
@@ -791,10 +782,10 @@ index 189a95a..c7af890 100644
  use std::collections::{BTreeMap, HashMap};
  
 diff --git a/crates/engine/src/cmd/extra.rs b/crates/engine/src/cmd/extra.rs
-index 01e2ac6..e19b5e1 100644
+index f248c59f..5cfea24d 100644
 --- a/crates/engine/src/cmd/extra.rs
 +++ b/crates/engine/src/cmd/extra.rs
-@@ -244,7 +244,7 @@ pub fn specs() -> Vec<CommandSpec> {
+@@ -261,7 +261,7 @@ pub fn specs() -> Vec<CommandSpec> {
              has_doc,
              new_cell_style
          ),
@@ -803,20 +794,29 @@ index 01e2ac6..e19b5e1 100644
          cmd!(query "formulas.recentlyUsed", "Recently Used", ["Formulas", "Function Library"], None, "{} → recently used functions in this workbook", has_doc, recently_used),
          cmd!(query "formulas.financial", "Financial", ["Formulas", "Function Library"], None, "{}", always, |s, _| s.execute("formulas.functions", json!({"category": "Financial"}))),
          cmd!(query "formulas.logical", "Logical", ["Formulas", "Function Library"], None, "{}", always, |s, _| s.execute("formulas.functions", json!({"category": "Logical"}))),
-@@ -974,7 +974,7 @@ fn all_scripts(s: &mut Session, _: &Json) -> Result<Json> {
-     let all = stash_get(wb, SCRIPTS_NAME);
-     let mut list: Vec<Json> =
-         all.as_object().map(|o| o.iter().map(|(k, v)| json!({"name": k, "steps": v.as_array().map_or(0, Vec::len)})).collect()).unwrap_or_default();
+@@ -1001,7 +1001,7 @@ fn all_scripts(s: &mut Session, _: &Json) -> Result<Json> {
+         .as_object()
+         .map(|o| o.iter().map(|(k, v)| json!({"name": k, "steps": v.as_array().map_or(0, Vec::len), "trusted": trusted})).collect())
+         .unwrap_or_default();
 -    // A preserved VBA project is reported alongside GridCraft's own scripts; it is carried on
 +    // A preserved VBA project is reported alongside UniCore's own scripts; it is carried on
      // save but never executed here, so it has no step count.
      if let Some(bytes) = &wb.vba_project {
          list.push(json!({"name": "(VBA)", "steps": 0, "kind": "vba", "size": bytes.len(), "executed": false}));
+@@ -1009,7 +1009,7 @@ fn all_scripts(s: &mut Session, _: &Json) -> Result<Json> {
+     Ok(Json::Array(list))
+ }
+ 
+-/// Whether `wb` carries GridCraft scripts (a workbook opened with them starts untrusted).
++/// Whether `wb` carries UniCore scripts (a workbook opened with them starts untrusted).
+ pub(crate) fn has_scripts(wb: &Workbook) -> bool {
+     stash_map(wb, SCRIPTS_NAME).as_object().is_some_and(|o| !o.is_empty())
+ }
 diff --git a/crates/engine/src/cmd/review.rs b/crates/engine/src/cmd/review.rs
-index c55aac8..c440a1a 100644
+index 5464abba..f8bf9079 100644
 --- a/crates/engine/src/cmd/review.rs
 +++ b/crates/engine/src/cmd/review.rs
-@@ -412,7 +412,7 @@ mod tests {
+@@ -436,7 +436,7 @@ mod tests {
          assert_eq!(s.doc().unwrap().wb.active().unwrap().protection.as_ref(), Some(&prot));
          s.execute("review.unprotectSheet", json!({"password": "pa55"})).unwrap();
          assert!(!s.doc().unwrap().wb.active().unwrap().is_protected());
@@ -826,7 +826,7 @@ index c55aac8..c440a1a 100644
              r#"{{"password_hash": {}, "select_locked": true, "select_unlocked": true, "format_cells": false, "format_columns": false, "format_rows": false, "insert_columns": false, "insert_rows": false, "delete_columns": false, "delete_rows": false, "sort": false, "autofilter": false}}"#,
              password_hash("old")
 diff --git a/crates/engine/src/cmd/solver.rs b/crates/engine/src/cmd/solver.rs
-index 4465874..4a2ad80 100644
+index ffd426f5..62e00769 100644
 --- a/crates/engine/src/cmd/solver.rs
 +++ b/crates/engine/src/cmd/solver.rs
 @@ -7,7 +7,7 @@
@@ -847,7 +847,7 @@ index 4465874..4a2ad80 100644
      out.push((1, 0, Value::text(format!("Worksheet: {sheet}")), false));
      3
  }
-@@ -2333,7 +2333,7 @@ mod tests {
+@@ -2352,7 +2352,7 @@ mod tests {
          assert_eq!(d.wb.active().unwrap().name, "Sheet1", "the model's sheet stays active");
          assert_eq!(saved(&s), "solver_opt", "the saved model follows its sheet");
          let a = "Answer Report 1";
@@ -857,7 +857,7 @@ index 4465874..4a2ad80 100644
          let r = row_of(&s, a, "$D$6");
          assert_eq!(at(&s, a, &format!("C{}", r + 1)), Value::text("Profit Used"));
 diff --git a/crates/engine/src/cmd/spelling.rs b/crates/engine/src/cmd/spelling.rs
-index 1dd3df7..8ffc0e7 100644
+index 1dd3df7a..8ffc0e7d 100644
 --- a/crates/engine/src/cmd/spelling.rs
 +++ b/crates/engine/src/cmd/spelling.rs
 @@ -123,7 +123,7 @@ fn suggestions(w: &str) -> Vec<String> {
@@ -870,10 +870,10 @@ index 1dd3df7..8ffc0e7 100644
      let si = target_sheet(s, p)?;
      let d = s.doc()?;
 diff --git a/crates/engine/src/cmd/view.rs b/crates/engine/src/cmd/view.rs
-index edcacf5..ef3564d 100644
+index f0b2f77d..524bc6f4 100644
 --- a/crates/engine/src/cmd/view.rs
 +++ b/crates/engine/src/cmd/view.rs
-@@ -360,7 +360,7 @@ fn header_footer(s: &mut Session, p: &Json) -> Result<Json> {
+@@ -411,7 +411,7 @@ fn header_footer(s: &mut Session, p: &Json) -> Result<Json> {
      })
  }
  
@@ -883,7 +883,7 @@ index edcacf5..ef3564d 100644
      vec![
          ("Craft", [0xFFFFFF, 0x000000, 0xE8E8E8, 0x0E2841, 0x156082, 0xE97132, 0x196B24, 0x0F9ED5, 0xA02B93, 0x4EA72E, 0x467886, 0x96607D]),
 diff --git a/crates/engine/src/cmd/whatif.rs b/crates/engine/src/cmd/whatif.rs
-index 09c716c..489e181 100644
+index cec845b7..df558e63 100644
 --- a/crates/engine/src/cmd/whatif.rs
 +++ b/crates/engine/src/cmd/whatif.rs
 @@ -403,7 +403,7 @@ fn store_scenarios(wb: &mut Workbook, list: &[Scenario]) {
@@ -896,7 +896,7 @@ index 09c716c..489e181 100644
      });
  }
 diff --git a/crates/engine/src/io.rs b/crates/engine/src/io.rs
-index 3e84036..a98a0a4 100644
+index b18e8577..751df215 100644
 --- a/crates/engine/src/io.rs
 +++ b/crates/engine/src/io.rs
 @@ -7,7 +7,7 @@ use gridcraft_model::{Sheet, Workbook};
@@ -917,7 +917,7 @@ index 3e84036..a98a0a4 100644
  
  /// Parses a file's bytes into a workbook. `name` picks the format by extension when the bytes
  /// don't say. An encrypted workbook needs [`open_bytes_with_password`].
-@@ -105,7 +105,7 @@ fn decrypt_message(name: &str, e: gridcraft_xlsx::DecryptError) -> String {
+@@ -112,7 +112,7 @@ fn decrypt_message(name: &str, e: gridcraft_xlsx::DecryptError) -> String {
      match e {
          gridcraft_xlsx::DecryptError::WrongPassword => format!("{WRONG_PASSWORD} Check that Caps Lock is off and try again."),
          gridcraft_xlsx::DecryptError::Unsupported(scheme) => {
@@ -926,7 +926,7 @@ index 3e84036..a98a0a4 100644
          }
          gridcraft_xlsx::DecryptError::Malformed(detail) => format!("We can't open '{name}': the encrypted file is damaged ({detail})."),
      }
-@@ -121,7 +121,7 @@ fn open_plain(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
+@@ -128,7 +128,7 @@ fn open_plain(name: &str, bytes: &[u8], csv_as_text: bool) -> Result<(Workbook,
      }
      if sniffed == gridcraft_xlsx::Format::LegacyBinary {
          return Err(EngineError::Other(format!(
@@ -935,7 +935,7 @@ index 3e84036..a98a0a4 100644
          )));
      }
      // Content wins over the extension: an ODS or XLSB package is imported as what it is,
-@@ -145,7 +145,7 @@ fn open_plain(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
+@@ -157,7 +157,7 @@ fn open_plain(name: &str, bytes: &[u8], csv_as_text: bool) -> Result<(Workbook,
      }
      match kind {
          Some(FileKind::Json) => {
@@ -944,8 +944,17 @@ index 3e84036..a98a0a4 100644
              wb.styles.rebuild_index();
              if wb.sheets.is_empty() {
                  wb = Workbook::new();
+@@ -202,7 +202,7 @@ fn part_too_large_message(name: &str, part: &str, size: u64) -> String {
+         "To open it, save the data as CSV, which keeps only its values."
+     };
+     format!(
+-        "We can't open '{name}': its part {part} unpacks to {size}, over GridCraft's limit of {limit} MB for one part \
++        "We can't open '{name}': its part {part} unpacks to {size}, over UniCore's limit of {limit} MB for one part \
+          (a guard against damaged or malicious files). {remedy}"
+     )
+ }
 diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
-index 258a1cb..2ec8019 100644
+index 066a9e55..78465509 100644
 --- a/crates/engine/src/lib.rs
 +++ b/crates/engine/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -954,7 +963,7 @@ index 258a1cb..2ec8019 100644
  //!
  //! Every user-visible action is a command with a stable id (`cell.set`, `home.bold`,
  //! `data.sortAscending`…) and JSON parameters. The egui UI, the CLI, the control channel and MCP
-@@ -206,7 +206,7 @@ impl Default for Prefs {
+@@ -260,7 +260,7 @@ impl Default for Prefs {
          Prefs {
              enter_direction: "down".into(),
              autocomplete: true,
@@ -964,10 +973,10 @@ index 258a1cb..2ec8019 100644
              default_font_size: gridcraft_model::DEFAULT_FONT_SIZE,
              sheets_in_new_workbook: 1,
 diff --git a/crates/functions/src/info.rs b/crates/functions/src/info.rs
-index 84ca72a..dcff5a1 100644
+index 7aa2c266..0f4b7ed9 100644
 --- a/crates/functions/src/info.rs
 +++ b/crates/functions/src/info.rs
-@@ -103,7 +103,7 @@ fn info(a: &[Arg], _c: &mut dyn Ctx) -> R<Value> {
+@@ -113,7 +113,7 @@ fn info(a: &[Arg], _c: &mut dyn Ctx) -> R<Value> {
          "directory" => "/".into(),
          "numfile" => Value::Number(1.0),
          "origin" => "$A:$A$1".into(),
@@ -977,7 +986,7 @@ index 84ca72a..dcff5a1 100644
          "release" => "16.0".into(),
          "system" => "pcdos".into(),
 diff --git a/crates/functions/src/lib.rs b/crates/functions/src/lib.rs
-index 148d682..e1cd412 100644
+index d7ccc872..fd19ade9 100644
 --- a/crates/functions/src/lib.rs
 +++ b/crates/functions/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -987,7 +996,7 @@ index 148d682..e1cd412 100644
  //! Every function is described by a [`FnSpec`] (name, arity, category, which parameters take
  //! scalars, a signature and a one-line description) and implemented as a plain Rust function over
 diff --git a/crates/mcp/src/backend.rs b/crates/mcp/src/backend.rs
-index adc866d..824f7d1 100644
+index adc866d2..824f7d17 100644
 --- a/crates/mcp/src/backend.rs
 +++ b/crates/mcp/src/backend.rs
 @@ -22,7 +22,7 @@ const IO_TIMEOUT: Duration = Duration::from_secs(30);
@@ -1017,7 +1026,7 @@ index adc866d..824f7d1 100644
      }
  }
 diff --git a/crates/mcp/src/lib.rs b/crates/mcp/src/lib.rs
-index de3e250..06d5b19 100644
+index de3e2504..06d5b194 100644
 --- a/crates/mcp/src/lib.rs
 +++ b/crates/mcp/src/lib.rs
 @@ -1,7 +1,7 @@
@@ -1031,7 +1040,7 @@ index de3e250..06d5b19 100644
  //!
  //! - [`Remote`] talks to a running desktop app through its loopback JSON-lines control channel
 diff --git a/crates/mcp/src/server.rs b/crates/mcp/src/server.rs
-index 75b82d8..d054ff0 100644
+index 75b82d8d..d054ff0a 100644
 --- a/crates/mcp/src/server.rs
 +++ b/crates/mcp/src/server.rs
 @@ -22,7 +22,7 @@ const RESOURCE_NOT_FOUND: i64 = -32002;
@@ -1053,7 +1062,7 @@ index 75b82d8..d054ff0 100644
                  }))
              }
 diff --git a/crates/mcp/src/tools.rs b/crates/mcp/src/tools.rs
-index e6322f0..06ed697 100644
+index a6879b3f..8fb00264 100644
 --- a/crates/mcp/src/tools.rs
 +++ b/crates/mcp/src/tools.rs
 @@ -114,7 +114,7 @@ pub fn tool_definitions() -> Vec<Value> {
@@ -1074,7 +1083,7 @@ index e6322f0..06ed697 100644
               right now. Use it to discover what execute_command can do (e.g. search \"sort\", \"border\", \"chart\", \"sheet\").",
              obj(json!({"search": string("Case-insensitive substring matched against id, label and ribbon path")}), &[]),
              true,
-@@ -359,7 +359,7 @@ pub fn tool_definitions() -> Vec<Value> {
+@@ -360,7 +360,7 @@ pub fn tool_definitions() -> Vec<Value> {
          tool(
              "screenshot",
              "Screenshot",
@@ -1083,11 +1092,24 @@ index e6322f0..06ed697 100644
              obj(json!({"path": string("Output PNG path")}), &["path"]),
              true,
          ),
+diff --git a/crates/model/src/cell.rs b/crates/model/src/cell.rs
+index d4466365..834e79bf 100644
+--- a/crates/model/src/cell.rs
++++ b/crates/model/src/cell.rs
+@@ -20,7 +20,7 @@ pub struct Formula {
+     /// Read from a file that marks this formula as a dynamic-array formula (cell metadata `cm`).
+     /// The writer keeps the mark, so a formula Excel evaluates as an array is never saved as a
+     /// legacy formula (which Excel evaluates with implicit intersection). Formulas entered or
+-    /// rewritten in GridCraft start without it, and the writer decides from their shape.
++    /// rewritten in UniCore start without it, and the writer decides from their shape.
+     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+     pub dynamic: bool,
+ }
 diff --git a/crates/model/src/features.rs b/crates/model/src/features.rs
-index b51f7bc..2c98cfb 100644
+index aa250b9b..4922b932 100644
 --- a/crates/model/src/features.rs
 +++ b/crates/model/src/features.rs
-@@ -525,7 +525,7 @@ pub enum ShapeKind {
+@@ -577,7 +577,7 @@ pub enum ShapeKind {
      Line,
      Arrow,
      TextBox,
@@ -1096,7 +1118,7 @@ index b51f7bc..2c98cfb 100644
      Icon,
      /// A freehand ink stroke; `Shape::text` holds the points as `x,y;x,y;…` relative to the
      /// anchor (sheet points), `Shape::line` the ink colour and `fill` unused.
-@@ -816,7 +816,7 @@ pub struct SheetProtection {
+@@ -870,7 +870,7 @@ pub struct SheetProtection {
      /// password itself).
      #[serde(default, skip_serializing_if = "Option::is_none")]
      pub password: Option<crate::PasswordHash>,
@@ -1105,7 +1127,7 @@ index b51f7bc..2c98cfb 100644
      /// verified when unprotecting, never written for new passwords.
      #[serde(rename = "password_hash", default, skip_serializing_if = "Option::is_none")]
      pub legacy_password_hash: Option<u64>,
-@@ -851,7 +851,7 @@ impl EditRange {
+@@ -905,7 +905,7 @@ impl EditRange {
      }
  }
  
@@ -1115,7 +1137,7 @@ index b51f7bc..2c98cfb 100644
  pub fn password_hash(pw: &str) -> u64 {
      let mut h: u64 = 0xcbf29ce484222325 ^ 0x5348_4545_5443;
 diff --git a/crates/model/src/lib.rs b/crates/model/src/lib.rs
-index a76f30f..f57fb25 100644
+index 071de683..ecb4cba4 100644
 --- a/crates/model/src/lib.rs
 +++ b/crates/model/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1125,7 +1147,7 @@ index a76f30f..f57fb25 100644
  //! settings. Pure data; calculation lives in `gridcraft-calc`.
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 diff --git a/crates/model/src/preserved.rs b/crates/model/src/preserved.rs
-index eab8501..12f0ee4 100644
+index eab85015..12f0ee4c 100644
 --- a/crates/model/src/preserved.rs
 +++ b/crates/model/src/preserved.rs
 @@ -1,4 +1,4 @@
@@ -1144,33 +1166,33 @@ index eab8501..12f0ee4 100644
      /// The full relationship type URI.
      pub rel_type: String,
 diff --git a/crates/model/src/style.rs b/crates/model/src/style.rs
-index d397687..9e5f21f 100644
+index ac4adac0..22557aa2 100644
 --- a/crates/model/src/style.rs
 +++ b/crates/model/src/style.rs
-@@ -122,7 +122,7 @@ pub struct Theme {
+@@ -141,7 +141,7 @@ pub struct Theme {
  }
  
  impl Default for Theme {
--    /// GridCraft's own default theme ("Craft"): original palette.
-+    /// UniCore's own default theme ("Craft"): original palette.
+-    /// GridCraft's own default theme ("Craft"): original palette. The East Asian and
++    /// UniCore's own default theme ("Craft"): original palette. The East Asian and
+     /// complex-script typefaces stay empty: the file did not set one.
      fn default() -> Self {
          Theme {
-             name: "Craft".into(),
 diff --git a/crates/model/src/workbook.rs b/crates/model/src/workbook.rs
-index 828ca69..c9bcfad 100644
+index 3b943d29..b7c65a8c 100644
 --- a/crates/model/src/workbook.rs
 +++ b/crates/model/src/workbook.rs
-@@ -104,7 +104,7 @@ pub struct Workbook {
-     pub custom_lists: Vec<Vec<String>>,
-     /// Named cell styles (Cell Styles gallery): name → style.
-     pub cell_styles: Vec<(String, crate::style::Style)>,
+@@ -169,7 +169,7 @@ pub struct Workbook {
+     /// which holds unmodelled parts), so it is saved to JSON as well as to XLSX.
+     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+     pub phonetics: Vec<PhoneticString>,
 -    /// VBA project (`xl/vbaProject.bin`) carried through unchanged. GridCraft does not run
 +    /// VBA project (`xl/vbaProject.bin`) carried through unchanged. UniCore does not run
      /// macros; the blob is preserved so that saving a macro-enabled workbook never destroys the
-     /// macros it arrived with. base64 in JSON. `None` = the workbook has no macros.
-     #[serde(default, with = "crate::b64::opt")]
+     /// macros it arrived with. base64 in JSON. `None` = the workbook has no macros. Shared, so a
+     /// copy of the workbook (every edit's undo step) doesn't copy it.
 diff --git a/crates/numfmt/src/lib.rs b/crates/numfmt/src/lib.rs
-index 6280e1d..0f46e02 100644
+index 06d0a869..ea8f5a25 100644
 --- a/crates/numfmt/src/lib.rs
 +++ b/crates/numfmt/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1180,7 +1202,7 @@ index 6280e1d..0f46e02 100644
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
  #![forbid(unsafe_code)]
 diff --git a/crates/pdf/src/lib.rs b/crates/pdf/src/lib.rs
-index b55f247..48e2d73 100644
+index e00b4fcc..9f7e1c2a 100644
 --- a/crates/pdf/src/lib.rs
 +++ b/crates/pdf/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1188,8 +1210,8 @@ index b55f247..48e2d73 100644
 +//! A tiny, self-contained PDF 1.7 writer for UniCore's print and PDF export.
  //!
  //! - The 14 standard fonts (no embedding) with WinAnsiEncoding, plus approximate width tables
- //!   ([`text_width`]) so callers can measure, align and wrap text.
-@@ -695,8 +695,8 @@ impl PdfDoc {
+ //!   ([`text_width`]) so callers can measure, align and wrap text. Characters outside
+@@ -844,8 +844,8 @@ impl PdfDoc {
          objects.push((1, b"<< /Type /Catalog /Pages 2 0 R >>".to_vec()));
          let kids_s: Vec<String> = kids.iter().map(|k| format!("{k} 0 R")).collect();
          objects.push((2, format!("<< /Type /Pages /Kids [{}] /Count {} >>", kids_s.join(" "), kids.len()).into_bytes()));
@@ -1201,10 +1223,10 @@ index b55f247..48e2d73 100644
              let _ = write!(info, " /Title {}", pdf_text_string(&self.info.title));
          }
 diff --git a/crates/pdf/src/tests.rs b/crates/pdf/src/tests.rs
-index 7d6a61a..0682c46 100644
+index e540685d..be9afc03 100644
 --- a/crates/pdf/src/tests.rs
 +++ b/crates/pdf/src/tests.rs
-@@ -266,7 +266,7 @@ fn ascii_info_strings_stay_literal_and_escaped() {
+@@ -289,7 +289,7 @@ fn ascii_info_strings_stay_literal_and_escaped() {
      doc.info.title = r"Q1 (draft) a\b".into();
      let pdf = doc.finish();
      assert!(find(&pdf, br"/Title (Q1 \(draft\) a\\b)").is_some());
@@ -1214,7 +1236,7 @@ index 7d6a61a..0682c46 100644
  
  #[test]
 diff --git a/crates/ui-egui/examples/snapshot.rs b/crates/ui-egui/examples/snapshot.rs
-index a171199..b7a941a 100644
+index dcee7117..95cc71d1 100644
 --- a/crates/ui-egui/examples/snapshot.rs
 +++ b/crates/ui-egui/examples/snapshot.rs
 @@ -1,4 +1,4 @@
@@ -1222,12 +1244,12 @@ index a171199..b7a941a 100644
 +//! Renders the whole UniCore window offscreen (wgpu, no window) to a PNG.
  //!
  //! `cargo run --release -p gridcraft-ui-egui --example snapshot -- [--sample sales] [--in file.xlsx]
- //!  [--size 1440x900] [--scale 2] [--cmd 'id={json}']... [--tab Insert] [--dark] [--language en|zh|ja|ko|ru|pt|cs]
+ //!  [--size 1440x900] [--scale 2] [--cmd 'id={json}']... [--tab Insert] [--dark] [--language en|es|zh|ja|ko|ru|pt|de|cs|fr|tr]
 diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
-index 922baab..2f28258 100644
+index c2acf025..08d181f0 100644
 --- a/crates/ui-egui/src/backstage.rs
 +++ b/crates/ui-egui/src/backstage.rs
-@@ -410,6 +410,7 @@ fn recent_list(app: &mut SheetApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Ou
+@@ -418,6 +418,7 @@ fn recent_list(app: &mut SheetApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Ou
  }
  
  /// What the file system said about a recent workbook.
@@ -1235,7 +1257,7 @@ index 922baab..2f28258 100644
  #[derive(Clone, Copy, Debug, PartialEq)]
  enum Modified {
      /// When it was last changed, in seconds since 1970.
-@@ -888,13 +889,13 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+@@ -896,13 +897,13 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
          return match app.run(id, json!({"path": path})) {
              Ok(_) => true,
              Err(e) => {
@@ -1251,7 +1273,7 @@ index 922baab..2f28258 100644
          return false;
      }
      if fmt == "pdf" {
-@@ -902,7 +903,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+@@ -910,7 +911,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
          return match app.run(id, json!({})) {
              Ok(_) => true,
              Err(e) => {
@@ -1260,7 +1282,7 @@ index 922baab..2f28258 100644
                  false
              }
          };
-@@ -921,7 +922,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+@@ -929,7 +930,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
              }
          }
          Err(e) => {
@@ -1269,11 +1291,36 @@ index 922baab..2f28258 100644
              false
          }
      }
+@@ -1024,7 +1025,7 @@ fn account(app: &mut SheetApp, ui: &mut Ui) {
+     let t = Tokens::get(ui.ctx());
+     let lang = app.ui.language;
+     section(ui, lang, "Product Information");
+-    ui.label(RichText::new("GridCraft").font(theme::ui_bold(16.0)).color(t.text));
++    ui.label(RichText::new("UniCore").font(theme::ui_bold(16.0)).color(t.text));
+     ui.add_space(8.0);
+     egui::Grid::new("backstage_account").num_columns(2).spacing(vec2(18.0, 8.0)).show(ui, |ui| {
+         for (label, value) in
+@@ -1037,13 +1038,13 @@ fn account(app: &mut SheetApp, ui: &mut Ui) {
+     });
+     ui.add_space(18.0);
+     ui.horizontal(|ui| {
+-        if square_button(ui, Icon::Info, lang.tr("About GridCraft")).clicked() {
++        if square_button(ui, Icon::Info, lang.tr("About UniCore")).clicked() {
+             app.open_dialog("about", json!({}));
+         }
+         ui.add_space(12.0);
+         ui.vertical(|ui| {
+             ui.add_space(14.0);
+-            ui.label(RichText::new(lang.tr("About GridCraft")).font(theme::ui_bold(13.5)).color(t.text));
++            ui.label(RichText::new(lang.tr("About UniCore")).font(theme::ui_bold(13.5)).color(t.text));
+             dim(ui, lang.tr("Version, contributors and the AI models that helped"));
+         });
+     });
 diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
-index fb899c7..82345a5 100644
+index bfb203c1..9a9db2b2 100644
 --- a/crates/ui-egui/src/dialogs.rs
 +++ b/crates/ui-egui/src/dialogs.rs
-@@ -674,7 +674,7 @@ impl Dialog {
+@@ -750,7 +750,7 @@ impl Dialog {
              "commandSearch" => Dialog::custom("commandSearch", "Search Commands", json!({})),
              "agents" => Dialog::custom("agents", "Agent Control", json!({})),
              "about" => {
@@ -1282,16 +1329,16 @@ index fb899c7..82345a5 100644
                  d.tab = match p("tab").as_str() {
                      Some(t @ ("Contributors" | "Models")) => t.to_string(),
                      _ => "About".into(),
-@@ -776,7 +776,7 @@ impl Dialog {
+@@ -852,7 +852,7 @@ impl Dialog {
              "pickList" => Dialog::custom("pickList", "Pick From List", json!({})),
              "saveCopy" => Dialog::custom("saveCopy", "Save a Copy", json!({"format": p("format")})),
-             "saveChanges" => Dialog::custom("saveChanges", "Save Changes?", json!({"title": p("title")})),
+             "saveChanges" => Dialog::custom("saveChanges", "Save Changes?", json!({"title": p("title"), "quit": p("quit")})),
 -            "start" => Dialog::custom("start", "GridCraft", json!({})),
 +            "start" => Dialog::custom("start", "UniCore", json!({})),
              "comments" => {
                  app.grid.pane = None;
                  app.run_or_alert("review.showComments", json!({"on": true}));
-@@ -1063,7 +1063,7 @@ pub fn show(app: &mut SheetApp, ctx: &egui::Context) {
+@@ -1193,7 +1193,7 @@ pub fn show(app: &mut SheetApp, ctx: &egui::Context) {
                  "solverResults" => solver_results(app, ui, &mut d, &mut open),
                  "spelling" => spelling(app, ui, &mut d, &mut open),
                  "agents" => {
@@ -1300,7 +1347,7 @@ index fb899c7..82345a5 100644
                      ui.add_space(4.0);
                      ui.monospace("gridcraft --control 7979        # JSON-lines control channel\ngridcraft-cli mcp --connect 7979   # MCP bridged to this window\ngridcraft-cli mcp                   # headless MCP server");
                      ui.add_space(4.0);
-@@ -1468,7 +1468,7 @@ fn form_fields(ui: &mut egui::Ui, d: &mut Dialog) {
+@@ -1725,7 +1725,7 @@ fn form_fields(ui: &mut egui::Ui, d: &mut Dialog) {
      });
  }
  
@@ -1309,7 +1356,7 @@ index fb899c7..82345a5 100644
  /// are compiled in (`crate::credits`, docs/contributors.md).
  fn about(ui: &mut egui::Ui, d: &mut Dialog) {
      ui.horizontal(|ui| {
-@@ -1483,21 +1483,17 @@ fn about(ui: &mut egui::Ui, d: &mut Dialog) {
+@@ -1740,21 +1740,17 @@ fn about(ui: &mut egui::Ui, d: &mut Dialog) {
          "Contributors" => crate::credits::contributors_ui(ui),
          "Models" => crate::credits::models_ui(ui),
          _ => {
@@ -1328,17 +1375,17 @@ index fb899c7..82345a5 100644
 +/// The Macros dialog: lists UniCore's own recorded scripts and (if the file carries one) the
  /// preserved VBA project. Mirrors Excel's Developer ▸ Macros list, but is honest that VBA is
  /// preserved and not executed.
- fn macros(ui: &mut egui::Ui, d: &mut Dialog) {
+ fn macros(app: &mut SheetApp, ui: &mut egui::Ui, d: &mut Dialog) {
 -    ui.label("Automation in this workbook. GridCraft runs its own scripts; a file's VBA project is preserved but not executed.");
 +    ui.label("Automation in this workbook. UniCore runs its own scripts; a file's VBA project is preserved but not executed.");
      ui.add_space(6.0);
      let items: Vec<Json> = d.result.as_ref().and_then(Json::as_array).cloned().unwrap_or_default();
      if items.is_empty() {
 diff --git a/crates/ui-egui/src/formula_bar.rs b/crates/ui-egui/src/formula_bar.rs
-index 7f1ad87..9a018bd 100644
+index b88699f5..41deb560 100644
 --- a/crates/ui-egui/src/formula_bar.rs
 +++ b/crates/ui-egui/src/formula_bar.rs
-@@ -127,7 +127,7 @@ fn name_box(app: &mut SheetApp, ui: &mut egui::Ui, t: &Tokens) {
+@@ -133,7 +133,7 @@ fn name_box(app: &mut SheetApp, ui: &mut egui::Ui, t: &Tokens) {
                      app.run("formulas.defineName", json!({"name": target}))
                  };
                  if let Err(e) = r {
@@ -1348,10 +1395,10 @@ index 7f1ad87..9a018bd 100644
                  app.grid.ensure_visible = true;
              }
 diff --git a/crates/ui-egui/src/grid.rs b/crates/ui-egui/src/grid.rs
-index 97b787e..22663a8 100644
+index a0efbfae..7340dd32 100644
 --- a/crates/ui-egui/src/grid.rs
 +++ b/crates/ui-egui/src/grid.rs
-@@ -2269,7 +2269,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
+@@ -2534,7 +2534,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
                      // Ctrl (Cmd on macOS) swaps copying and extending, as in Excel.
                      let mode = if mods.command { "alternate" } else { "series" };
                      if let Err(e) = app.run("edit.autoFill", json!({"source": src.a1(), "target": t.a1(), "mode": mode})) {
@@ -1360,7 +1407,7 @@ index 97b787e..22663a8 100644
                      }
                  }
              }
-@@ -2290,7 +2290,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
+@@ -2555,7 +2555,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
              }
              Drag::MoveCols { source, before: Some(before) } => {
                  if let Err(e) = app.run("sheet.moveColumns", json!({"cols": source.a1(), "before": before})) {
@@ -1369,24 +1416,38 @@ index 97b787e..22663a8 100644
                  }
              }
              _ => {}
-diff --git a/crates/ui-egui/src/i18n.rs b/crates/ui-egui/src/i18n.rs
-index 061698d..0974fde 100644
---- a/crates/ui-egui/src/i18n.rs
-+++ b/crates/ui-egui/src/i18n.rs
-@@ -411,7 +411,7 @@ const JAPANESE: &[(&str, &str)] = &[
-     ("Command\nPalette", "コマンド パレット"),
-     ("Agent\nControl", "エージェント制御"),
-     ("Action\nJournal", "操作ジャーナル"),
--    ("About\nGridCraft", "GridCraft について"),
-+    ("About\nUniCore", "UniCore について"),
-     ("Share", "共有"),
-     ("Add Chart\nElement", "グラフ要素を追加"),
-     ("Change\nChart Type", "グラフの種類の変更"),
+@@ -2604,7 +2604,7 @@ fn format_painter_apply(app: &mut SheetApp) {
+         if let Some(dest) = dest
+             && let Err(e) = app.run("edit.formatPainter", json!({"apply": dest}))
+         {
+-            app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++            app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+         }
+     }
+ }
+@@ -3345,7 +3345,7 @@ fn fill_menu(app: &mut SheetApp, ui: &mut egui::Ui, was_open: bool) {
+                         let direction = if target.width() != src.width() { "rows" } else { "columns" };
+                         app.open_dialog("series", json!({"direction": direction}));
+                     } else if let Err(e) = app.run("edit.autoFill", json!({"source": src.a1(), "target": target.a1(), "mode": mode})) {
+-                        app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                        app.message = Some(("UniCore".into(), crate::clean_error(&e)));
+                     }
+                 }
+             }
 diff --git a/crates/ui-egui/src/i18n/cs.rs b/crates/ui-egui/src/i18n/cs.rs
-index 7ed8372..d702498 100644
+index fc9181fe..b5638eda 100644
 --- a/crates/ui-egui/src/i18n/cs.rs
 +++ b/crates/ui-egui/src/i18n/cs.rs
-@@ -340,7 +340,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -259,7 +259,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "Možnosti",
+         "Account" => "Účet",
+         "Product Information" => "Informace o produktu",
+-        "About GridCraft" => "O aplikaci GridCraft",
++        "About UniCore" => "O aplikaci UniCore",
+         "Version" => "Verze",
+         "Platform" => "Platforma",
+         "Licence" => "Licence",
+@@ -345,7 +345,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Paleta\npříkazů",
          "Agent\nControl" => "Řízení\nagenty",
          "Action\nJournal" => "Deník\nakcí",
@@ -1395,7 +1456,7 @@ index 7ed8372..d702498 100644
          "Share" => "Sdílet",
          "Add Chart\nElement" => "Přidat prvek\ngrafu",
          "Change\nChart Type" => "Změnit\ntyp grafu",
-@@ -460,7 +460,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -463,7 +463,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Hide Sheet" => "Skrýt list",
          "Hierarchy & more" => "Hierarchické a další grafy",
          "Highlighter" => "Zvýrazňovač",
@@ -1405,10 +1466,19 @@ index 7ed8372..d702498 100644
          "Insert\nSlicer" => "Vložit\nprůřez",
          "Insert Function (⇧F3)" => "Vložit funkci (⇧F3)",
 diff --git a/crates/ui-egui/src/i18n/de.rs b/crates/ui-egui/src/i18n/de.rs
-index c20c7d1..88f83a9 100644
+index 61c2292f..13dbde75 100644
 --- a/crates/ui-egui/src/i18n/de.rs
 +++ b/crates/ui-egui/src/i18n/de.rs
-@@ -338,7 +338,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -261,7 +261,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "Optionen",
+         "Account" => "Konto",
+         "Product Information" => "Produktinformationen",
+-        "About GridCraft" => "Info zu GridCraft",
++        "About UniCore" => "Info zu UniCore",
+         "Version" => "Version",
+         "Platform" => "Plattform",
+         "Licence" => "Lizenz",
+@@ -348,7 +348,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Befehls-\npalette",
          "Agent\nControl" => "Agenten-\nsteuerung",
          "Action\nJournal" => "Aktions-\nprotokoll",
@@ -1417,11 +1487,57 @@ index c20c7d1..88f83a9 100644
          "Share" => "Teilen",
          "Add Chart\nElement" => "Diagrammelement\nhinzufügen",
          "Change\nChart Type" => "Diagrammtyp\nändern",
+diff --git a/crates/ui-egui/src/i18n/el.rs b/crates/ui-egui/src/i18n/el.rs
+index e54416a6..dcdaa57a 100644
+--- a/crates/ui-egui/src/i18n/el.rs
++++ b/crates/ui-egui/src/i18n/el.rs
+@@ -1,4 +1,4 @@
+-//! Greek (el) interface localization for GridCraft.
++//! Greek (el) interface localization for UniCore.
+ //! Command ids, cell references and formula identifiers are not translated.
+ //! Source labels are kept verbatim and unmatched labels fall back to English.
+ 
+@@ -320,7 +320,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Παλέτα\nεντολών",
+         "Agent\nControl" => "Έλεγχος\nπρακτόρων",
+         "Action\nJournal" => "Ιστορικό\nενεργειών",
+-        "About\nGridCraft" => "Πληροφορίες για\nτο GridCraft",
++        "About\nGridCraft" => "Πληροφορίες για\nτο UniCore",
+         "Share" => "Κοινή χρήση",
+         "Add Chart\nElement" => "Προσθήκη στοιχείου\nγραφήματος",
+         "Change\nChart Type" => "Αλλαγή τύπου\nγραφήματος",
+@@ -468,7 +468,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Απόκρυψη φύλλου",
+         "Hierarchy & more" => "Ιεραρχία και άλλα",
+         "Highlighter" => "Εργαλείο επισήμανσης",
+-        "How agents drive GridCraft (MCP / control channel)" => "Πώς οι πράκτορες χειρίζονται το GridCraft (MCP / κανάλι ελέγχου)",
++        "How agents drive UniCore (MCP / control channel)" => "Πώς οι πράκτορες χειρίζονται το UniCore (MCP / κανάλι ελέγχου)",
+         "Import a text or CSV file" => "Εισαγωγή αρχείου κειμένου ή CSV",
+         "Insert\nSlicer" => "Εισαγωγή\nαναλυτή",
+         "Insert Function (⇧F3)" => "Εισαγωγή συνάρτησης (⇧F3)",
+@@ -580,7 +580,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Conditional Formatting Rules Manager" => "Διαχείριση κανόνων μορφοποίησης υπό όρους",
+         "Search Commands" => "Αναζήτηση εντολών",
+         "Agent Control" => "Έλεγχος πρακτόρων",
+-        "About GridCraft" => "Πληροφορίες για το GridCraft",
++        "About UniCore" => "Πληροφορίες για το UniCore",
+         "Insert Chart" => "Εισαγωγή γραφήματος",
+         "Select Data Source" => "Επιλογή προέλευσης δεδομένων",
+         "Action Journal" => "Ιστορικό ενεργειών",
 diff --git a/crates/ui-egui/src/i18n/es.rs b/crates/ui-egui/src/i18n/es.rs
-index 4ce231b..503261f 100644
+index 36898c09..3e5c5a60 100644
 --- a/crates/ui-egui/src/i18n/es.rs
 +++ b/crates/ui-egui/src/i18n/es.rs
-@@ -337,7 +337,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -260,7 +260,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "Opciones",
+         "Account" => "Cuenta",
+         "Product Information" => "Información del producto",
+-        "About GridCraft" => "Acerca de GridCraft",
++        "About UniCore" => "Acerca de UniCore",
+         "Version" => "Versión",
+         "Platform" => "Plataforma",
+         "Licence" => "Licencia",
+@@ -345,7 +345,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Paleta de\ncomandos",
          "Agent\nControl" => "Control\ndel agente",
          "Action\nJournal" => "Registro\nde acciones",
@@ -1431,10 +1547,10 @@ index 4ce231b..503261f 100644
          "Add Chart\nElement" => "Agregar elemento\nde gráfico",
          "Change\nChart Type" => "Cambiar tipo\nde gráfico",
 diff --git a/crates/ui-egui/src/i18n/fr.rs b/crates/ui-egui/src/i18n/fr.rs
-index 5d20ab0..49af92d 100644
+index 317647c2..f4f88334 100644
 --- a/crates/ui-egui/src/i18n/fr.rs
 +++ b/crates/ui-egui/src/i18n/fr.rs
-@@ -238,7 +238,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -239,7 +239,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Palette de\ncommandes",
          "Agent\nControl" => "Contrôle de\nl'agent",
          "Action\nJournal" => "Journal des\nactions",
@@ -1443,11 +1559,73 @@ index 5d20ab0..49af92d 100644
          "Share" => "Partager",
          "Add Chart\nElement" => "Ajouter un élément\nde graphique",
          "Change\nChart Type" => "Modifier le type\nde graphique",
+@@ -345,7 +345,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "Options",
+         "Account" => "Compte",
+         "Product Information" => "Informations sur le produit",
+-        "About GridCraft" => "À propos de GridCraft",
++        "About UniCore" => "À propos de UniCore",
+         "Version" => "Version",
+         "Platform" => "Plateforme",
+         "Licence" => "Licence",
+diff --git a/crates/ui-egui/src/i18n/it.rs b/crates/ui-egui/src/i18n/it.rs
+index 65f35666..508063f4 100644
+--- a/crates/ui-egui/src/i18n/it.rs
++++ b/crates/ui-egui/src/i18n/it.rs
+@@ -457,7 +457,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Conditional Formatting Rules Manager" => "Gestione regole di formattazione condizionale",
+         "Search Commands" => "Cerca comandi",
+         "Agent Control" => "Controllo agenti",
+-        "About GridCraft" => "Informazioni su GridCraft",
++        "About UniCore" => "Informazioni su UniCore",
+         "Insert Chart" => "Inserisci grafico",
+         "Select Data Source" => "Seleziona origine dati",
+         "Action Journal" => "Registro azioni",
+@@ -880,7 +880,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Nascondi foglio",
+         "Hierarchy & more" => "Gerarchia e altro",
+         "Highlighter" => "Evidenziatore",
+-        "How agents drive GridCraft (MCP / control channel)" => "Come gli agenti controllano GridCraft (MCP / canale di controllo)",
++        "How agents drive UniCore (MCP / control channel)" => "Come gli agenti controllano UniCore (MCP / canale di controllo)",
+         "Import a text or CSV file" => "Importa un file di testo o CSV",
+         "Insert Function" => "Inserisci funzione",
+         "Insert Function (⇧F3)" => "Inserisci funzione (⇧F3)",
+diff --git a/crates/ui-egui/src/i18n/ja.rs b/crates/ui-egui/src/i18n/ja.rs
+index 254ff68f..08136057 100644
+--- a/crates/ui-egui/src/i18n/ja.rs
++++ b/crates/ui-egui/src/i18n/ja.rs
+@@ -237,7 +237,7 @@ pub(super) const CORE: &[(&str, &str)] = &[
+     ("Command\nPalette", "コマンド パレット"),
+     ("Agent\nControl", "エージェント制御"),
+     ("Action\nJournal", "操作ジャーナル"),
+-    ("About\nGridCraft", "GridCraft について"),
++    ("About\nGridCraft", "UniCore について"),
+     ("Share", "共有"),
+     ("Add Chart\nElement", "グラフ要素を追加"),
+     ("Change\nChart Type", "グラフの種類の変更"),
+@@ -467,7 +467,7 @@ pub(super) const DIALOGS: &[(&str, &str)] = &[
+     ("Conditional Formatting Rules Manager", "条件付き書式ルールの管理"),
+     ("Search Commands", "コマンドの検索"),
+     ("Agent Control", "エージェント制御"),
+-    ("About GridCraft", "GridCraft について"),
++    ("About UniCore", "UniCore について"),
+     ("Insert Chart", "グラフの挿入"),
+     ("Select Data Source", "データ ソースの選択"),
+     ("Action Journal", "操作ジャーナル"),
+@@ -889,7 +889,7 @@ pub(super) const DIALOGS: &[(&str, &str)] = &[
+     ("Hide Sheet", "シートの非表示"),
+     ("Hierarchy & more", "階層とその他"),
+     ("Highlighter", "蛍光ペン"),
+-    ("How agents drive GridCraft (MCP / control channel)", "エージェントによる GridCraft の操作 (MCP / 制御チャネル)"),
++    ("How agents drive UniCore (MCP / control channel)", "エージェントによる UniCore の操作 (MCP / 制御チャネル)"),
+     ("Import a text or CSV file", "テキストまたは CSV ファイルのインポート"),
+     ("Insert Function", "関数の挿入"),
+     ("Insert Function (⇧F3)", "関数の挿入 (⇧F3)"),
 diff --git a/crates/ui-egui/src/i18n/ko.rs b/crates/ui-egui/src/i18n/ko.rs
-index 1902ad3..265205f 100644
+index d3c440cf..28ad15a9 100644
 --- a/crates/ui-egui/src/i18n/ko.rs
 +++ b/crates/ui-egui/src/i18n/ko.rs
-@@ -227,7 +227,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -228,7 +228,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "명령\n팔레트",
          "Agent\nControl" => "에이전트\n제어",
          "Action\nJournal" => "작업\n기록",
@@ -1456,11 +1634,55 @@ index 1902ad3..265205f 100644
          "Share" => "공유",
          "Add Chart\nElement" => "차트\n요소 추가",
          "Change\nChart Type" => "차트 종류\n변경",
+@@ -347,7 +347,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "옵션",
+         "Account" => "계정",
+         "Product Information" => "제품 정보",
+-        "About GridCraft" => "GridCraft 정보",
++        "About UniCore" => "UniCore 정보",
+         "Version" => "버전",
+         "Platform" => "플랫폼",
+         "Licence" => "라이선스",
+diff --git a/crates/ui-egui/src/i18n/nl.rs b/crates/ui-egui/src/i18n/nl.rs
+index c1f95235..697aed56 100644
+--- a/crates/ui-egui/src/i18n/nl.rs
++++ b/crates/ui-egui/src/i18n/nl.rs
+@@ -449,7 +449,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Blad verbergen",
+         "Hierarchy & more" => "Hiërarchie en meer",
+         "Highlighter" => "Markeerstift",
+-        "How agents drive GridCraft (MCP / control channel)" => "Hoe agents GridCraft besturen (MCP / besturingskanaal)",
++        "How agents drive UniCore (MCP / control channel)" => "Hoe agents UniCore besturen (MCP / besturingskanaal)",
+         "Import a text or CSV file" => "Een tekst- of CSV-bestand importeren",
+         "Insert\nSlicer" => "Gegevensfilter\ninvoegen",
+         "Insert Function (⇧F3)" => "Functie invoegen (⇧F3)",
+diff --git a/crates/ui-egui/src/i18n/pl.rs b/crates/ui-egui/src/i18n/pl.rs
+index e3185d55..5d98f8e2 100644
+--- a/crates/ui-egui/src/i18n/pl.rs
++++ b/crates/ui-egui/src/i18n/pl.rs
+@@ -451,7 +451,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Conditional Formatting Rules Manager" => "Menedżer reguł formatowania warunkowego",
+         "Search Commands" => "Wyszukaj polecenia",
+         "Agent Control" => "Sterowanie agentem",
+-        "About GridCraft" => "O programie GridCraft",
++        "About UniCore" => "O programie UniCore",
+         "Insert Chart" => "Wstawianie wykresu",
+         "Select Data Source" => "Wybieranie źródła danych",
+         "Action Journal" => "Dziennik akcji",
+@@ -874,7 +874,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Ukryj arkusz",
+         "Hierarchy & more" => "Hierarchiczne i inne",
+         "Highlighter" => "Zakreślacz",
+-        "How agents drive GridCraft (MCP / control channel)" => "Jak agenci sterują programem GridCraft (MCP / kanał sterowania)",
++        "How agents drive UniCore (MCP / control channel)" => "Jak agenci sterują programem UniCore (MCP / kanał sterowania)",
+         "Import a text or CSV file" => "Importuj plik tekstowy lub CSV",
+         "Insert Function" => "Wstaw funkcję",
+         "Insert Function (⇧F3)" => "Wstaw funkcję (⇧F3)",
 diff --git a/crates/ui-egui/src/i18n/pt.rs b/crates/ui-egui/src/i18n/pt.rs
-index fb9236c..1e8e12c 100644
+index 1b56ff50..aef84a77 100644
 --- a/crates/ui-egui/src/i18n/pt.rs
 +++ b/crates/ui-egui/src/i18n/pt.rs
-@@ -228,7 +228,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -224,7 +224,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Paleta de\nComandos",
          "Agent\nControl" => "Controle\ndo Agente",
          "Action\nJournal" => "Registro\nde Ações",
@@ -1469,7 +1691,7 @@ index fb9236c..1e8e12c 100644
          "Share" => "Compartilhar",
          "Add Chart\nElement" => "Adicionar\nElemento de Gráfico",
          "Change\nChart Type" => "Alterar\nTipo de Gráfico",
-@@ -461,7 +461,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -468,7 +468,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Conditional Formatting Rules Manager" => "Gerenciador de Regras de Formatação Condicional",
          "Search Commands" => "Pesquisar Comandos",
          "Agent Control" => "Controle por Agentes",
@@ -1478,7 +1700,7 @@ index fb9236c..1e8e12c 100644
          "Insert Chart" => "Inserir Gráfico",
          "Select Data Source" => "Selecionar Fonte de Dados",
          "Action Journal" => "Registro de Ações",
-@@ -661,7 +661,6 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -668,7 +668,6 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Contributors" => "Colaboradores",
          "Models" => "Modelos",
          "Version {version}" => "Versão {version}",
@@ -1486,7 +1708,7 @@ index fb9236c..1e8e12c 100644
          "This workbook has no scripts or macros." => "Esta pasta de trabalho não tem scripts nem macros.",
          "(unnamed)" => "(sem nome)",
          "— VBA project (preserved, not run)" => "— Projeto VBA (preservado, não executado)",
-@@ -886,7 +885,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -891,7 +890,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Hide Sheet" => "Ocultar Planilha",
          "Hierarchy & more" => "Hierarquia e mais",
          "Highlighter" => "Marca-texto",
@@ -1495,11 +1717,33 @@ index fb9236c..1e8e12c 100644
          "Import a text or CSV file" => "Importar um arquivo de texto ou CSV",
          "Insert Function" => "Inserir Função",
          "Insert Function (⇧F3)" => "Inserir Função (⇧F3)",
+diff --git a/crates/ui-egui/src/i18n/ro.rs b/crates/ui-egui/src/i18n/ro.rs
+index 699e30ff..48cf43c2 100644
+--- a/crates/ui-egui/src/i18n/ro.rs
++++ b/crates/ui-egui/src/i18n/ro.rs
+@@ -457,7 +457,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Conditional Formatting Rules Manager" => "Manager de reguli de formatare condiționată",
+         "Search Commands" => "Căutare comenzi",
+         "Agent Control" => "Control prin agenți",
+-        "About GridCraft" => "Despre GridCraft",
++        "About UniCore" => "Despre UniCore",
+         "Insert Chart" => "Inserare diagramă",
+         "Select Data Source" => "Selectare sursă de date",
+         "Action Journal" => "Jurnal de acțiuni",
+@@ -880,7 +880,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Ascundere foaie",
+         "Hierarchy & more" => "Ierarhie și altele",
+         "Highlighter" => "Marker",
+-        "How agents drive GridCraft (MCP / control channel)" => "Cum controlează agenții GridCraft (MCP / canal de control)",
++        "How agents drive UniCore (MCP / control channel)" => "Cum controlează agenții UniCore (MCP / canal de control)",
+         "Import a text or CSV file" => "Importă un fișier text sau CSV",
+         "Insert Function" => "Inserare funcție",
+         "Insert Function (⇧F3)" => "Inserare funcție (⇧F3)",
 diff --git a/crates/ui-egui/src/i18n/ru.rs b/crates/ui-egui/src/i18n/ru.rs
-index 765f6bb..65056ed 100644
+index ce675701..54f36fc5 100644
 --- a/crates/ui-egui/src/i18n/ru.rs
 +++ b/crates/ui-egui/src/i18n/ru.rs
-@@ -227,7 +227,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -228,7 +228,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Палитра\nкоманд",
          "Agent\nControl" => "Управление\nагентом",
          "Action\nJournal" => "Журнал\nдействий",
@@ -1508,11 +1752,20 @@ index 765f6bb..65056ed 100644
          "Share" => "Поделиться",
          "Add Chart\nElement" => "Добавить элемент\nдиаграммы",
          "Change\nChart Type" => "Изменить тип\nдиаграммы",
+@@ -347,7 +347,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "Параметры",
+         "Account" => "Учетная запись",
+         "Product Information" => "Сведения о продукте",
+-        "About GridCraft" => "О программе GridCraft",
++        "About UniCore" => "О программе UniCore",
+         "Version" => "Версия",
+         "Platform" => "Платформа",
+         "Licence" => "Лицензия",
 diff --git a/crates/ui-egui/src/i18n/sr.rs b/crates/ui-egui/src/i18n/sr.rs
-index cbf18d4..bc691f6 100644
+index c71ce53a..d3c5a410 100644
 --- a/crates/ui-egui/src/i18n/sr.rs
 +++ b/crates/ui-egui/src/i18n/sr.rs
-@@ -230,7 +230,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -231,7 +231,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "Paleta\nkomandi",
          "Agent\nControl" => "Kontrola\nagenta",
          "Action\nJournal" => "Dnevnik\nradnji",
@@ -1521,11 +1774,55 @@ index cbf18d4..bc691f6 100644
          "Share" => "Deli",
          "Add Chart\nElement" => "Dodaj element\ngrafikona",
          "Change\nChart Type" => "Promeni\ntip grafikona",
+@@ -339,7 +339,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "Opcije",
+         "Account" => "Nalog",
+         "Product Information" => "Informacije o proizvodu",
+-        "About GridCraft" => "O programu GridCraft",
++        "About UniCore" => "O programu UniCore",
+         "Version" => "Verzija",
+         "Platform" => "Platforma",
+         "Licence" => "Licenca",
+diff --git a/crates/ui-egui/src/i18n/tr.rs b/crates/ui-egui/src/i18n/tr.rs
+index ce2bc8e1..13b2c83a 100644
+--- a/crates/ui-egui/src/i18n/tr.rs
++++ b/crates/ui-egui/src/i18n/tr.rs
+@@ -334,7 +334,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Command\nPalette" => "Komut\nPaleti",
+         "Agent\nControl" => "Ajan\nKontrolü",
+         "Action\nJournal" => "İşlem\nGünlüğü",
+-        "About\nGridCraft" => "GridCraft\nHakkında",
++        "About\nGridCraft" => "UniCore\nHakkında",
+         "Share" => "Paylaş",
+         "Add Chart\nElement" => "Grafik Öğesi\nEkle",
+         "Change\nChart Type" => "Grafik Türünü\nDeğiştir",
+diff --git a/crates/ui-egui/src/i18n/uk.rs b/crates/ui-egui/src/i18n/uk.rs
+index 97659cc1..5fdef0ee 100644
+--- a/crates/ui-egui/src/i18n/uk.rs
++++ b/crates/ui-egui/src/i18n/uk.rs
+@@ -455,7 +455,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Conditional Formatting Rules Manager" => "Conditional Formatting Rules Manager",
+         "Search Commands" => "Search Commands",
+         "Agent Control" => "Agent Control",
+-        "About GridCraft" => "About GridCraft",
++        "About UniCore" => "About UniCore",
+         "Insert Chart" => "Insert Chart",
+         "Select Data Source" => "Select Data Source",
+         "Action Journal" => "Action Journal",
+@@ -877,7 +877,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Hide Sheet" => "Hide Sheet",
+         "Hierarchy & more" => "Hierarchy & more",
+         "Highlighter" => "Highlighter",
+-        "How agents drive GridCraft (MCP / control channel)" => "How agents drive GridCraft (MCP / control channel)",
++        "How agents drive UniCore (MCP / control channel)" => "How agents drive UniCore (MCP / control channel)",
+         "Import a text or CSV file" => "Import a text or CSV file",
+         "Insert Function" => "Insert Function",
+         "Insert Function (⇧F3)" => "Insert Function (⇧F3)",
 diff --git a/crates/ui-egui/src/i18n/zh.rs b/crates/ui-egui/src/i18n/zh.rs
-index 0017592..b6f54ae 100644
+index c9d3ecb7..ada315f7 100644
 --- a/crates/ui-egui/src/i18n/zh.rs
 +++ b/crates/ui-egui/src/i18n/zh.rs
-@@ -227,7 +227,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+@@ -228,7 +228,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
          "Command\nPalette" => "命令\n面板",
          "Agent\nControl" => "智能体\n控制",
          "Action\nJournal" => "操作\n日志",
@@ -1534,8 +1831,17 @@ index 0017592..b6f54ae 100644
          "Share" => "分享",
          "Add Chart\nElement" => "添加图表\n元素",
          "Change\nChart Type" => "更改\n图表类型",
+@@ -345,7 +345,7 @@ pub(super) fn translate(text: &str) -> Option<&'static str> {
+         "Options" => "选项",
+         "Account" => "账户",
+         "Product Information" => "产品信息",
+-        "About GridCraft" => "关于 GridCraft",
++        "About UniCore" => "关于 UniCore",
+         "Version" => "版本",
+         "Platform" => "平台",
+         "Licence" => "许可证",
 diff --git a/crates/ui-egui/src/icons.rs b/crates/ui-egui/src/icons.rs
-index 3e5cdf3..31fee73 100644
+index 3e5cdf37..31fee732 100644
 --- a/crates/ui-egui/src/icons.rs
 +++ b/crates/ui-egui/src/icons.rs
 @@ -1,4 +1,4 @@
@@ -1545,11 +1851,11 @@ index 3e5cdf3..31fee73 100644
  
  use egui::epaint::{CubicBezierShape, PathShape, PathStroke};
 diff --git a/crates/ui-egui/src/keytips/keytip_table/generated.rs b/crates/ui-egui/src/keytips/keytip_table/generated.rs
-index 79920b5..2ad630e 100644
+index 2f7c64a9..ddabe490 100644
 --- a/crates/ui-egui/src/keytips/keytip_table/generated.rs
 +++ b/crates/ui-egui/src/keytips/keytip_table/generated.rs
-@@ -8,7 +8,7 @@ use super::{Action, Entry};
- pub const SEQUENCES: &[(&str, Entry)] = &[
+@@ -9,7 +9,7 @@ pub const SEQUENCES: &[(&str, Entry)] = &[
+     ("F", Entry::Tab("File")), // Excel: File tab (Backstage view); Opens the File view on Home; its letters below still run their commands.
      ("H", Entry::Tab("Home")),
      ("N", Entry::Tab("Insert")),
 -    ("JI", Entry::Tab("Draw")), // Two-letter unit. Deeper Draw letters differ between Excel and GridCraft; left blank for future contributors.
@@ -1558,10 +1864,10 @@ index 79920b5..2ad630e 100644
      ("M", Entry::Tab("Formulas")),
      ("A", Entry::Tab("Data")),
 diff --git a/crates/ui-egui/src/keytips/keytips.json b/crates/ui-egui/src/keytips/keytips.json
-index 59aeadc..4f1d478 100644
+index a788529d..aa4f4982 100644
 --- a/crates/ui-egui/src/keytips/keytips.json
 +++ b/crates/ui-egui/src/keytips/keytips.json
-@@ -25,7 +25,7 @@
+@@ -32,7 +32,7 @@
     "seq": "JI",
     "kind": "tab",
     "target": "Draw",
@@ -1571,7 +1877,7 @@ index 59aeadc..4f1d478 100644
    {
     "seq": "P",
 diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
-index f96cdac..8fee228 100644
+index faae9bfa..1231cc8f 100644
 --- a/crates/ui-egui/src/lib.rs
 +++ b/crates/ui-egui/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1580,7 +1886,7 @@ index f96cdac..8fee228 100644
  //! ribbon, formula bar, grid, sheet tabs, status bar) over `gridcraft-engine`.
  //!
  //! The UI is thin: it reads engine state and acts through [`SheetApp::run`] (engine commands by
-@@ -152,7 +152,7 @@ pub enum NoticeKind {
+@@ -157,7 +157,7 @@ pub enum NoticeKind {
  }
  
  /// A dismissible bar under the ribbon, in the spirit of Excel's message bar. Used to tell the
@@ -1589,7 +1895,7 @@ index f96cdac..8fee228 100644
  #[derive(Clone, Debug, PartialEq)]
  pub struct Notice {
      pub text: String,
-@@ -185,7 +185,7 @@ pub struct Services {
+@@ -190,7 +190,7 @@ pub struct Services {
      pub paste_html: Option<Box<dyn FnMut() -> Option<String>>>,
      /// Read the system clipboard's plain text for the ribbon and menu Paste commands (Cmd/Ctrl+V
      /// gets it from egui's `Event::Paste`). `None` from the host, or no service (web), pastes
@@ -1598,7 +1904,7 @@ index f96cdac..8fee228 100644
      pub paste_text: Option<Box<dyn FnMut() -> Option<String>>>,
      /// Web: deliver a file to the user (name, bytes).
      pub download: Option<Box<dyn Fn(&str, &[u8])>>,
-@@ -254,11 +254,11 @@ pub struct SheetApp {
+@@ -281,11 +281,11 @@ pub struct SheetApp {
      pub(crate) shots: control::Shots,
      /// Chart selected on the sheet (id).
      pub selected_chart: Option<u32>,
@@ -1613,7 +1919,7 @@ index f96cdac..8fee228 100644
      /// text noted for an unpublished cut); `None` after a copy, or once the clipboard is seen
      /// holding other text. Once the cut has been pasted, Paste leaves this text alone.
      cut_text: Option<String>,
-@@ -342,7 +342,7 @@ impl SheetApp {
+@@ -378,7 +378,7 @@ impl SheetApp {
      pub fn run(&mut self, id: &str, params: Json) -> Result<Json, String> {
          let r = self.run_command(id, params);
          // This copy leaves the system clipboard alone: note what it holds, so Paste can tell
@@ -1622,7 +1928,7 @@ index f96cdac..8fee228 100644
          if matches!(id, "edit.copy" | "edit.cut") && r.is_ok() {
              self.clipboard_text_at_copy = self.system_clipboard_text();
              self.cut_text = if id == "edit.cut" { self.clipboard_text_at_copy.clone() } else { None };
-@@ -423,8 +423,8 @@ impl SheetApp {
+@@ -459,8 +459,8 @@ impl SheetApp {
      /// Paste text that came from the system clipboard (Cmd/Ctrl+V, or the ribbon and menu Paste),
      /// with the clipboard's HTML flavour when the host can read it.
      ///
@@ -1633,7 +1939,7 @@ index f96cdac..8fee228 100644
      /// clipboard is pasted instead, which reports "Nothing to paste.". Other text means the
      /// clipboard has moved on, so the cut's text is forgotten and pastes normally later.
      pub fn paste_external(&mut self, text: String) {
-@@ -444,8 +444,8 @@ impl SheetApp {
+@@ -480,8 +480,8 @@ impl SheetApp {
      }
  
      /// Ribbon and menu Paste: paste the text on the system clipboard, as Cmd/Ctrl+V does. With no
@@ -1644,7 +1950,7 @@ index f96cdac..8fee228 100644
      pub fn paste_from_clipboard(&mut self) {
          match self.system_clipboard_text() {
              Some(text) if self.session.clipboard.is_none() || self.clipboard_text_at_copy.as_ref() != Some(&text) => self.paste_external(text),
-@@ -538,7 +538,7 @@ impl SheetApp {
+@@ -579,7 +579,7 @@ impl SheetApp {
          if e.contains("is not available right now") {
              self.toast = Some((e, now_ms()));
          } else {
@@ -1653,7 +1959,7 @@ index f96cdac..8fee228 100644
          }
      }
  
-@@ -689,7 +689,7 @@ impl SheetApp {
+@@ -730,7 +730,7 @@ impl SheetApp {
          for req in self.session.take_ui_requests() {
              match req {
                  UiRequest::Dialog(name, params) => self.open_dialog(&name, params),
@@ -1662,7 +1968,7 @@ index f96cdac..8fee228 100644
                  UiRequest::EditCell(text) => {
                      let text = text.map(|text| {
                          self.session
-@@ -766,7 +766,7 @@ impl SheetApp {
+@@ -830,7 +830,7 @@ impl SheetApp {
              Ok(r) => self.after_open(Some(path), &r),
              // A password-protected workbook: ask for the password; the dialog opens it.
              Err(e) if e.contains(gridcraft_engine::io::PASSWORD_REQUIRED) => self.open_dialog("openPassword", json!({"path": path})),
@@ -1671,16 +1977,16 @@ index f96cdac..8fee228 100644
          }
          self.after_engine();
      }
-@@ -801,7 +801,7 @@ impl SheetApp {
-         let vba: Vec<&str> = msgs.iter().copied().filter(|m| m.to_lowercase().contains("macro") || m.contains("VBA")).collect();
-         if !vba.is_empty() {
-             self.notice = Some(Notice {
--                text: "This workbook contains VBA macros. GridCraft keeps them intact when you save, but does not run them.".into(),
-+                text: "This workbook contains VBA macros. UniCore keeps them intact when you save, but does not run them.".into(),
-                 kind: NoticeKind::Warning,
-                 action: Some(("What this means".into(), "macros".into())),
-             });
-@@ -909,7 +909,7 @@ impl SheetApp {
+@@ -869,7 +869,7 @@ impl SheetApp {
+             let text = if dropped {
+                 "This workbook's VBA macros could not be loaded and were dropped, so they will not be in the saved file. Keep the original file."
+             } else {
+-                "This workbook contains VBA macros. GridCraft keeps them when you save as .xlsm, but does not run them."
++                "This workbook contains VBA macros. UniCore keeps them when you save as .xlsm, but does not run them."
+             };
+             self.notice = Some(Notice { text: text.into(), kind: NoticeKind::Warning, action: Some(("What this means".into(), "macros".into())) });
+         } else {
+@@ -981,7 +981,7 @@ impl SheetApp {
          let text = match self.session.active().map(|d| formula_locale::canonical(&text, ed.locale, &d.wb, ed.sheet, ed.cell)) {
              Some(Ok(text)) => text,
              Some(Err(error)) => {
@@ -1689,7 +1995,7 @@ index f96cdac..8fee228 100644
                  self.editor = Some(ed);
                  self.session.mode = gridcraft_engine::Mode::Edit;
                  return false;
-@@ -921,7 +921,7 @@ impl SheetApp {
+@@ -993,7 +993,7 @@ impl SheetApp {
              && let Some((dv, msg)) = gridcraft_engine::cmd::data::check_validation(&d.wb, ed.sheet, ed.cell, &text)
          {
              if dv.error_style == gridcraft_engine::model::ErrorStyle::Stop {
@@ -1698,7 +2004,16 @@ index f96cdac..8fee228 100644
                  self.message = Some((title, msg));
                  self.editor = Some(ed);
                  self.session.mode = gridcraft_engine::Mode::Edit;
-@@ -943,7 +943,7 @@ impl SheetApp {
+@@ -1005,7 +1005,7 @@ impl SheetApp {
+         if self.session.active().is_some_and(|d| d.wb.active_sheet != ed.sheet)
+             && let Err(e) = self.session.run("sheet.activate", json!({"sheet": ed.sheet}))
+         {
+-            self.message = Some(("GridCraft".into(), clean_error(&e)));
++            self.message = Some(("UniCore".into(), clean_error(&e)));
+             self.editor = Some(ed);
+             self.session.mode = gridcraft_engine::Mode::Edit;
+             return false;
+@@ -1036,7 +1036,7 @@ impl SheetApp {
                  true
              }
              Err(e) => {
@@ -1707,7 +2022,7 @@ index f96cdac..8fee228 100644
                  self.editor = Some(ed);
                  self.session.mode = gridcraft_engine::Mode::Edit;
                  false
-@@ -1046,7 +1046,7 @@ impl SheetApp {
+@@ -1209,7 +1209,7 @@ impl SheetApp {
          }
          self.effective_dark = ctx.theme() == egui::Theme::Dark;
          // Interface size: the preference owns the zoom factor, so egui's own Ctrl/Cmd +/-/0 zoom
@@ -1716,7 +2031,7 @@ index f96cdac..8fee228 100644
          if ctx.options(|o| o.zoom_with_keyboard) {
              ctx.options_mut(|o| o.zoom_with_keyboard = false);
          }
-@@ -1075,7 +1075,7 @@ impl SheetApp {
+@@ -1245,7 +1245,7 @@ impl SheetApp {
                      self.backstage = None;
                      self.open_dialog("openPassword", json!({"name": name, "base64": b64}));
                  }
@@ -1726,19 +2041,10 @@ index f96cdac..8fee228 100644
              self.after_engine();
          }
 diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
-index 9c6d89e..63e31e9 100644
+index 356381d6..123fac2c 100644
 --- a/crates/ui-egui/src/ribbon.rs
 +++ b/crates/ui-egui/src/ribbon.rs
-@@ -1439,7 +1439,7 @@ fn insert(app: &mut SheetApp, ui: &mut Ui) {
-             // in dialogs.rs) — otherwise the prior cell/range selection is left in place, and
-             // Del right after inserting deletes the source data instead of the chart.
-             Ok(r) => app.selected_chart = r.get("chart").and_then(serde_json::Value::as_u64).and_then(|id| u32::try_from(id).ok()),
--            Err(e) => app.message = Some(("GridCraft".into(), crate::clean_error(&e))),
-+            Err(e) => app.message = Some(("UniCore".into(), crate::clean_error(&e))),
-         }
-     }
-     ui.vertical(|ui| {
-@@ -2248,7 +2248,7 @@ fn automate(app: &mut SheetApp, ui: &mut Ui) {
+@@ -2400,7 +2400,7 @@ fn automate(app: &mut SheetApp, ui: &mut Ui) {
      if __k.clicked() {
          app.open_dialog("commandSearch", json!({}));
      }
@@ -1747,17 +2053,21 @@ index 9c6d89e..63e31e9 100644
      control_keytip(app, ui, &__k, "agents");
      if __k.clicked() {
          app.open_dialog("agents", json!({}));
-@@ -2258,7 +2258,7 @@ fn automate(app: &mut SheetApp, ui: &mut Ui) {
-     if __k.clicked() {
-         app.open_dialog("journal", json!({}));
-     }
--    let __k = big_button(ui, Icon::Script, "About\nGridCraft", "Version, contributors and the AI models that helped", false);
-+    let __k = big_button(ui, Icon::Script, "About\nUniCore", "Version, contributors and the AI models that helped", false);
-     control_keytip(app, ui, &__k, "about");
-     if __k.clicked() {
-         app.open_dialog("about", json!({}));
+diff --git a/crates/ui-egui/src/widgets.rs b/crates/ui-egui/src/widgets.rs
+index e5322c3e..e5593d50 100644
+--- a/crates/ui-egui/src/widgets.rs
++++ b/crates/ui-egui/src/widgets.rs
+@@ -15,7 +15,7 @@ fn tr<'a>(ui: &Ui, text: &'a str) -> &'a str {
+ }
+ 
+ /// Keyboard shortcuts shown after a ribbon tooltip's command name: Excel for Mac's on macOS,
+-/// Excel for Windows' elsewhere (each one GridCraft binds). Only the name is translated.
++/// Excel for Windows' elsewhere (each one UniCore binds). Only the name is translated.
+ const TOOLTIP_SHORTCUTS: &[(&str, &str, &str)] = &[
+     ("Save", "⌘S", "Ctrl+S"),
+     ("Undo", "⌘Z", "Ctrl+Z"),
 diff --git a/crates/xlsx/src/feature_bags.rs b/crates/xlsx/src/feature_bags.rs
-index 71a6514..6e24cf2 100644
+index 71a6514a..6e24cf29 100644
 --- a/crates/xlsx/src/feature_bags.rs
 +++ b/crates/xlsx/src/feature_bags.rs
 @@ -6,7 +6,7 @@
@@ -1770,7 +2080,7 @@ index 71a6514..6e24cf2 100644
  //! that every checkbox `xf` points at.
  
 diff --git a/crates/xlsx/src/lib.rs b/crates/xlsx/src/lib.rs
-index 3300f97..c42a047 100644
+index 4274f119..4d451600 100644
 --- a/crates/xlsx/src/lib.rs
 +++ b/crates/xlsx/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1780,7 +2090,7 @@ index 3300f97..c42a047 100644
  //!
  //! Clean-room implementation from ECMA-376 / ISO/IEC 29500 and observed behaviour. All entry
 diff --git a/crates/xlsx/src/passthrough.rs b/crates/xlsx/src/passthrough.rs
-index dd881c1..5c6b809 100644
+index 03bde2bb..b7eeb130 100644
 --- a/crates/xlsx/src/passthrough.rs
 +++ b/crates/xlsx/src/passthrough.rs
 @@ -1,4 +1,4 @@
@@ -1789,7 +2099,7 @@ index dd881c1..5c6b809 100644
  //!
  //! On read, the raw bytes of unmodelled parts are kept with their content type and their
  //! relationship graph, per owner: the package root (custom document properties, ribbon
-@@ -11,7 +11,7 @@
+@@ -12,7 +12,7 @@
  //!
  //! On write, kept parts get fresh part names where needed and new relationship ids; the `r:id`s in
  //! kept XML are rewritten to match. Kept content is conservative:
@@ -1798,16 +2108,16 @@ index dd881c1..5c6b809 100644
  //!   drawings, charts, tables, PivotTables, comments, slicers…) is not kept: it would point at
  //!   content that no longer exists in the same form.
  //! - External relationship targets (the path of a linked workbook) are kept as text and never
-@@ -94,7 +94,7 @@ const NS_CALC_FEATURES: &str = "http://schemas.microsoft.com/office/spreadsheetm
+@@ -95,7 +95,7 @@ const NS_CALC_FEATURES: &str = "http://schemas.microsoft.com/office/spreadsheetm
  /// Kept sheet elements, in schema order (all after `<legacyDrawing>`, before `<tableParts>`).
- const SHEET_SLOTS: &[&str] = &["picture", "oleObjects", "controls"];
+ const SHEET_SLOTS: &[&str] = &["legacyDrawingHF", "picture", "oleObjects", "controls"];
  
 -/// Relationship kinds GridCraft reads and rewrites, or that depend on content it rewrites:
 +/// Relationship kinds UniCore reads and rewrites, or that depend on content it rewrites:
  /// kept content whose graph reaches one of them is dropped.
  const REWRITTEN: &[&str] = &[
      "officedocument",
-@@ -143,7 +143,7 @@ const REWRITTEN: &[&str] = &[
+@@ -144,7 +144,7 @@ const REWRITTEN: &[&str] = &[
  /// their style, colour and shape parts are kept byte for byte (the chart sheet is not modelled).
  const CHART_SHEET_GRAPH: &[&str] = &["chartsheet", "drawing", "chart", "chartex", "chartstyle", "chartcolorstyle", "chartusershapes"];
  
@@ -1816,7 +2126,16 @@ index dd881c1..5c6b809 100644
  /// original names. Anything else is renamed so it can't collide with written parts.
  const OWN_DIRS: &[&str] = &[
      "customxml/",
-@@ -542,7 +542,7 @@ impl KeptReader {
+@@ -508,7 +508,7 @@ impl KeptReader {
+             }
+         }
+         // Header and footer pictures (`&G`): a VML drawing of their own and the images it shows,
+-        // kept byte for byte (GridCraft writes the header text, not the pictures).
++        // kept byte for byte (UniCore writes the header text, not the pictures).
+         if let Some(id) = scan.legacy_drawing_hf.as_deref()
+             && scan.legacy_drawing.as_deref() != Some(id)
+             && let Some(r) = rels.iter().find(|r| r.id == id && is_kind(r, &["vmlDrawing"]))
+@@ -561,7 +561,7 @@ impl KeptReader {
          }
      }
  
@@ -1825,8 +2144,8 @@ index dd881c1..5c6b809 100644
      /// shapes refer to (preview images).
      fn vml(
          &mut self,
-@@ -738,7 +738,7 @@ fn shape_numbers(vml: &str) -> Vec<u64> {
-         .collect()
+@@ -773,7 +773,7 @@ fn vml_block_max(vml: &str) -> u64 {
+     used.max(claimed)
  }
  
 -/// Kept VML (controls, OLE objects) plus GridCraft's note shapes: the notes get ids in a fresh
@@ -1834,7 +2153,16 @@ index dd881c1..5c6b809 100644
  /// shape block so they can't collide with the kept shapes the sheet XML refers to.
  fn merge_vml(kept: &str, ours: &str) -> String {
      let Some(close) = kept.rfind("</xml>") else { return ours.to_string() };
-@@ -1127,7 +1127,7 @@ impl<'a> SheetKept<'a> {
+@@ -880,7 +880,7 @@ pub struct KeptOut {
+ 
+ impl KeptOut {
+     /// Reserves the VML shape blocks the kept header and footer drawings of `wb` use, so that the
+-    /// notes drawings GridCraft writes don't reuse their shape ids.
++    /// notes drawings UniCore writes don't reuse their shape ids.
+     pub fn reserve_vml_blocks(&mut self, wb: &Workbook) {
+         let vmls =
+             wb.sheets.iter().filter_map(|s| s.preserved.as_deref()).flat_map(|p| &p.parts).filter(|q| q.content_type.eq_ignore_ascii_case(CT_VML));
+@@ -1178,7 +1178,7 @@ impl<'a> SheetKept<'a> {
          }
      }
  
@@ -1844,10 +2172,10 @@ index dd881c1..5c6b809 100644
          let Some(vml) = self.vml() else { return ours };
          self.write_vml_rels(vml, name, out);
 diff --git a/crates/xlsx/src/pivot.rs b/crates/xlsx/src/pivot.rs
-index 609ae53..24b68e3 100644
+index f7552343..ed78b320 100644
 --- a/crates/xlsx/src/pivot.rs
 +++ b/crates/xlsx/src/pivot.rs
-@@ -683,7 +683,7 @@ fn cache_xml(c: &Cache, records_rid: Option<&str>, sys: DateSystem) -> String {
+@@ -686,7 +686,7 @@ fn cache_xml(c: &Cache, records_rid: Option<&str>, sys: DateSystem) -> String {
          }
          _ => s.push_str(" saveData=\"0\""),
      }
@@ -1857,10 +2185,10 @@ index 609ae53..24b68e3 100644
      let _ = write!(s, "<cacheFields count=\"{}\">", c.fields.len());
      for f in &c.fields {
 diff --git a/crates/xlsx/src/read.rs b/crates/xlsx/src/read.rs
-index 1a47908..82d50cd 100644
+index 774567bf..cd88552c 100644
 --- a/crates/xlsx/src/read.rs
 +++ b/crates/xlsx/src/read.rs
-@@ -326,7 +326,7 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
+@@ -378,7 +378,7 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
          wb.props.company = x.child("Company").map(|e| e.text.clone()).unwrap_or_default();
      }
  
@@ -1870,10 +2198,19 @@ index 1a47908..82d50cd 100644
      if let Some(r) = find_rel(&wb_rels, "vbaProject").cloned() {
          match cx.pkg.read(&r.target) {
 diff --git a/crates/xlsx/src/write.rs b/crates/xlsx/src/write.rs
-index 06761f0..067e530 100644
+index cf208d6c..e2d2f5ed 100644
 --- a/crates/xlsx/src/write.rs
 +++ b/crates/xlsx/src/write.rs
-@@ -427,7 +427,7 @@ pub fn write_xlsx(wb: &Workbook, kind: XlsxKind) -> Result<Vec<u8>, IoError> {
+@@ -342,7 +342,7 @@ pub fn write_xlsx_named(wb: &Workbook, kind: XlsxKind, book_name: Option<&str>)
+ 
+     let mut w = format!("{XML_DECL}<workbook xmlns=\"{NS_MAIN}\" xmlns:r=\"{NS_REL}\">");
+     // A workbook read from a file keeps its <fileVersion> as it was: Excel trusts the saved values
+-    // only when appName is "xl" (#799). One without names GridCraft (#1699), and Excel recalculates it.
++    // only when appName is "xl" (#799). One without names UniCore (#1699), and Excel recalculates it.
+     let file_version = crate::passthrough::workbook_elements(wb, "fileVersion");
+     w.push_str(if file_version.is_empty() { "<fileVersion appName=\"gridcraft\"/>" } else { &file_version });
+     w.push_str("<workbookPr");
+@@ -469,7 +469,7 @@ pub fn write_xlsx_named(wb: &Workbook, kind: XlsxKind, book_name: Option<&str>)
      core.push_str("</cp:coreProperties>");
      out.part("docProps/core.xml", Some("application/vnd.openxmlformats-package.core-properties+xml"), core.into_bytes());
      let mut app = String::from(XML_DECL);
@@ -1883,7 +2220,7 @@ index 06761f0..067e530 100644
          let _ = write!(app, "<Company>{}</Company>", esc(&p.company));
      }
 diff --git a/crates/xlsx/src/xls/formula.rs b/crates/xlsx/src/xls/formula.rs
-index 3de8607..3a7802c 100644
+index 3de86070..3a7802ca 100644
 --- a/crates/xlsx/src/xls/formula.rs
 +++ b/crates/xlsx/src/xls/formula.rs
 @@ -337,7 +337,7 @@ pub(super) fn decode(rgce: &[u8], rgcb: &[u8], base: CellRef, mode: Mode, links:
@@ -1896,10 +2233,10 @@ index 3de8607..3a7802c 100644
                  push(&mut stack, kids, Expr::Name(name.clone()))?;
              }
 diff --git a/crates/xlsx/src/xls/mod.rs b/crates/xlsx/src/xls/mod.rs
-index dde8641..792ce7a 100644
+index ceaf3e26..a202a91d 100644
 --- a/crates/xlsx/src/xls/mod.rs
 +++ b/crates/xlsx/src/xls/mod.rs
-@@ -47,7 +47,7 @@ pub(crate) fn invalid(msg: impl Into<String>) -> IoError {
+@@ -50,7 +50,7 @@ pub(crate) fn invalid(msg: impl Into<String>) -> IoError {
  
  /// The message for an encrypted workbook (a FilePass record).
  const ENCRYPTED: &str =
@@ -1908,7 +2245,7 @@ index dde8641..792ce7a 100644
  
  /// Whether the bytes are a compound file holding an Excel workbook stream (BIFF8 `Workbook`
  /// or BIFF5 `Book`).
-@@ -191,7 +191,7 @@ pub(crate) fn read_xls_with(bytes: &[u8], mut budget: Budget) -> Result<(Workboo
+@@ -194,7 +194,7 @@ pub(crate) fn read_xls_with(bytes: &[u8], mut budget: Budget) -> Result<(Workboo
          wb.sheets.push(Arc::new(sheet));
      }
      if wb.sheets.is_empty() {
@@ -1917,7 +2254,7 @@ index dde8641..792ce7a 100644
      }
      wb.calc.precision_as_displayed = g.precision_as_displayed;
      defined_names(&g, &model_index, &mut wb, &mut report);
-@@ -456,7 +456,7 @@ impl SheetState<'_> {
+@@ -457,7 +457,7 @@ impl SheetState<'_> {
                  let text = gridcraft_formula::print(&e);
                  let mut f = Formula::new(&text);
                  if f.expr.is_none() {
@@ -1926,3 +2263,16 @@ index dde8641..792ce7a 100644
                      return;
                  }
                  f.array = array.filter(|r| !r.is_single());
+diff --git a/crates/xlsx/src/xml.rs b/crates/xlsx/src/xml.rs
+index ec8cd9e7..f8212312 100644
+--- a/crates/xlsx/src/xml.rs
++++ b/crates/xlsx/src/xml.rs
+@@ -427,7 +427,7 @@ pub fn t_el(s: &str) -> String {
+ pub fn si_body(text: &str, phonetic: Option<&PhoneticString>) -> String {
+     let mut s = t_el(text);
+     let Some(p) = phonetic else { return s };
+-    // The model is public and restored from GridCraft JSON too, so the reader's checks are not the
++    // The model is public and restored from UniCore JSON too, so the reader's checks are not the
+     // only way data gets here: validate again and write only what the schema allows (§18.4.6: an
+     // `sb` before `eb`, both inside the base text, a non-empty reading; §18.18.56/57: a known enum
+     // value). Damaged data is dropped, never written back invalid.

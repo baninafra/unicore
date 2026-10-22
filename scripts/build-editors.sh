@@ -19,10 +19,10 @@ OUT="$ROOT/public/editors"
 
 # tipo  repositorio                                commit
 EDITORS="
-doc   https://github.com/storytold/wordcraft.git  86adfd34eb2d3916a571e84b6605ec642e274440
-sheet https://github.com/storytold/gridcraft.git  82ee02aac475e6e217b0dba3914d5b7f8081f6f1
-deck  https://github.com/storytold/deckcraft.git  9859da39255c0262cd592bb57101d7f2fa961f72
-pdf   https://github.com/storytold/pdfcraft.git   99941daa5af17155becd2aec66d072ca0f4b8a14
+doc   https://github.com/storytold/wordcraft.git  9130181a5fdaee2293e67756fd5458c601489f3c
+sheet https://github.com/storytold/gridcraft.git  ac8da7d49cbeb4be6aa1ad5869f3d29fe2da8cd9
+deck  https://github.com/storytold/deckcraft.git  b47195feec0f0fe4220d8943ad1c8add5dad8072
+pdf   https://github.com/storytold/pdfcraft.git   39844f06b58bc96bae72d3fb56faaa3b6201c945
 "
 
 want="${*:-doc sheet deck pdf}"

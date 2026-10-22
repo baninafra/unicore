@@ -196,7 +196,7 @@ function Acerca() {
   return (
     <>
       <Row label="UniCore">
-        <span className="t-small num text-muted">{version || "0.4.0"}</span>
+        <span className="t-small num text-muted">{version || "0.4.1"}</span>
       </Row>
       {isDesktop() && (
         <Row label={t("Actualizaciones")}>

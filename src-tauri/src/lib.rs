@@ -13,6 +13,7 @@
 //! para que otras IAs lean y escriban en esta base. Lo que escribe el MCP se marca con
 //! `source = 'mcp'` y la app lo trae con `db_changes_since`.
 
+mod frame;
 mod ia;
 mod mcp;
 mod ocr;
@@ -241,24 +242,10 @@ fn open_data_folder(app: tauri::AppHandle, store: State<Store>) -> CmdResult<()>
         .map_err(err)
 }
 
-/// Vuelve a pintar el borde de la ventana. Maximizada sin barra de título y con la barra de tareas
-/// que se oculta sola, queda 1 píxel abajo fuera del contenido que Windows pinta de blanco al
-/// mostrarla; repintar el marco lo deja como el resto (es lo mismo que pasa al re-maximizar a mano).
+/// Vuelve a pintar el borde de la ventana después de mostrarla (ver frame.rs).
 #[tauri::command]
 fn refresh_frame(window: tauri::WebviewWindow) {
-    #[cfg(windows)]
-    if let Ok(hwnd) = window.hwnd() {
-        use windows::Win32::Foundation::HWND;
-        use windows::Win32::Graphics::Gdi::{RedrawWindow, RDW_FRAME, RDW_INVALIDATE, RDW_UPDATENOW};
-        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER};
-        let hwnd = HWND(hwnd.0 as _);
-        unsafe {
-            let _ = SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-            let _ = RedrawWindow(Some(hwnd), None, None, RDW_FRAME | RDW_INVALIDATE | RDW_UPDATENOW);
-        }
-    }
-    #[cfg(not(windows))]
-    let _ = window;
+    frame::repaint(&window);
 }
 
 /// Modo servidor MCP por stdio (`unicore.exe --mcp`).
@@ -291,6 +278,9 @@ pub fn run() {
                 }
             });
             app.manage(store);
+            if let Some(w) = app.get_webview_window("main") {
+                frame::install(&w);
+            }
             // Por si la interfaz no llega a mostrar la ventana (un error al cargar), se muestra igual.
             let handle = app.handle().clone();
             std::thread::spawn(move || {

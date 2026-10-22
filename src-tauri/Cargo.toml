@@ -1,6 +1,6 @@
 [package]
 name = "unicore"
-version = "0.4.0"
+version = "0.4.1"
 description = "UniCore: tus carreras, en un solo núcleo"
 edition = "2021"
 
@@ -23,7 +23,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Globalization", "Graphics_Imaging", "Media_Ocr", "Storage_Streams", "Win32_System_WinRT", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Globalization", "Graphics_Imaging", "Media_Ocr", "Storage_Streams", "Win32_System_WinRT", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell"] }
 
 [profile.release]
 codegen-units = 1

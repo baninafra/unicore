@@ -251,12 +251,9 @@ export async function moveSubject(id: string, place: { degreeId: string; year?: 
     if (place.parentId) {
       const parent = await db.subjects.get(place.parentId);
       if (!parent) return false;
-      // Una carpeta (o cualquier cosa soltada sobre una carpeta) queda adentro; una materia soltada
-      // sobre otra materia queda a su lado.
-      if (s.folder || parent.folder) target = { degreeId: parent.degreeId, year: undefined, parentId: parent.id };
-      else target = { degreeId: parent.degreeId, year: parent.year, parentId: parent.parentId };
+      target = { degreeId: parent.degreeId, year: place.year, parentId: parent.id };
       // No se puede meter una carpeta dentro de sí misma ni de una de sus subcarpetas.
-      for (let p: typeof parent | undefined = target.parentId ? await db.subjects.get(target.parentId) : undefined, n = 0; p && n < 20; n++) {
+      for (let p: typeof parent | undefined = parent, n = 0; p && n < 20; n++) {
         if (p.id === id) return false;
         p = p.parentId ? await db.subjects.get(p.parentId) : undefined;
       }

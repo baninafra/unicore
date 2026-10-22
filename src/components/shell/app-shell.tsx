@@ -180,16 +180,12 @@ export function AppShell() {
             await w.maximize();
           }
           await w.show();
-          // A veces el contenido queda con el tamaño de antes de maximizar (franja blanca abajo):
-          // si no ocupa toda la ventana, se vuelve a maximizar para que se acomode.
-          for (const ms of [150, 600, 1500]) {
+          // El píxel de abajo que queda fuera del contenido (barra de tareas que se oculta sola) se
+          // pinta de blanco al mostrar la ventana: se repinta el marco (src-tauri/src/lib.rs).
+          const { invoke } = await import("@tauri-apps/api/core");
+          for (const ms of [0, 300]) {
             await new Promise((r) => setTimeout(r, ms));
-            const [size, scale] = await Promise.all([w.innerSize(), w.scaleFactor()]);
-            if (Math.abs(size.height / scale - window.innerHeight) <= 2 && Math.abs(size.width / scale - window.innerWidth) <= 2) continue;
-            if (await w.isMaximized()) {
-              await w.unmaximize();
-              await w.maximize();
-            }
+            await invoke("refresh_frame").catch(() => undefined);
           }
           await w.setFocus();
         });

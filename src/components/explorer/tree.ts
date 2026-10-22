@@ -45,6 +45,8 @@ export interface TreeNode {
   drop?: { subjectId: string; unit?: number; parentId?: string };
   // Destino al soltar una materia o carpeta: el espacio (y el año) donde queda, o la carpeta que la contiene
   place?: { degreeId: string; year?: number; parentId?: string };
+  // Dónde queda una materia o carpeta soltada al lado (borde de arriba o de abajo de la fila)
+  beside?: { degreeId: string; year?: number; parentId?: string };
 }
 
 export function useExplorerData(): ExplorerData | undefined {
@@ -176,6 +178,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       icon: CalendarDays,
       item: { kind: "folder", folder: DAILY_FOLDER },
       drop: { subjectId: DAILY_FOLDER },
+      beside: { degreeId: "" },
       children: daily.map((n) => noteNode(n)),
     },
     {
@@ -184,6 +187,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       icon: Folder,
       item: { kind: "folder", folder: LOOSE_FOLDER },
       drop: { subjectId: LOOSE_FOLDER },
+      beside: { degreeId: "" },
       children: [...looseNotes.map((n) => noteNode(n)), ...looseCanvases.map((c) => canvasNode(c, LOOSE_FOLDER)), ...looseFiles.map((f) => fileNode(f, LOOSE_FOLDER))],
     },
   ];
@@ -226,7 +230,8 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
       item: { kind: "subject", id: s.id },
       drag: { kind: "subject", id: s.id },
       drop: { subjectId: s.id },
-      place: { degreeId: s.degreeId, year: s.folder || !def.study ? undefined : s.year, parentId: s.id },
+      place: { degreeId: s.degreeId, parentId: s.id },
+      beside: { degreeId: s.degreeId, year: s.folder || !def.study ? undefined : s.year, parentId: nested(s) ? s.parentId : undefined },
       children,
     };
   };
@@ -248,6 +253,7 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
           icon: def.spaceIcon,
           item: { kind: "degree", id: d.id },
           place: { degreeId: d.id },
+          beside: { degreeId: "" },
           children: [...folderNodes, ...subjects.filter((s) => !s.folder).sort((a, b) => a.name.localeCompare(b.name, intlLocale())).map(node)],
         };
       }
@@ -257,11 +263,13 @@ export function buildTree(data: ExplorerData, degreeFilter: string, sort: SortMo
         icon: def.spaceIcon,
         item: { kind: "degree", id: d.id },
         place: { degreeId: d.id },
+        beside: { degreeId: "" },
         children: [...folderNodes, ...years.map((y): TreeNode => ({
           key: `y:${d.id}:${y}`,
           label: t("{año}.º año", { año: y }),
           item: { kind: "year", degreeId: d.id, year: y },
           place: { degreeId: d.id, year: y },
+          beside: { degreeId: d.id },
           children: subjects
             .filter((s) => s.year === y && !s.folder)
             .sort((a, b) => a.semester - b.semester || a.name.localeCompare(b.name, intlLocale()))

@@ -52,7 +52,7 @@ const LS_SORT = "uc-explorer-sort";
 function startDrag(
   e: ReactPointerEvent,
   node: TreeNode,
-  h: { findDrop: (key: string, p: Payload) => Target | undefined; setDropKey: (k: string | null) => void; moveTo: (p: Payload, t: Target) => void; toggle: (key: string) => void },
+  h: { resolve: (ev: PointerEvent, p: Payload) => DropHit | null; setDrop: (d: DropMark | null) => void; moveTo: (p: Payload, t: Target) => void; toggle: (key: string) => void },
 ) {
   if (e.button !== 0 || !node.drag) return;
   const payload = node.drag;
@@ -60,7 +60,7 @@ function startDrag(
   const startY = e.clientY;
   let active = false;
   let ghost: HTMLDivElement | null = null;
-  let overKey: string | null = null;
+  let over: DropHit | null = null;
   let expandKey: string | null = null;
   let expandTimer: number | undefined;
 
@@ -89,13 +89,9 @@ function startDrag(
       ghost.style.top = `${ev.clientY + 8}px`;
     }
     const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    const dropEl = el?.closest<HTMLElement>("[data-drop]");
-    const k = dropEl?.dataset.drop;
-    const key = k && k !== `n:${payload.id}` && k !== `s:${payload.id}` && h.findDrop(k, payload) ? k : null;
-    if (key !== overKey) {
-      overKey = key;
-      h.setDropKey(key);
-    }
+    const hit = h.resolve(ev, payload);
+    if (hit?.key !== over?.key || hit?.zone !== over?.zone) h.setDrop(hit && { key: hit.key, zone: hit.zone });
+    over = hit;
     const exp = el?.closest<HTMLElement>("[data-expand]")?.dataset.expand ?? null;
     if (exp !== expandKey) {
       expandKey = exp;
@@ -105,8 +101,7 @@ function startDrag(
   };
   const onUp = () => {
     if (active) {
-      const target = overKey ? h.findDrop(overKey, payload) : undefined;
-      if (target) h.moveTo(payload, target);
+      if (over) h.moveTo(payload, over.target);
       // El clic que llega al soltar no tiene que abrir la nota.
       const swallow = (ev: Event) => {
         ev.stopPropagation();
@@ -125,7 +120,7 @@ function startDrag(
     window.removeEventListener("pointercancel", cleanup);
     if (active) {
       ghost?.remove();
-      h.setDropKey(null);
+      h.setDrop(null);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     }
@@ -137,6 +132,10 @@ function startDrag(
 
 type Payload = { kind: "note" | "canvas" | "file" | "subject"; id: string };
 type Target = { subjectId: string; unit?: number; parentId?: string } | { place: { degreeId: string; year?: number; parentId?: string } };
+// Dónde cae lo arrastrado: adentro de la fila, al lado (arriba o abajo) o en el primer nivel.
+type DropZone = "into" | "before" | "after" | "root";
+type DropMark = { key: string; zone: DropZone };
+type DropHit = DropMark & { target: Target };
 
 type Dialog =
   | { type: "rename"; kind: "note" | "canvas" | "subject" | "file" | "folder"; id: string; value: string }
@@ -150,8 +149,7 @@ interface Ctx {
   isOpen: (key: string) => boolean;
   toggle: (key: string) => void;
   open: (view: ViewState, e?: ModifierEvent) => void;
-  dropKey: string | null;
-  setDropKey: (key: string | null) => void;
+  drop: DropMark | null;
   onDrop: (payload: Payload, target: Target) => void;
   startDrag: (e: ReactPointerEvent, node: TreeNode) => void;
   onContext: (e: MouseEvent, node: TreeNode) => void;
@@ -172,14 +170,14 @@ export function FileExplorer() {
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [career, setCareer] = useState<{ type: "subject"; degreeId: string; year?: number } | { type: "degree"; degree: Degree } | null>(null);
-  const [dropKey, setDropKey] = useState<string | null>(null);
+  const [drop, setDrop] = useState<DropMark | null>(null);
 
   const namesVersion = useFolderNames();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- namesVersion: los nombres de las carpetas fijas
   const tree = useMemo(() => (data ? buildTree(data, degreeFilter, sort, inScope, singleSpace?.id) : []), [data, degreeFilter, sort, inScope, singleSpace?.id, namesVersion]);
-  const dropTargets = useMemo(() => {
+  const nodeByKey = useMemo(() => {
     const map = new Map<string, TreeNode>();
-    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => ((n.drop || n.place) && map.set(n.key, n), n.children && walk(n.children)));
+    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => (map.set(n.key, n), n.children && walk(n.children)));
     walk(tree);
     return map;
   }, [tree]);
@@ -267,19 +265,36 @@ export function FileExplorer() {
     });
   };
 
+  // Qué hay debajo del mouse mientras se arrastra. Notas, lienzos y archivos caen adentro de la fila.
+  // Materias y carpetas: en el medio de la fila, adentro; en el borde de arriba o de abajo, al lado;
+  // en el espacio vacío del explorador, en el primer nivel.
+  const resolve = (ev: PointerEvent, p: Payload): DropHit | null => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const rowEl = el?.closest<HTMLElement>("[data-key]");
+    if (rowEl) {
+      const key = rowEl.dataset.key!;
+      const n = nodeByKey.get(key);
+      if (!n) return null;
+      if (p.kind !== "subject") return key !== `n:${p.id}` && n.drop ? { key, zone: "into", target: n.drop } : null;
+      if (key === `s:${p.id}`) return null;
+      const r = rowEl.getBoundingClientRect();
+      const f = (ev.clientY - r.top) / r.height;
+      const edge: DropZone | null = f < 0.28 ? "before" : f > 0.72 ? "after" : null;
+      if (!edge && n.place) return { key, zone: "into", target: { place: n.place } };
+      return n.beside ? { key, zone: edge ?? "after", target: { place: n.beside } } : null;
+    }
+    if (p.kind === "subject" && el?.closest("[data-tree-root]")) return { key: "root", zone: "root", target: { place: { degreeId: "" } } };
+    return null;
+  };
+
   const ctx: Ctx = {
     activeView,
     isOpen,
     toggle,
     open,
-    dropKey,
-    setDropKey,
+    drop,
     onDrop: moveTo,
-    startDrag: (e, node) => startDrag(e, node, { findDrop: (key, p) => {
-        const n = dropTargets.get(key);
-        if (p.kind === "subject") return n?.place ? { place: n.place } : undefined;
-        return n?.drop;
-      }, setDropKey, moveTo, toggle }),
+    startDrag: (e, node) => startDrag(e, node, { resolve, setDrop, moveTo, toggle }),
     onContext: (e, node) => {
       const items = menuFor(node);
       if (items.length) menu.open(e, items);
@@ -503,7 +518,7 @@ export function FileExplorer() {
   const deleteTitle = dialog?.type === "delete" ? dialog.title : "";
 
   return (
-    <div className="flex flex-col">
+    <div data-tree-root className={clsx("flex min-h-full flex-col", drop?.zone === "root" && "rounded-md bg-primary-tint/40")}>
       <div className="sticky top-0 z-10 flex h-9 flex-none items-center gap-0.5 bg-bg pl-3 pr-2">
         <span className="section-label mr-auto truncate px-0">{activeProfile?.name ?? t("Archivos")}</span>
         <button type="button" className="icon-btn" aria-label={t("Nueva carpeta")} title={t("Nueva carpeta")} onClick={() => openFolderDialog({ root: true })}>
@@ -615,7 +630,7 @@ function Row({ node, ctx, slot }: { node: TreeNode; ctx: Ctx; slot: boolean }) {
   const active = !!node.view && sameView(node.view, ctx.activeView);
   const isLevel = !node.view; // carpetas, carreras, años y unidades
   const Icon = node.icon;
-  const dropping = ctx.dropKey === node.key;
+  const mark = ctx.drop?.key === node.key ? ctx.drop.zone : null;
 
   return (
     <>
@@ -624,9 +639,16 @@ function Row({ node, ctx, slot }: { node: TreeNode; ctx: Ctx; slot: boolean }) {
         aria-expanded={expandable ? expanded : undefined}
         aria-selected={active}
         aria-current={active ? "page" : undefined}
-        data-drop={node.drop || node.place ? node.key : undefined}
+        data-key={node.key}
         data-expand={expandable && !expanded ? node.key : undefined}
-        className={clsx("row select-none", isLevel && "text-text", dropping && "bg-primary-tint text-text")}
+        className={clsx(
+          "row select-none",
+          isLevel && "text-text",
+          mark === "into" && "bg-primary-tint text-text",
+          // Al lado: una línea arriba o abajo de la fila.
+          mark === "before" && "shadow-[inset_0_2px_0_var(--primary)]",
+          mark === "after" && "shadow-[inset_0_-2px_0_var(--primary)]",
+        )}
         onClick={(e) => (node.view ? ctx.open(node.view, e) : ctx.toggle(node.key))}
         onAuxClick={(e) => {
           if (e.button === 1 && node.view) {

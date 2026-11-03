@@ -1,8 +1,8 @@
 diff --git a/apps/deckcraft-cli/src/help.rs b/apps/deckcraft-cli/src/help.rs
-index 4227905..45ef6d9 100644
+index 0cf057b3..7dcc91ef 100644
 --- a/apps/deckcraft-cli/src/help.rs
 +++ b/apps/deckcraft-cli/src/help.rs
-@@ -117,8 +117,8 @@ calls it.
+@@ -126,8 +126,8 @@ calls it.
      Subcommand {
          name: "app",
          usage: "app [--port PORT] COMMAND [PARAMS] | --method METHOD [PARAMS]",
@@ -13,8 +13,8 @@ index 4227905..45ef6d9 100644
  and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd does; --method METHOD
  [PARAMS] calls a control-channel method such as ui.screenshot. PARAMS is a JSON object.
  
-@@ -130,7 +130,7 @@ and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd doe
-         usage: "mcp [--connect PORT] [--sample] [--automation-read-root DIR] [--automation-write-root DIR]",
+@@ -139,7 +139,7 @@ and prints its answer as JSON. COMMAND [PARAMS] runs a command, as run --cmd doe
+         usage: "mcp [--connect PORT] [--sample] [--automation-read-root DIR]... [--automation-write-root DIR]...",
          summary: "serve the commands to an agent over MCP on stdio",
          details: "Runs a Model Context Protocol server on stdin and stdout. It works on its own presentation without a
 -window, or with --connect PORT (or host:port) on the DeckCraft app started with --control PORT.
@@ -22,7 +22,7 @@ index 4227905..45ef6d9 100644
  --sample opens the sample presentation.
  
  --automation-read-root DIR and --automation-write-root DIR confine every file the agent's commands read
-@@ -148,12 +148,6 @@ median and slowest of N runs (5 by default, 1 to 1000) as a table, or as JSON wi
+@@ -157,12 +157,6 @@ median and slowest of N runs (5 by default, 1 to 1000) as a table, or as JSON wi
  
    deckcraft-cli bench deck.pptx --runs 10",
      },
@@ -35,7 +35,7 @@ index 4227905..45ef6d9 100644
      Subcommand { name: "version", usage: "--version", summary: "print the version", details: "Prints the version of deckcraft-cli." },
  ];
  
-@@ -171,7 +165,7 @@ pub fn overview() -> String {
+@@ -180,7 +174,7 @@ pub fn overview() -> String {
      let list: Vec<String> =
          SUBCOMMANDS.iter().map(|s| format!("  {:<width$}  {}", s.usage.split(' ').next().unwrap_or_default(), s.summary)).collect();
      format!(
@@ -45,7 +45,7 @@ index 4227905..45ef6d9 100644
  {}
  
 diff --git a/apps/deckcraft-cli/src/main.rs b/apps/deckcraft-cli/src/main.rs
-index c6276ef..5cd3d7b 100644
+index 5701b72f..13002590 100644
 --- a/apps/deckcraft-cli/src/main.rs
 +++ b/apps/deckcraft-cli/src/main.rs
 @@ -1,4 +1,4 @@
@@ -54,19 +54,19 @@ index c6276ef..5cd3d7b 100644
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
  #![forbid(unsafe_code)]
  
-@@ -72,11 +72,6 @@ fn main() -> ExitCode {
+@@ -87,11 +87,6 @@ fn main() -> ExitCode {
          Some("describe") => report(describe(rest.first().map(String::as_str))),
          Some("app") => report(app(rest)),
          Some("mcp") => report(mcp(rest)),
 -        Some("links") => {
--            use deckcraft_engine::links::*;
+-            use deckcraft_engine::links::{APP_PAGE, DISCORD, GITHUB, WEBSITE};
 -            outln!("Discord   {DISCORD}\nWebsite   {WEBSITE}\nApp page  {APP_PAGE}\nGitHub    {GITHUB}");
 -            ExitCode::SUCCESS
 -        }
          Some(other) => unknown(other),
          None => usage(),
      }
-@@ -98,7 +93,6 @@ fn unknown(sub: &str) -> ExitCode {
+@@ -113,7 +108,6 @@ fn unknown(sub: &str) -> ExitCode {
  
  fn usage() -> ExitCode {
      eprintln!("{}", help::overview());
@@ -74,7 +74,7 @@ index c6276ef..5cd3d7b 100644
      ExitCode::FAILURE
  }
  
-@@ -588,7 +582,7 @@ fn app(args: &[String]) -> Result<(), String> {
+@@ -671,7 +665,7 @@ fn app(args: &[String]) -> Result<(), String> {
          }
      }
      let mut r = Remote::connect(&control_addr(&port))
@@ -83,18 +83,8 @@ index c6276ef..5cd3d7b 100644
      let parse = |s: Option<&String>| -> Result<Value, String> {
          s.map(|j| serde_json::from_str(j).map_err(|e| format!("bad JSON: {e}"))).transpose().map(|v| v.unwrap_or(json!({})))
      };
-diff --git a/apps/deckcraft-web/Cargo.toml b/apps/deckcraft-web/Cargo.toml
-index 7014421..b918b20 100644
---- a/apps/deckcraft-web/Cargo.toml
-+++ b/apps/deckcraft-web/Cargo.toml
-@@ -27,4 +27,4 @@ rfd = { workspace = true }
- wasm-bindgen = "0.2"
- wasm-bindgen-futures = "0.4"
- js-sys = "0.3"
--web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration"] }
-+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "MessageEvent"] }
 diff --git a/apps/deckcraft-web/index.html b/apps/deckcraft-web/index.html
-index b1834c3..8654428 100644
+index ca570df3..86544283 100644
 --- a/apps/deckcraft-web/index.html
 +++ b/apps/deckcraft-web/index.html
 @@ -3,9 +3,8 @@
@@ -104,7 +94,7 @@ index b1834c3..8654428 100644
 -  <title>DeckCraft</title>
 +  <title>UniCore</title>
    <link data-trunk rel="rust" data-bin="deckcraft-web" data-wasm-opt="z" data-weak-refs />
--  <link data-trunk rel="icon" href="../../assets/app-icon/hicolor/32x32/apps/ai.storyteller.deckcraft.png" />
+-  <link data-trunk rel="icon" href="../../assets/app-icon/deckcraft.ico" />
    <style>
      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #262626; }
      #deckcraft_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -118,7 +108,7 @@ index b1834c3..8654428 100644
  </html>
 diff --git a/apps/deckcraft-web/src/bridge.rs b/apps/deckcraft-web/src/bridge.rs
 new file mode 100644
-index 0000000..164bdc9
+index 00000000..164bdc99
 --- /dev/null
 +++ b/apps/deckcraft-web/src/bridge.rs
 @@ -0,0 +1,302 @@
@@ -425,7 +415,7 @@ index 0000000..164bdc9
 +    inbox.lock().unwrap_or_else(|e| e.into_inner()).push(event);
 +}
 diff --git a/apps/deckcraft-web/src/main.rs b/apps/deckcraft-web/src/main.rs
-index 6d2b7e9..304f8f1 100644
+index 2ce622e9..e60d4e75 100644
 --- a/apps/deckcraft-web/src/main.rs
 +++ b/apps/deckcraft-web/src/main.rs
 @@ -1,4 +1,4 @@
@@ -434,7 +424,7 @@ index 6d2b7e9..304f8f1 100644
  //!
  //! Runs the same [`deckcraft_ui_egui::SlideApp`] as the desktop app through eframe's web
  //! runner (wgpu: WebGPU where available, WebGL2 otherwise). Build with `trunk build --release`
-@@ -14,13 +14,17 @@
+@@ -14,7 +14,8 @@
  //! - preferences are not persisted.
  //!
  //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?blank` starts with an
@@ -444,6 +434,7 @@ index 6d2b7e9..304f8f1 100644
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
  #![forbid(unsafe_code)]
  
+@@ -23,6 +24,9 @@ mod presenter;
  #[cfg(target_arch = "wasm32")]
  mod web;
  
@@ -454,7 +445,7 @@ index 6d2b7e9..304f8f1 100644
  fn main() {
      web::start();
 diff --git a/apps/deckcraft-web/src/web.rs b/apps/deckcraft-web/src/web.rs
-index dabad8a..21f2337 100644
+index a385d44c..be867f66 100644
 --- a/apps/deckcraft-web/src/web.rs
 +++ b/apps/deckcraft-web/src/web.rs
 @@ -1,9 +1,15 @@
@@ -474,7 +465,7 @@ index dabad8a..21f2337 100644
  const PRESENTATION_EXTS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "txt", "md"];
  const PICTURE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff"];
  const AUDIO_EXTS: &[&str] = &["wav", "mp3", "m4a", "aac", "flac", "ogg", "opus", "aif", "aiff"];
-@@ -14,12 +20,21 @@ const LOADING_ID: &str = "deckcraft_loading";
+@@ -16,12 +22,21 @@ const LOADING_ID: &str = "deckcraft_loading";
  pub fn start() {
      eframe::WebLogger::init(log::LevelFilter::Info).ok();
      wasm_bindgen_futures::spawn_local(async {
@@ -496,8 +487,8 @@ index dabad8a..21f2337 100644
              return;
          };
          let mut options = eframe::WebOptions::default();
-@@ -37,9 +52,16 @@ pub fn start() {
-                         log::info!("deckcraft-web {}: wgpu backend {:?}", env!("CARGO_PKG_VERSION"), rs.adapter.get_info().backend);
+@@ -44,9 +59,16 @@ pub fn start() {
+                         return Ok(Box::new(presenter) as Box<dyn eframe::App>);
                      }
                      let inbox: Inbox = Inbox::default();
 -                    let mut app = SlideApp::new(Session::new(), services(inbox.clone(), cc.egui_ctx.clone()));
@@ -515,7 +506,7 @@ index dabad8a..21f2337 100644
                          if let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session) {
                              log::error!("sample deck: {e}");
                          }
-@@ -49,14 +71,20 @@ pub fn start() {
+@@ -56,14 +78,20 @@ pub fn start() {
                      if q.contains("show") {
                          app.start_show(0, false);
                      }
@@ -538,7 +529,7 @@ index dabad8a..21f2337 100644
              }
          }
      });
-@@ -71,6 +99,7 @@ fn query() -> String {
+@@ -78,12 +106,20 @@ fn query() -> String {
  struct WebShell {
      app: SlideApp,
      inbox: Inbox,
@@ -546,10 +537,8 @@ index dabad8a..21f2337 100644
  }
  
  impl eframe::App for WebShell {
-@@ -97,7 +126,14 @@ impl eframe::App for WebShell {
-                 }
-             });
-         }
+     /// Delegate one eframe logic pass to the wrapped application.
+     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 +        // Host messages wait for the frame so their commands run with the app borrowed mutably.
 +        if let Some(b) = self.bridge.as_mut() {
 +            b.drain(&mut self.app, &self.inbox);
@@ -558,10 +547,10 @@ index dabad8a..21f2337 100644
 +        if let Some(b) = self.bridge.as_mut() {
 +            b.after_frame(&mut self.app);
 +        }
-     }
- 
-     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
-@@ -110,9 +146,12 @@ impl eframe::App for WebShell {
+         if self.app.show.is_none()
+             && let Some(host) = self.app.services.presenter.as_mut()
+         {
+@@ -124,9 +160,12 @@ impl eframe::App for WebShell {
  }
  
  /// Web services: no file paths, so `pick_open`/`pick_save`/`read` stay `None` and the UI falls
@@ -573,10 +562,10 @@ index dabad8a..21f2337 100644
      let open_inbox = inbox.clone();
 +    let write_flag = native_saved.clone();
 +    let download_flag = native_saved;
-     Services {
-         open_async: Some(Box::new(move |purpose: &str, request: u64| {
-             let inbox = open_inbox.clone();
-@@ -134,9 +173,18 @@ fn services(inbox: Inbox, ctx: egui::Context) -> Services {
+     let presenter = match crate::presenter::BrowserHost::new(ctx.clone()) {
+         Ok(host) => Some(Box::new(host) as Box<dyn deckcraft_ui_egui::presenter::Host>),
+         Err(error) => {
+@@ -156,9 +195,18 @@ fn services(inbox: Inbox, ctx: egui::Context) -> Services {
                  ctx.request_repaint();
              });
          })),
@@ -599,7 +588,7 @@ index dabad8a..21f2337 100644
              }
          })),
 diff --git a/apps/deckcraft/build.rs b/apps/deckcraft/build.rs
-index 5bb30d5..60c8baa 100644
+index 5bb30d58..60c8baa9 100644
 --- a/apps/deckcraft/build.rs
 +++ b/apps/deckcraft/build.rs
 @@ -14,10 +14,10 @@ fn main() {
@@ -617,7 +606,7 @@ index 5bb30d5..60c8baa 100644
          .set("InternalName", "deckcraft");
      if let Err(e) = res.compile() {
 diff --git a/apps/deckcraft/src/display.rs b/apps/deckcraft/src/display.rs
-index 2a6eeca..b90c491 100644
+index 2a6eeca2..b90c4916 100644
 --- a/apps/deckcraft/src/display.rs
 +++ b/apps/deckcraft/src/display.rs
 @@ -1,6 +1,6 @@
@@ -629,7 +618,7 @@ index 2a6eeca..b90c491 100644
  //! with winit's "failed to open display" even though a Wayland compositor was running. When a
  //! local `DISPLAY` names an X server whose socket isn't there and Wayland is available, start on
 diff --git a/apps/deckcraft/src/graphics.rs b/apps/deckcraft/src/graphics.rs
-index fc054c0..97e1fb0 100644
+index fc054c06..97e1fb0f 100644
 --- a/apps/deckcraft/src/graphics.rs
 +++ b/apps/deckcraft/src/graphics.rs
 @@ -16,7 +16,7 @@ pub fn configure(options: &mut NativeOptions, backend_override: Option<Backends>
@@ -642,7 +631,7 @@ index fc054c0..97e1fb0 100644
          // indirect-validation pipeline and loses the device before the first frame
          // (issue #153). FXC uses the compiler that is part of Windows.
 diff --git a/apps/deckcraft/src/logging.rs b/apps/deckcraft/src/logging.rs
-index a0ca504..f31a167 100644
+index f2cbae0d..3f1d9555 100644
 --- a/apps/deckcraft/src/logging.rs
 +++ b/apps/deckcraft/src/logging.rs
 @@ -7,7 +7,7 @@
@@ -654,7 +643,7 @@ index a0ca504..f31a167 100644
  //! chatty). `RUST_LOG` replaces that with env_logger-style directives: `debug`,
  //! `warn,deckcraft_pptx=trace`, `wgpu_core=info`. A directive ending in `*` matches every target
  //! that starts with it (`deckcraft*=debug`).
-@@ -496,7 +496,7 @@ mod tests {
+@@ -513,7 +513,7 @@ mod tests {
      fn the_logger_filters_records_and_writes_them_to_the_attached_file() {
          let dir = temp_dir("logger");
          let logger = AppLogger::new(Filter::parse(DEFAULT_FILTER), false);
@@ -663,7 +652,7 @@ index a0ca504..f31a167 100644
          record(&logger, log::Level::Info, "wgpu_core::device", "too chatty");
          let path = logger.attach_dir(&dir).expect("attach");
          assert_eq!(path, dir.join(LOG_FILE));
-@@ -505,7 +505,7 @@ mod tests {
+@@ -522,7 +522,7 @@ mod tests {
          let text = read(&path);
          let lines: Vec<&str> = text.lines().collect();
          assert_eq!(lines.len(), 2, "{text}");
@@ -673,7 +662,7 @@ index a0ca504..f31a167 100644
          assert!(logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("deckcraft_engine::recovery").build()));
          assert!(!logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("naga").build()));
 diff --git a/apps/deckcraft/src/main.rs b/apps/deckcraft/src/main.rs
-index e6bd6c4..d0aab9b 100644
+index ad3f820f..00f6619b 100644
 --- a/apps/deckcraft/src/main.rs
 +++ b/apps/deckcraft/src/main.rs
 @@ -1,4 +1,4 @@
@@ -682,16 +671,16 @@ index e6bd6c4..d0aab9b 100644
  //!
  //! Usage: `deckcraft [--control <port>] [--sample] [--show] [files…]`
  //! A PowerPoint Show (`.ppsx`) given last starts its slide show, as a double-click does in PowerPoint.
-@@ -57,7 +57,7 @@ impl eframe::App for App {
+@@ -58,7 +58,7 @@ impl eframe::App for App {
          // in a crash report. eframe calls `on_exit` on every way of quitting (⌘Q, the close
          // button, `app.quit`), once the unsaved-changes prompt has let the window close, and
          // nothing after it is needed: the preferences are saved and the log file is unbuffered.
 -        // `on_exit` only runs once the app exists, never on a failed start. Same as GridCraft #117.
 +        // `on_exit` only runs once the app exists, never on a failed start. Same as UniCore #117.
          #[cfg(target_os = "macos")]
-         std::process::exit(0);
-     }
-@@ -66,9 +66,9 @@ impl eframe::App for App {
+         self.0.cleanup_print_previews();
+         #[cfg(target_os = "macos")]
+@@ -69,9 +69,9 @@ impl eframe::App for App {
  /// The per-user settings directory: `ui.json`, `prefs.json` and `logs/` live here.
  fn config_dir() -> Option<std::path::PathBuf> {
      if cfg!(target_os = "macos") {
@@ -703,7 +692,7 @@ index e6bd6c4..d0aab9b 100644
      } else {
          std::env::var_os("XDG_CONFIG_HOME")
              .map(std::path::PathBuf::from)
-@@ -114,7 +114,7 @@ fn services() -> Services {
+@@ -117,7 +117,7 @@ fn services() -> Services {
                  "theme" => d.add_filter("Themes and presentations", &["thmx", "pptx", "potx", "ppsx"]).add_filter("Office Theme", &["thmx"]),
                  _ => d
                      .add_filter("Presentations", &["deckcraft", "pptx", "potx", "ppsx"])
@@ -712,7 +701,7 @@ index e6bd6c4..d0aab9b 100644
                      .add_filter("PowerPoint", &["pptx", "potx", "ppsx"])
                      .add_filter("Outline", &["txt", "md"]),
              };
-@@ -196,7 +196,7 @@ fn main() -> eframe::Result {
+@@ -208,7 +208,7 @@ fn main() -> eframe::Result {
              }
              Startup::Run { control_port, files, sample, show } => (control_port, files, sample, show),
          };
@@ -721,7 +710,7 @@ index e6bd6c4..d0aab9b 100644
      // The log file lives under the settings directory; opened after the arguments, so `--help` and
      // `--version` leave no file behind. Records logged until now are written to it first.
      if let Some(logger) = logger {
-@@ -211,7 +211,7 @@ fn main() -> eframe::Result {
+@@ -223,7 +223,7 @@ fn main() -> eframe::Result {
      }
      let mut options = eframe::NativeOptions {
          viewport: egui::ViewportBuilder::default()
@@ -730,7 +719,7 @@ index e6bd6c4..d0aab9b 100644
              .with_inner_size([1440.0, 900.0])
              .with_min_inner_size([900.0, 560.0])
              .with_drag_and_drop(true)
-@@ -229,9 +229,9 @@ fn main() -> eframe::Result {
+@@ -241,9 +241,9 @@ fn main() -> eframe::Result {
          display::Choice::X11 => true,
          display::Choice::Default => false,
          display::Choice::None => {
@@ -742,7 +731,7 @@ index e6bd6c4..d0aab9b 100644
              false
          }
      };
-@@ -252,7 +252,7 @@ fn main() -> eframe::Result {
+@@ -264,7 +264,7 @@ fn main() -> eframe::Result {
      #[cfg(target_os = "macos")]
      let apple_events = &apple_events;
      eframe::run_native(
@@ -750,9 +739,9 @@ index e6bd6c4..d0aab9b 100644
 +        "UniCore",
          options,
          Box::new(move |cc| {
-             let mut app = SlideApp::new(Session::new(), services());
+             deckcraft_ui_egui::install_ime_pass_hooks(&cc.egui_ctx);
 diff --git a/apps/deckcraft/src/pasteboard.rs b/apps/deckcraft/src/pasteboard.rs
-index 9862629..1a49845 100644
+index 98626295..1a498458 100644
 --- a/apps/deckcraft/src/pasteboard.rs
 +++ b/apps/deckcraft/src/pasteboard.rs
 @@ -43,11 +43,11 @@ mod tests {
@@ -770,7 +759,7 @@ index 9862629..1a49845 100644
          let img = arboard::ImageData { width: 1, height: 1, bytes: Cow::Owned(vec![255, 0, 0, 255]) };
          cb.set_image(img).expect("set image");
 diff --git a/crates/anim/src/lib.rs b/crates/anim/src/lib.rs
-index cf8fb3f..a9feb3c 100644
+index cf8fb3ff..a9feb3c5 100644
 --- a/crates/anim/src/lib.rs
 +++ b/crates/anim/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -780,17 +769,17 @@ index cf8fb3f..a9feb3c 100644
  //! - [`Timeline`]: a slide's animation list grouped into click steps, with per-shape (and
  //!   per-paragraph) [`AnimState`] at any point of the show.
 diff --git a/crates/bitstream/src/lib.rs b/crates/bitstream/src/lib.rs
-index a4f7d40..4caf66e 100644
+index dcef8c8a..c370c6d0 100644
 --- a/crates/bitstream/src/lib.rs
 +++ b/crates/bitstream/src/lib.rs
 @@ -1,4 +1,4 @@
--//! Bit-level reading and writing shared by DeckCraft's codec crates (ported from FilmCraft).
-+//! Bit-level reading and writing shared by UniCore's codec crates (ported from FilmCraft).
+-//! Bit-level reading and writing for DeckCraft's codec crates: a re-export of
++//! Bit-level reading and writing for UniCore's codec crates: a re-export of
+ //! [`craft_media::bitstream`] from craft-libs, plus [`budget`].
  //!
  //! - [`BitReader`]: MSB-first reader with Exp-Golomb (`ue(v)`, `se(v)`), as used by H.264/HEVC/AV1 headers.
- //! - [`BitWriter`]: the matching writer (for encoders and header rewriting).
 diff --git a/crates/color/src/lib.rs b/crates/color/src/lib.rs
-index ba50e9a..56d3844 100644
+index 3d42aca9..48e4626d 100644
 --- a/crates/color/src/lib.rs
 +++ b/crates/color/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -799,37 +788,41 @@ index ba50e9a..56d3844 100644
  //! (tint, shade, luminance modulation/offset, alpha…), so theme-relative colours resolve the way
  //! presentation files expect.
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
-diff --git a/crates/engine/src/cmd/design.rs b/crates/engine/src/cmd/design.rs
-index 03468f3..72f551d 100644
---- a/crates/engine/src/cmd/design.rs
-+++ b/crates/engine/src/cmd/design.rs
-@@ -1510,7 +1510,7 @@ mod tests {
-         match &s.ui_requests[0] {
-             UiRequest::Dialog { id, params } => {
-                 assert_eq!(id, "themeColors");
--                assert_eq!(params["name"], "DeckCraft");
-+                assert_eq!(params["name"], "UniCore");
-                 let colors = params["colors"].as_object().unwrap();
-                 assert_eq!(colors.len(), 12);
-                 assert_eq!(colors["accent1"].as_str().unwrap(), format!("#{}", original.get(SchemeSlot::Accent1).hex()));
-@@ -1767,10 +1767,10 @@ mod browse_theme_tests {
-         let mut s = crate::Session::with_new();
-         let listed = s.execute("design.themes", &json!({})).unwrap();
-         let names: Vec<String> = listed["effectSchemes"].as_array().unwrap().iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
--        assert_eq!(names, ["DeckCraft", "Soft", "Crisp", "Lift", "Glow", "Plain"]);
-+        assert_eq!(names, ["UniCore", "Soft", "Crisp", "Lift", "Glow", "Plain"]);
+diff --git a/crates/engine/src/cmd/design/browse_theme_tests.rs b/crates/engine/src/cmd/design/browse_theme_tests.rs
+index 46d8718a..ddfc6ffb 100644
+--- a/crates/engine/src/cmd/design/browse_theme_tests.rs
++++ b/crates/engine/src/cmd/design/browse_theme_tests.rs
+@@ -137,10 +137,10 @@ fn effect_scheme_replaces_format_and_keeps_colours_and_fonts() {
+     let mut s = crate::Session::with_new();
+     let listed = s.execute("design.themes", &json!({})).unwrap();
+     let names: Vec<String> = listed["effectSchemes"].as_array().unwrap().iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+-    assert_eq!(names, ["DeckCraft", "Soft", "Crisp", "Lift", "Glow", "Plain"]);
++    assert_eq!(names, ["UniCore", "Soft", "Crisp", "Lift", "Glow", "Plain"]);
  
-         let n = undo_len(&s);
--        s.execute("design.effects", &json!({"name": "DeckCraft"})).unwrap();
-+        s.execute("design.effects", &json!({"name": "UniCore"})).unwrap();
-         assert_eq!(undo_len(&s), n, "the scheme already on the theme is not an undo step");
-         let err = s.execute("design.effects", &json!({"name": "Office"})).unwrap_err().to_string();
-         assert!(err.contains("no effect scheme"), "{err}");
+     let n = undo_len(&s);
+-    s.execute("design.effects", &json!({"name": "DeckCraft"})).unwrap();
++    s.execute("design.effects", &json!({"name": "UniCore"})).unwrap();
+     assert_eq!(undo_len(&s), n, "the scheme already on the theme is not an undo step");
+     let err = s.execute("design.effects", &json!({"name": "Office"})).unwrap_err().to_string();
+     assert!(err.contains("no effect scheme"), "{err}");
+diff --git a/crates/engine/src/cmd/design/tests.rs b/crates/engine/src/cmd/design/tests.rs
+index 82eed6fe..b592d646 100644
+--- a/crates/engine/src/cmd/design/tests.rs
++++ b/crates/engine/src/cmd/design/tests.rs
+@@ -78,7 +78,7 @@ fn colors_dialog_apply_and_reject() {
+     match &s.ui_requests[0] {
+         UiRequest::Dialog { id, params } => {
+             assert_eq!(id, "themeColors");
+-            assert_eq!(params["name"], "DeckCraft");
++            assert_eq!(params["name"], "UniCore");
+             let colors = params["colors"].as_object().unwrap();
+             assert_eq!(colors.len(), 12);
+             assert_eq!(colors["accent1"].as_str().unwrap(), format!("#{}", original.get(SchemeSlot::Accent1).hex()));
 diff --git a/crates/engine/src/cmd/file.rs b/crates/engine/src/cmd/file.rs
-index ba56757..ba3d499 100644
+index 0d52e635..039bcbf2 100644
 --- a/crates/engine/src/cmd/file.rs
 +++ b/crates/engine/src/cmd/file.rs
-@@ -159,7 +159,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
+@@ -164,7 +164,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
          return Ok((p, lost_slides));
      }
      if deckcraft_pptx::is_encrypted(bytes) {
@@ -837,8 +830,8 @@ index ba56757..ba3d499 100644
 +        return Err(EngineError::Other(format!("{name} is password-protected. UniCore can't open password-protected presentations yet.")));
      }
      let lower = name.to_ascii_lowercase();
-     if lower.ends_with(".txt") || lower.ends_with(".md") {
-@@ -175,7 +175,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
+     let rtf = deckcraft_format::rtf::sniff_rtf(bytes);
+@@ -182,7 +182,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
          }
          return Ok((p, vec![]));
      }
@@ -846,9 +839,9 @@ index ba56757..ba3d499 100644
 +    Err(EngineError::Other(format!("{name}: not a presentation UniCore can read")))
  }
  
- pub fn add_opened(s: &mut Session, name: &str, path: Option<String>, p: Presentation) -> usize {
-@@ -371,7 +371,7 @@ pub fn pdf_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
- pub const WRITABLE_EXTENSIONS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "pdf", "png", "jpg", "jpeg", "gif", "txt", "md"];
+ /// Fill in each audio and video clip's length and picture size from its bytes: a `.pptx` doesn't
+@@ -425,7 +425,7 @@ pub fn pdf_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
+ pub const WRITABLE_EXTENSIONS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "pdf", "png", "jpg", "jpeg", "gif", "txt", "md", "rtf"];
  
  /// The format a file named `path` is written in, or `None` when its extension names no format
 -/// DeckCraft writes (`.odp`, `.svg`, no extension …): [`format_for_path`] would save
@@ -856,11 +849,11 @@ index ba56757..ba3d499 100644
  /// those as native `.deckcraft` bytes under the wrong name.
  pub fn writable_format_for_path(path: &str) -> Option<&'static str> {
      let ext = std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
-diff --git a/crates/engine/src/cmd/format.rs b/crates/engine/src/cmd/format.rs
-index 75952c9..ac6a008 100644
---- a/crates/engine/src/cmd/format.rs
-+++ b/crates/engine/src/cmd/format.rs
-@@ -1222,12 +1222,12 @@ fn font_add(_s: &mut Session, p: &Value) -> Result<Value> {
+diff --git a/crates/engine/src/cmd/format/painter.rs b/crates/engine/src/cmd/format/painter.rs
+index 1d324811..1f76f3c0 100644
+--- a/crates/engine/src/cmd/format/painter.rs
++++ b/crates/engine/src/cmd/format/painter.rs
+@@ -132,12 +132,12 @@ pub(super) fn font_add(_s: &mut Session, p: &Value) -> Result<Value> {
      }
      let faces = deckcraft_fonts::FontDb::global().add_font(data);
      if faces == 0 {
@@ -872,14 +865,14 @@ index 75952c9..ac6a008 100644
  
 -/// Catalog the installed fonts again, so fonts installed while DeckCraft runs appear.
 +/// Catalog the installed fonts again, so fonts installed while UniCore runs appear.
- fn font_rescan(_s: &mut Session, _p: &Value) -> Result<Value> {
+ pub(super) fn font_rescan(_s: &mut Session, _p: &Value) -> Result<Value> {
      let db = deckcraft_fonts::FontDb::global();
      #[cfg(not(target_arch = "wasm32"))]
-diff --git a/crates/engine/src/cmd/insert.rs b/crates/engine/src/cmd/insert.rs
-index 149957d..91fe2d4 100644
---- a/crates/engine/src/cmd/insert.rs
-+++ b/crates/engine/src/cmd/insert.rs
-@@ -1087,7 +1087,7 @@ fn album_seed(s: &Session) -> Result<Value> {
+diff --git a/crates/engine/src/cmd/insert/album.rs b/crates/engine/src/cmd/insert/album.rs
+index bb2f349e..6dbbfad9 100644
+--- a/crates/engine/src/cmd/insert/album.rs
++++ b/crates/engine/src/cmd/insert/album.rs
+@@ -634,7 +634,7 @@ fn album_seed(s: &Session) -> Result<Value> {
      let st = s.doc()?;
      let slides: Vec<&deckcraft_model::Slide> =
          ids.iter().filter_map(|sid| u32::try_from(*sid).ok()).filter_map(|n| st.doc.slide(deckcraft_model::SlideId(n))).collect();
@@ -888,26 +881,30 @@ index 149957d..91fe2d4 100644
      let inferred = infer_album(&slides, &theme_now);
      let mark = slides.first().and_then(|sl| sl.raw_ext.as_deref().and_then(parse_album_mark));
      let (layout, frame, captions, grayscale, theme) = if let Some(mark) = mark {
-@@ -2197,7 +2197,7 @@ mod icon_and_picture_tests {
-         assert!(mark.contains("theme=Harbor"), "{mark}");
-         assert_eq!(s.active().unwrap().doc.slides[1].name, "Photo Album");
-         s.execute("edit.undo", &json!({})).unwrap();
--        assert_eq!(theme_name(&s), "DeckCraft");
-+        assert_eq!(theme_name(&s), "UniCore");
-         assert_eq!(n_slides(&s), 1);
-     }
+diff --git a/crates/engine/src/cmd/insert/icon_and_picture_tests.rs b/crates/engine/src/cmd/insert/icon_and_picture_tests.rs
+index f9b06f34..f81d2da5 100644
+--- a/crates/engine/src/cmd/insert/icon_and_picture_tests.rs
++++ b/crates/engine/src/cmd/insert/icon_and_picture_tests.rs
+@@ -224,7 +224,7 @@ fn picture_options_and_theme_are_one_step() {
+     assert!(mark.contains("theme=Harbor"), "{mark}");
+     assert_eq!(s.active().unwrap().doc.slides[1].name, "Photo Album");
+     s.execute("edit.undo", &json!({})).unwrap();
+-    assert_eq!(theme_name(&s), "DeckCraft");
++    assert_eq!(theme_name(&s), "UniCore");
+     assert_eq!(n_slides(&s), 1);
+ }
  
-@@ -2216,7 +2216,7 @@ mod icon_and_picture_tests {
-         assert!(s.execute("insert.photoAlbumEdit", &json!({"pictures": [pic("b.png")], "layout": "2"})).is_err());
-         assert_eq!(n_slides(&s), before + 1);
-         assert_eq!(pictures(&s, 1).len(), 1);
--        assert_eq!(theme_name(&s), "DeckCraft");
-+        assert_eq!(theme_name(&s), "UniCore");
-     }
+@@ -243,7 +243,7 @@ fn unknown_theme_and_a_plain_slide_change_nothing() {
+     assert!(s.execute("insert.photoAlbumEdit", &json!({"pictures": [pic("b.png")], "layout": "2"})).is_err());
+     assert_eq!(n_slides(&s), before + 1);
+     assert_eq!(pictures(&s, 1).len(), 1);
+-    assert_eq!(theme_name(&s), "DeckCraft");
++    assert_eq!(theme_name(&s), "UniCore");
+ }
  
-     #[test]
+ #[test]
 diff --git a/crates/engine/src/cmd/richclip.rs b/crates/engine/src/cmd/richclip.rs
-index fc63314..9a8ae46 100644
+index 5ef4dbbe..ebb3c81b 100644
 --- a/crates/engine/src/cmd/richclip.rs
 +++ b/crates/engine/src/cmd/richclip.rs
 @@ -1,6 +1,6 @@
@@ -919,10 +916,10 @@ index fc63314..9a8ae46 100644
  //! Anything else in the markup is skipped. A hostile fragment is capped, never executed.
  
 diff --git a/crates/engine/src/cmd/smartart.rs b/crates/engine/src/cmd/smartart.rs
-index c58d183..b69e7ea 100644
+index 3dbcf40f..f0f8f7ed 100644
 --- a/crates/engine/src/cmd/smartart.rs
 +++ b/crates/engine/src/cmd/smartart.rs
-@@ -22,7 +22,7 @@ pub const MAX_LEVEL: u8 = 8;
+@@ -37,7 +37,7 @@ pub const MAX_LEVEL: u8 = 8;
  /// Most top-level shapes a layout draws.
  const MAX_SHAPES: usize = 40;
  
@@ -931,11 +928,11 @@ index c58d183..b69e7ea 100644
  pub const LAYOUTS: [(&str, &str); 45] = [
      ("list", "Vertical Bullet List"),
      ("blockList", "Basic Block List"),
-diff --git a/crates/engine/src/cmd/text.rs b/crates/engine/src/cmd/text.rs
-index fc6fcac..20faa36 100644
---- a/crates/engine/src/cmd/text.rs
-+++ b/crates/engine/src/cmd/text.rs
-@@ -180,7 +180,7 @@ pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
+diff --git a/crates/engine/src/cmd/text/layout.rs b/crates/engine/src/cmd/text/layout.rs
+index 866eb736..5a5aabf5 100644
+--- a/crates/engine/src/cmd/text/layout.rs
++++ b/crates/engine/src/cmd/text/layout.rs
+@@ -47,7 +47,7 @@ pub fn fit_text_box(s: &mut Session, id: ShapeId) -> Result<()> {
  }
  
  /// Store the shrink-on-overflow scale the layout computes for `id`, so a save keeps
@@ -945,7 +942,7 @@ index fc6fcac..20faa36 100644
  /// the reset an edit leaves (`1.0`, no reduction) — is fitted afresh; a scale the file saved is
  /// left as it is, as PowerPoint draws it.
 diff --git a/crates/engine/src/icons.rs b/crates/engine/src/icons.rs
-index 89c7218..b05680d 100644
+index bdd46289..05abb595 100644
 --- a/crates/engine/src/icons.rs
 +++ b/crates/engine/src/icons.rs
 @@ -1,7 +1,7 @@
@@ -967,7 +964,7 @@ index 89c7218..b05680d 100644
      outline(name).and_then(deck_path)
  }
 diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
-index 418bff0..fae9618 100644
+index c6d9f450..67650752 100644
 --- a/crates/engine/src/lib.rs
 +++ b/crates/engine/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -984,7 +981,7 @@ index 418bff0..fae9618 100644
  pub mod media_refs;
  pub mod recovery;
  pub mod sample;
-@@ -471,7 +470,7 @@ pub struct Session {
+@@ -495,7 +494,7 @@ pub struct Session {
      pub gif_paused: std::collections::HashSet<ShapeId>,
      /// Text keys follow the Mac (Option+arrows move by word, Cmd+arrows to the line or text
      /// ends) instead of Windows and Linux (Ctrl+arrows by word or paragraph). Defaults to the
@@ -994,7 +991,7 @@ index 418bff0..fae9618 100644
      /// Command panics caught by the guard (the document was rolled back); soak tests require 0.
      pub panics_caught: u64,
 diff --git a/crates/engine/src/recovery.rs b/crates/engine/src/recovery.rs
-index 646a143..ca95fe1 100644
+index d8c9f23e..d5981ac3 100644
 --- a/crates/engine/src/recovery.rs
 +++ b/crates/engine/src/recovery.rs
 @@ -26,10 +26,10 @@ use crate::{DocState, EngineError, Result, Session};
@@ -1019,7 +1016,7 @@ index 646a143..ca95fe1 100644
          // No PIDs and no std::time on wasm (`std::process::id()` and
          // `SystemTime::now()` panic there): the browser clock stands in.
 diff --git a/crates/engine/src/sample.rs b/crates/engine/src/sample.rs
-index 80c11ca..4462b23 100644
+index 80c11ca3..4462b23b 100644
 --- a/crates/engine/src/sample.rs
 +++ b/crates/engine/src/sample.rs
 @@ -15,13 +15,13 @@ fn last_id(v: &Value) -> u64 {
@@ -1048,7 +1045,7 @@ index 80c11ca..4462b23 100644
      run(s, "shape.fill", json!({"id": last_id(&moon), "color": "accent6"}))?;
      run(s, "shape.line", json!({"id": last_id(&moon), "none": true}))?;
 diff --git a/crates/engine/src/sounds.rs b/crates/engine/src/sounds.rs
-index 8b97c75..6ee3f75 100644
+index 8b97c758..6ee3f750 100644
 --- a/crates/engine/src/sounds.rs
 +++ b/crates/engine/src/sounds.rs
 @@ -1,4 +1,4 @@
@@ -1058,7 +1055,7 @@ index 8b97c75..6ee3f75 100644
  
  use std::f64::consts::TAU;
 diff --git a/crates/engine/src/spell.rs b/crates/engine/src/spell.rs
-index 2c94783..58f51e5 100644
+index 2dda5c6f..d5248159 100644
 --- a/crates/engine/src/spell.rs
 +++ b/crates/engine/src/spell.rs
 @@ -6,7 +6,7 @@
@@ -1070,7 +1067,7 @@ index 2c94783..58f51e5 100644
  //! checkers use (and `DECKCRAFT_DICTIONARIES`), so whatever the user installed is used.
  
  use std::collections::{HashMap, HashSet};
-@@ -485,11 +485,11 @@ pub fn search_dirs() -> Vec<PathBuf> {
+@@ -501,11 +501,11 @@ pub fn search_dirs() -> Vec<PathBuf> {
      }
      let home = std::env::var_os("HOME").map(PathBuf::from);
      if cfg!(target_os = "macos") {
@@ -1084,7 +1081,7 @@ index 2c94783..58f51e5 100644
      } else {
          let data = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| home.as_ref().map(|h| h.join(".local/share")));
          out.extend(data.iter().map(|d| d.join("deckcraft/dictionaries")));
-@@ -576,7 +576,7 @@ pub fn dictionary(lang: &str) -> Option<Arc<Dictionary>> {
+@@ -595,7 +595,7 @@ pub fn dictionary(lang: &str) -> Option<Arc<Dictionary>> {
      loaded
  }
  
@@ -1093,7 +1090,7 @@ index 2c94783..58f51e5 100644
  /// word per line (the Hunspell `.dic` format without a count).
  pub fn user_dictionary_path() -> Option<PathBuf> {
      if let Ok(p) = user_override().lock()
-@@ -586,9 +586,9 @@ pub fn user_dictionary_path() -> Option<PathBuf> {
+@@ -605,9 +605,9 @@ pub fn user_dictionary_path() -> Option<PathBuf> {
      }
      let home = std::env::var_os("HOME").map(PathBuf::from);
      let dir = if cfg!(target_os = "macos") {
@@ -1106,10 +1103,10 @@ index 2c94783..58f51e5 100644
          std::env::var_os("XDG_DATA_HOME")
              .map(PathBuf::from)
 diff --git a/crates/engine/src/tests.rs b/crates/engine/src/tests.rs
-index dd64b08..d722ec7 100644
+index 68de1341..e71bf7c6 100644
 --- a/crates/engine/src/tests.rs
 +++ b/crates/engine/src/tests.rs
-@@ -135,7 +135,7 @@ fn editing_text_refits_a_saved_shrink() {
+@@ -156,7 +156,7 @@ fn editing_text_refits_a_saved_shrink() {
  }
  
  /// After an edit, the shrink-on-overflow scale the layout computes is stored, so the saved file
@@ -1118,7 +1115,7 @@ index dd64b08..d722ec7 100644
  #[test]
  fn editing_shrink_text_stores_the_layout_scale() {
      use deckcraft_model::text::AutoFit;
-@@ -148,7 +148,7 @@ fn editing_shrink_text_stores_the_layout_scale() {
+@@ -169,7 +169,7 @@ fn editing_shrink_text_stores_the_layout_scale() {
      let sh = s.doc().unwrap().shape(id).cloned().unwrap();
      let Some(AutoFit::Shrink { font_scale, line_reduction }) = sh.text.unwrap().body.autofit else { panic!("shrink") };
      assert!(font_scale.is_some_and(|s| s < 1.0), "the computed fit is stored: {font_scale:?} / {line_reduction}");
@@ -1127,7 +1124,7 @@ index dd64b08..d722ec7 100644
      let bytes = deckcraft_pptx::export(&s.doc().unwrap().doc).unwrap();
      let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
      let mut xml = String::new();
-@@ -1119,18 +1119,18 @@ fn an_embedded_face_is_used_when_the_machine_lacks_it() {
+@@ -1564,18 +1564,18 @@ fn an_embedded_face_is_used_when_the_machine_lacks_it() {
      let mut p = deckcraft_model::Presentation::default();
      let slide = std::sync::Arc::make_mut(&mut p.slides[0]);
      let mut body = deckcraft_model::text::TextBody::from_text("Hello");
@@ -1149,7 +1146,7 @@ index dd64b08..d722ec7 100644
      assert!(font.regular.is_some());
  }
  
-@@ -3149,8 +3149,8 @@ fn autocorrect_options_as_you_type() {
+@@ -4494,8 +4494,8 @@ fn autocorrect_options_as_you_type() {
      s.execute("text.autocorrect", &json!({"sentenceCaps": false, "days": false})).unwrap();
      assert_eq!(typed(&mut s, "hello monday "), "hello monday ");
      // Your own entries, and deleting a built-in one.
@@ -1160,7 +1157,7 @@ index dd64b08..d722ec7 100644
      let v = s.execute("text.autocorrect", &json!({})).unwrap();
      let entries = v["entries"].as_array().unwrap();
      assert!(entries.iter().any(|e| e[0] == "dc"));
-@@ -3336,7 +3336,7 @@ fn the_caret_takes_the_colour_of_the_text() {
+@@ -4817,7 +4817,7 @@ fn the_caret_takes_the_colour_of_the_text() {
          empty
      };
      // Dark text on the light theme, light text on the dark one: never black on a dark slide.
@@ -1170,10 +1167,10 @@ index dd64b08..d722ec7 100644
      assert!(dark.r > 0xC0 && dark.g > 0xC0 && dark.b > 0xC0, "{dark:?}");
      // Text set to red gets a red caret.
 diff --git a/crates/engine/src/tools.rs b/crates/engine/src/tools.rs
-index a7190b7..ec3bd22 100644
+index 82f53dfc..0dba5562 100644
 --- a/crates/engine/src/tools.rs
 +++ b/crates/engine/src/tools.rs
-@@ -308,7 +308,7 @@ pub fn box_handles(x: &Xfrm) -> ([Point; 8], Point) {
+@@ -331,7 +331,7 @@ pub fn box_handles(x: &Xfrm) -> ([Point; 8], Point) {
  }
  
  /// WordArt adjust handles for `sh`, in shape-local points (the text rectangle). Empty when the
@@ -1183,32 +1180,32 @@ index a7190b7..ec3bd22 100644
      doc: &deckcraft_model::Presentation,
      sel: &crate::Selection,
 diff --git a/crates/fonts/build.rs b/crates/fonts/build.rs
-index 76e7dc4..a650020 100644
+index 6cf744f5..ac66ad58 100644
 --- a/crates/fonts/build.rs
 +++ b/crates/fonts/build.rs
-@@ -7,7 +7,7 @@
+@@ -12,7 +12,7 @@
  use std::fmt::Write as _;
  use std::path::PathBuf;
  
--/// Families DeckCraft never embeds (AGENTS.md §1: no Adobe-authored visual design).
-+/// Families UniCore never embeds (AGENTS.md §1: no Adobe-authored visual design).
- const EXCLUDED_FAMILIES: &[&str] = &["Source Sans 3", "Source Serif 4", "Source Han Sans", "Source Han Serif", "Noto Sans CJK SC"];
+-/// Families DeckCraft never embeds (AGENTS.md §1: no Adobe-authored visual design, and no Noto
++/// Families UniCore never embeds (AGENTS.md §1: no Adobe-authored visual design, and no Noto
+ /// CJK rebrand of Source Han on any platform).
+ const EXCLUDED_FAMILIES: &[&str] = &["Source Sans 3", "Source Serif 4", "Source Han Sans", "Source Han Serif"];
  
- fn main() {
-@@ -53,7 +53,7 @@ fn manifest(dir: &std::path::Path, manifest: &std::path::Path) -> Result<String,
+@@ -145,7 +145,7 @@ fn manifest(dir: &std::path::Path, manifest: &std::path::Path, wasm: bool) -> Re
          let [family, style, file, scripts, ..] = f.as_slice() else {
              return Err(format!("malformed manifest line: {line}"));
          };
 -        // DeckCraft's asset policy: no Adobe-authored typefaces, even openly licensed ones.
 +        // UniCore's asset policy: no Adobe-authored typefaces, even openly licensed ones.
-         if EXCLUDED_FAMILIES.contains(family) {
+         if is_excluded_family(family) {
              continue;
          }
 diff --git a/crates/fonts/src/fontdb.rs b/crates/fonts/src/fontdb.rs
-index 0326738..3aebfa8 100644
+index 2e2f3529..15e16c5c 100644
 --- a/crates/fonts/src/fontdb.rs
 +++ b/crates/fonts/src/fontdb.rs
-@@ -88,7 +88,7 @@ fn office_twin(family: &str) -> Option<&'static str> {
+@@ -156,7 +156,7 @@ fn office_twin(family: &str) -> Option<&'static str> {
  }
  
  /// Office's downloadable (cloud) families: PowerPoint fetches them when a document uses them, so
@@ -1217,7 +1214,7 @@ index 0326738..3aebfa8 100644
  /// substitute ([`substitutes`]; Aptos as Inter).
  fn is_office_cloud_font(family: &str) -> bool {
      let f = family.to_ascii_lowercase();
-@@ -510,7 +510,7 @@ pub fn system_font_dirs() -> Vec<std::path::PathBuf> {
+@@ -594,7 +594,7 @@ pub fn system_font_dirs() -> Vec<std::path::PathBuf> {
              let l = std::path::PathBuf::from(l);
              dirs.push(l.join("Microsoft\\Windows\\Fonts"));
              // Fonts Microsoft Office downloads on demand (Aptos…), used where Office put them;
@@ -1226,17 +1223,17 @@ index 0326738..3aebfa8 100644
              dirs.push(l.join("Microsoft\\FontCache\\4\\CloudFonts"));
          }
      } else {
-@@ -1030,7 +1030,7 @@ impl FontDb {
-     /// when it is installed or bundled, or a metric-compatible stand-in (Carlito for Calibri,
+@@ -1149,7 +1149,7 @@ impl FontDb {
      /// Liberation Sans for Arial…), or the family PowerPoint maps it to (Liberation Sans as Arial,
      /// see `office_twin`); any other missing family is drawn in Calibri (or Carlito).
+     /// Monospaced families keep a monospaced substitute instead of falling back to Calibri.
 -    /// DeckCraft's own default family keeps [`FontDb::face`]'s fallbacks.
 +    /// UniCore's own default family keeps [`FontDb::face`]'s fallbacks.
      pub fn document_face(&self, family: &str, style: &str) -> Arc<FontFace> {
          if family.eq_ignore_ascii_case(FALLBACK_FAMILY) || has_metric_twin(family) || is_office_cloud_font(family) || self.has_family(family) {
              return self.face(family, style);
 diff --git a/crates/fonts/src/lib.rs b/crates/fonts/src/lib.rs
-index a9f0c05..b9ae516 100644
+index 0bb0edb5..32b15fbf 100644
 --- a/crates/fonts/src/lib.rs
 +++ b/crates/fonts/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1245,101 +1242,105 @@ index a9f0c05..b9ae516 100644
  //! substitutes for the Office fonts presentations ask for), vertical metrics, glyph outlines and
  //! OpenType shaping, script/slot classification and per-cluster fallback.
  //!
-@@ -195,7 +195,7 @@ mod tests {
-     fn colour_fonts_are_recognised() {
-         let db = FontDb::with_font_dirs(Vec::new());
-         assert!(db.add_font(include_bytes!("../../render/tests/fixtures/colr-squares.ttf").to_vec()) > 0);
--        assert!(db.face("DeckCraft Colr Squares", "Regular").is_color());
-+        assert!(db.face("UniCore Colr Squares", "Regular").is_color());
-         assert!(!fontdb::last_resort_face().is_color());
-     }
+diff --git a/crates/fonts/src/tests.rs b/crates/fonts/src/tests.rs
+index 596415d5..3dc5034c 100644
+--- a/crates/fonts/src/tests.rs
++++ b/crates/fonts/src/tests.rs
+@@ -23,7 +23,7 @@ fn emoji_clusters_are_recognised() {
+ fn colour_fonts_are_recognised() {
+     let db = FontDb::with_font_dirs(Vec::new());
+     assert!(db.add_font(include_bytes!("../../render/tests/fixtures/colr-squares.ttf").to_vec()) > 0);
+-    assert!(db.face("DeckCraft Colr Squares", "Regular").is_color());
++    assert!(db.face("UniCore Colr Squares", "Regular").is_color());
+     assert!(!fontdb::last_resort_face().is_color());
+ }
  
-@@ -232,7 +232,7 @@ mod tests {
-         db.set_system_fallback(false);
-         assert_eq!(db.add_font(include_bytes!("../tests/fixtures/legacy-regular.ttf").to_vec()), 1);
-         let first = db.fallback_for('A', u32::MAX).unwrap();
--        let accepted_family = if first.family == LAST_RESORT_FAMILY { "DeckCraft Legacy" } else { LAST_RESORT_FAMILY };
-+        let accepted_family = if first.family == LAST_RESORT_FAMILY { "UniCore Legacy" } else { LAST_RESORT_FAMILY };
-         let fallback = db.fallback_for_filtered('A', u32::MAX, |f| f.family == accepted_family).unwrap();
-         assert_eq!(fallback.family, accepted_family);
-         assert!(fallback.covers('A'));
-@@ -247,11 +247,11 @@ mod tests {
-         let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+@@ -60,7 +60,7 @@ fn filtered_fallback_continues_after_a_rejected_loaded_face() {
+     db.set_system_fallback(false);
+     assert_eq!(db.add_font(include_bytes!("../tests/fixtures/legacy-regular.ttf").to_vec()), 1);
+     let first = db.fallback_for('A', u32::MAX).unwrap();
+-    let accepted_family = if first.family == LAST_RESORT_FAMILY { "DeckCraft Legacy" } else { LAST_RESORT_FAMILY };
++    let accepted_family = if first.family == LAST_RESORT_FAMILY { "UniCore Legacy" } else { LAST_RESORT_FAMILY };
+     let fallback = db.fallback_for_filtered('A', u32::MAX, |f| f.family == accepted_family).unwrap();
+     assert_eq!(fallback.family, accepted_family);
+     assert!(fallback.covers('A'));
+@@ -75,11 +75,11 @@ fn filtered_fallback_loads_an_eligible_system_face_and_does_not_cache_policy_mis
+     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+     let db = FontDb::with_font_dirs(vec![dir]);
+     let first = db.fallback_for('A', u32::MAX).unwrap();
+-    assert_ne!(first.family, "DeckCraft Legacy");
++    assert_ne!(first.family, "UniCore Legacy");
+     assert!(db.fallback_for_filtered('A', u32::MAX, |_| false).is_none());
+     assert!(db.fallback_for('A', u32::MAX).is_some(), "an interface policy miss does not hide document glyphs");
+-    let accepted = db.fallback_for_filtered('A', u32::MAX, |f| f.family == "DeckCraft Legacy").unwrap();
+-    assert_eq!(accepted.family, "DeckCraft Legacy");
++    let accepted = db.fallback_for_filtered('A', u32::MAX, |f| f.family == "UniCore Legacy").unwrap();
++    assert_eq!(accepted.family, "UniCore Legacy");
+     assert!(accepted.covers('A'));
+ }
+ 
+@@ -116,14 +116,14 @@ fn windows_family_names_find_their_faces() {
+     // Documents name fonts by their Windows family ("Segoe UI Semibold"); the font's
+     // typographic family is "Segoe UI" with a "Semibold" style. The fixture is named the same way.
+     let check = |db: &FontDb| {
+-        assert!(db.has_family("DeckCraft Legacy Semibold"));
++        assert!(db.has_family("UniCore Legacy Semibold"));
+         for style in ["Regular", "Bold"] {
+-            let f = db.face("DeckCraft Legacy Semibold", style);
+-            assert_eq!((f.family.as_str(), f.style.as_str()), ("DeckCraft Legacy", "Semibold"), "{style}");
++            let f = db.face("UniCore Legacy Semibold", style);
++            assert_eq!((f.family.as_str(), f.style.as_str()), ("UniCore Legacy", "Semibold"), "{style}");
+         }
+-        assert_eq!(db.document_face("DeckCraft Legacy Semibold", "Regular").family, "DeckCraft Legacy", "installed, so not Calibri");
++        assert_eq!(db.document_face("UniCore Legacy Semibold", "Regular").family, "UniCore Legacy", "installed, so not Calibri");
+         // The typographic name still works.
+-        assert_eq!(db.face("DeckCraft Legacy", "Semibold").style, "Semibold");
++        assert_eq!(db.face("UniCore Legacy", "Semibold").style, "Semibold");
+     };
+     // Loaded directly…
+     let db = FontDb::with_font_dirs(Vec::new());
+@@ -141,8 +141,8 @@ fn windows_family_names_find_their_faces() {
+         // family's Regular must still load and pick the Regular file, not settle for Semibold.
          let db = FontDb::with_font_dirs(vec![dir]);
-         let first = db.fallback_for('A', u32::MAX).unwrap();
--        assert_ne!(first.family, "DeckCraft Legacy");
-+        assert_ne!(first.family, "UniCore Legacy");
-         assert!(db.fallback_for_filtered('A', u32::MAX, |_| false).is_none());
-         assert!(db.fallback_for('A', u32::MAX).is_some(), "an interface policy miss does not hide document glyphs");
--        let accepted = db.fallback_for_filtered('A', u32::MAX, |f| f.family == "DeckCraft Legacy").unwrap();
--        assert_eq!(accepted.family, "DeckCraft Legacy");
-+        let accepted = db.fallback_for_filtered('A', u32::MAX, |f| f.family == "UniCore Legacy").unwrap();
-+        assert_eq!(accepted.family, "UniCore Legacy");
-         assert!(accepted.covers('A'));
+         db.set_system_fallback(false);
+-        assert_eq!(db.face("DeckCraft Legacy Semibold", "Regular").style, "Semibold");
+-        let regular = db.face("DeckCraft Legacy", "Regular");
++        assert_eq!(db.face("UniCore Legacy Semibold", "Regular").style, "Semibold");
++        let regular = db.face("UniCore Legacy", "Regular");
+         assert_eq!((regular.style.as_str(), regular.weight), ("Regular", 400.0));
      }
- 
-@@ -288,14 +288,14 @@ mod tests {
-         // Documents name fonts by their Windows family ("Segoe UI Semibold"); the font's
-         // typographic family is "Segoe UI" with a "Semibold" style. The fixture is named the same way.
-         let check = |db: &FontDb| {
--            assert!(db.has_family("DeckCraft Legacy Semibold"));
-+            assert!(db.has_family("UniCore Legacy Semibold"));
-             for style in ["Regular", "Bold"] {
--                let f = db.face("DeckCraft Legacy Semibold", style);
--                assert_eq!((f.family.as_str(), f.style.as_str()), ("DeckCraft Legacy", "Semibold"), "{style}");
-+                let f = db.face("UniCore Legacy Semibold", style);
-+                assert_eq!((f.family.as_str(), f.style.as_str()), ("UniCore Legacy", "Semibold"), "{style}");
-             }
--            assert_eq!(db.document_face("DeckCraft Legacy Semibold", "Regular").family, "DeckCraft Legacy", "installed, so not Calibri");
-+            assert_eq!(db.document_face("UniCore Legacy Semibold", "Regular").family, "UniCore Legacy", "installed, so not Calibri");
-             // The typographic name still works.
--            assert_eq!(db.face("DeckCraft Legacy", "Semibold").style, "Semibold");
-+            assert_eq!(db.face("UniCore Legacy", "Semibold").style, "Semibold");
-         };
-         // Loaded directly…
-         let db = FontDb::with_font_dirs(Vec::new());
-@@ -313,8 +313,8 @@ mod tests {
-             // family's Regular must still load and pick the Regular file, not settle for Semibold.
-             let db = FontDb::with_font_dirs(vec![dir]);
-             db.set_system_fallback(false);
--            assert_eq!(db.face("DeckCraft Legacy Semibold", "Regular").style, "Semibold");
--            let regular = db.face("DeckCraft Legacy", "Regular");
-+            assert_eq!(db.face("UniCore Legacy Semibold", "Regular").style, "Semibold");
-+            let regular = db.face("UniCore Legacy", "Regular");
-             assert_eq!((regular.style.as_str(), regular.weight), ("Regular", 400.0));
+ }
+@@ -188,7 +188,7 @@ fn faces_without_outlines_are_not_cataloged() {
+     semibold[glyf..glyf + 4].copy_from_slice(b"gxyz");
+     let loaded = FontDb::with_font_dirs(Vec::new());
+     assert_eq!(loaded.add_font(semibold.clone()), 1);
+-    let face = loaded.face("DeckCraft Legacy", "Semibold");
++    let face = loaded.face("UniCore Legacy", "Semibold");
+     assert!(face.covers('A'));
+     assert!(loaded.outline(&face, face.glyph_for('A')).elements().is_empty());
+     // The system font scan lists the Regular, which has outlines, and leaves out the Semibold
+@@ -201,8 +201,8 @@ fn faces_without_outlines_are_not_cataloged() {
+         std::fs::write(dir.join("legacy-regular.ttf"), include_bytes!("../tests/fixtures/legacy-regular.ttf")).unwrap();
+         let db = FontDb::with_font_dirs(vec![dir.clone()]);
+         db.set_system_fallback(false);
+-        assert_eq!(db.styles("DeckCraft Legacy"), ["Regular"]);
+-        assert!(!db.has_family("DeckCraft Legacy Semibold"));
++        assert_eq!(db.styles("UniCore Legacy"), ["Regular"]);
++        assert!(!db.has_family("UniCore Legacy Semibold"));
+         let _ = std::fs::remove_dir_all(&dir);
+     }
+ }
+@@ -227,7 +227,7 @@ fn missing_document_fonts_are_drawn_in_calibri() {
+             assert_eq!(db.document_face(missing, "Regular").family, db.face(twin, "Regular").family, "{missing}");
          }
      }
-@@ -330,7 +330,7 @@ mod tests {
-         semibold[glyf..glyf + 4].copy_from_slice(b"gxyz");
-         let loaded = FontDb::with_font_dirs(Vec::new());
-         assert_eq!(loaded.add_font(semibold.clone()), 1);
--        let face = loaded.face("DeckCraft Legacy", "Semibold");
-+        let face = loaded.face("UniCore Legacy", "Semibold");
-         assert!(face.covers('A'));
-         assert!(loaded.outline(&face, face.glyph_for('A')).elements().is_empty());
-         // The system font scan lists the Regular, which has outlines, and leaves out the Semibold
-@@ -343,8 +343,8 @@ mod tests {
-             std::fs::write(dir.join("legacy-regular.ttf"), include_bytes!("../tests/fixtures/legacy-regular.ttf")).unwrap();
-             let db = FontDb::with_font_dirs(vec![dir.clone()]);
-             db.set_system_fallback(false);
--            assert_eq!(db.styles("DeckCraft Legacy"), ["Regular"]);
--            assert!(!db.has_family("DeckCraft Legacy Semibold"));
-+            assert_eq!(db.styles("UniCore Legacy"), ["Regular"]);
-+            assert!(!db.has_family("UniCore Legacy Semibold"));
-             let _ = std::fs::remove_dir_all(&dir);
-         }
-     }
-@@ -365,7 +365,7 @@ mod tests {
-                 assert_eq!(db.document_face(missing, "Regular").family, db.face(twin, "Regular").family, "{missing}");
-             }
-         }
--        // Metric-compatible stand-ins and DeckCraft's default keep their own fallbacks.
-+        // Metric-compatible stand-ins and UniCore's default keep their own fallbacks.
-         // So do Office's cloud fonts, which PowerPoint downloads and draws as themselves.
-         for kept in ["Arial", "Times New Roman", "Cambria", "Courier New", FALLBACK_FAMILY, "Aptos", "Aptos Display", "Grandview"] {
-             assert_eq!(db.document_face(kept, "Regular").family, db.face(kept, "Regular").family, "{kept}");
+-    // Metric-compatible stand-ins and DeckCraft's default keep their own fallbacks.
++    // Metric-compatible stand-ins and UniCore's default keep their own fallbacks.
+     // So do Office's cloud fonts, which PowerPoint downloads and draws as themselves.
+     for kept in ["Arial", "Times New Roman", "Cambria", "Courier New", FALLBACK_FAMILY, "Aptos", "Aptos Display", "Grandview"] {
+         assert_eq!(db.document_face(kept, "Regular").family, db.face(kept, "Regular").family, "{kept}");
 diff --git a/crates/format/src/chart_parts.rs b/crates/format/src/chart_parts.rs
-index f57c086..3e05329 100644
+index f57c0867..3e053291 100644
 --- a/crates/format/src/chart_parts.rs
 +++ b/crates/format/src/chart_parts.rs
 @@ -50,7 +50,7 @@ pub(super) fn restore(
@@ -1361,10 +1362,10 @@ index f57c086..3e05329 100644
              *left -= size;
          }
 diff --git a/crates/format/src/lib.rs b/crates/format/src/lib.rs
-index 093cbaa..89fff84 100644
+index 7610398e..117a1db8 100644
 --- a/crates/format/src/lib.rs
 +++ b/crates/format/src/lib.rs
-@@ -17,7 +17,7 @@ use deckcraft_model::text::{Paragraph, TextBody};
+@@ -18,7 +18,7 @@ use deckcraft_model::text::{Paragraph, TextBody};
  use deckcraft_model::{LayoutType, Presentation, ShapeKind, defaults};
  
  pub const MIMETYPE: &str = "application/vnd.storyteller.deckcraft+zip";
@@ -1373,7 +1374,7 @@ index 093cbaa..89fff84 100644
  pub const LEGACY_MIMETYPE: &str = concat!("application/vnd.storyteller.", "slide", "craft+zip");
  pub const EXTENSION: &str = "deckcraft";
  /// Format version written into the manifest.
-@@ -38,7 +38,7 @@ struct Budget {
+@@ -39,7 +39,7 @@ struct Budget {
  
  #[derive(Debug, thiserror::Error)]
  pub enum FormatError {
@@ -1382,7 +1383,7 @@ index 093cbaa..89fff84 100644
      NotOurs(String),
      #[error("damaged file: {0}")]
      Damaged(String),
-@@ -69,7 +69,7 @@ pub fn save(p: &Presentation) -> Result<Vec<u8>> {
+@@ -70,7 +70,7 @@ pub fn save(p: &Presentation) -> Result<Vec<u8>> {
          let mut presentation = p.clone();
          let parts = chart_parts::separate(&mut presentation)?;
          let m =
@@ -1391,7 +1392,7 @@ index 093cbaa..89fff84 100644
          let json = serde_json::to_vec(&finite::Finite(&m)).map_err(|e| FormatError::Write(e.to_string()))?;
          z.start_file("presentation.json", deflate).map_err(w)?;
          z.write_all(&json).map_err(|e| FormatError::Write(e.to_string()))?;
-@@ -161,7 +161,7 @@ fn load_within(bytes: &[u8], budget: Budget) -> Result<(Presentation, Vec<String
+@@ -162,7 +162,7 @@ fn load_within(bytes: &[u8], budget: Budget) -> Result<(Presentation, Vec<String
          let name = format!("media/{}", item.id.0);
          let linked_only = item.link.is_some() && z.index_for_name(&name).is_none();
          if z.by_name(&name).is_ok_and(|f| f.size() > left) {
@@ -1400,7 +1401,7 @@ index 093cbaa..89fff84 100644
          }
          match read_entry_max(&mut z, &name, left.min(MAX_ENTRY)) {
              Ok(data) => {
-@@ -321,7 +321,7 @@ fn failure(src: &[u8]) -> std::result::Result<Manifest, (String, (usize, usize))
+@@ -322,7 +322,7 @@ fn failure(src: &[u8]) -> std::result::Result<Manifest, (String, (usize, usize))
  }
  
  /// Parse `presentation.json`. serde_json writes a NaN or infinite number as `null`, which then
@@ -1410,7 +1411,7 @@ index 093cbaa..89fff84 100644
  /// value into range); anything else that doesn't parse is damage.
  ///
 diff --git a/crates/geom/src/lib.rs b/crates/geom/src/lib.rs
-index 3be72e0..29018c0 100644
+index a08bed98..fdf38f7d 100644
 --- a/crates/geom/src/lib.rs
 +++ b/crates/geom/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1420,7 +1421,7 @@ index 3be72e0..29018c0 100644
  //! The document model keeps positions in points (1/72 inch) as `f64`. Office Open XML stores EMU
  //! (English Metric Units, 12 700 per point); [`emu_to_pt`] and [`pt_to_emu`] convert losslessly for
 diff --git a/crates/geom/src/warp.rs b/crates/geom/src/warp.rs
-index d3035d5..733472c 100644
+index d3035d51..733472c3 100644
 --- a/crates/geom/src/warp.rs
 +++ b/crates/geom/src/warp.rs
 @@ -229,7 +229,7 @@ pub fn adjust_count(name: &str) -> usize {
@@ -1442,7 +1443,7 @@ index d3035d5..733472c 100644
      Preset { id: "textArchUp", label: "Arch Up" },
      Preset { id: "textArchDown", label: "Arch Down" },
 diff --git a/crates/mcp/src/backend.rs b/crates/mcp/src/backend.rs
-index fb809c0..66e7efb 100644
+index fb809c09..66e7efb4 100644
 --- a/crates/mcp/src/backend.rs
 +++ b/crates/mcp/src/backend.rs
 @@ -21,7 +21,7 @@ pub trait Backend {
@@ -1480,7 +1481,7 @@ index fb809c0..66e7efb 100644
  }
  
 diff --git a/crates/mcp/src/lib.rs b/crates/mcp/src/lib.rs
-index b51ff31..28fbe43 100644
+index b51ff31c..28fbe433 100644
 --- a/crates/mcp/src/lib.rs
 +++ b/crates/mcp/src/lib.rs
 @@ -1,7 +1,7 @@
@@ -1494,19 +1495,19 @@ index b51ff31..28fbe43 100644
  //!
  //! - [`Remote`] talks to a running desktop app through its loopback JSON-lines control channel
 diff --git a/crates/mcp/src/server.rs b/crates/mcp/src/server.rs
-index 710067c..9b43bcf 100644
+index 747df015..6e810823 100644
 --- a/crates/mcp/src/server.rs
 +++ b/crates/mcp/src/server.rs
-@@ -18,7 +18,7 @@ const INVALID_PARAMS: i64 = -32602;
- const INTERNAL_ERROR: i64 = -32603;
- const RESOURCE_NOT_FOUND: i64 = -32002;
+@@ -20,7 +20,7 @@ const RESOURCE_NOT_FOUND: i64 = -32002;
+ /// Keep request frames in step with the connected backend's reply limit.
+ const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
  
 -const INSTRUCTIONS: &str = "DeckCraft is a presentation app (a PowerPoint clone). Coordinates are points on the \
 +const INSTRUCTIONS: &str = "UniCore is a presentation app (a PowerPoint clone). Coordinates are points on the \
  current slide (y down; the default 16:9 slide is 960×540). Every action is a command: find ids and parameters with \
  list_commands and run them with run_command (or several with batch). Typical flow: new_presentation → add_slide \
  {layout:\"titleAndContent\", title, body} → add_shape / add_text_box / insert_picture / insert_chart → \
-@@ -136,14 +136,8 @@ impl Server {
+@@ -145,14 +145,8 @@ impl Server {
                  Ok(json!({
                      "protocolVersion": version,
                      "capabilities": {"tools": {}, "resources": {}},
@@ -1524,7 +1525,7 @@ index 710067c..9b43bcf 100644
              }
              "ping" => Ok(json!({})),
 diff --git a/crates/mcp/src/tools.rs b/crates/mcp/src/tools.rs
-index b964ea1..b93b6f4 100644
+index 2bf09b8a..ace23020 100644
 --- a/crates/mcp/src/tools.rs
 +++ b/crates/mcp/src/tools.rs
 @@ -94,7 +94,7 @@ pub fn tool_definitions() -> Vec<Value> {
@@ -1546,7 +1547,7 @@ index b964ea1..b93b6f4 100644
              "call_app",
              "Call app method",
 diff --git a/crates/media/src/lib.rs b/crates/media/src/lib.rs
-index dc1a892..f15882c 100644
+index 1f924820..e49a3d75 100644
 --- a/crates/media/src/lib.rs
 +++ b/crates/media/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1556,7 +1557,7 @@ index dc1a892..f15882c 100644
  //! - [`probe`]: container, duration, audio channels / sample rate, video size / frame rate.
  //! - [`audio::decode`]: every common audio format to interleaved f32 [`audio::Pcm`] — MP3, AAC
 diff --git a/crates/media/src/probe.rs b/crates/media/src/probe.rs
-index 2453317..dd85b8c 100644
+index 97d9a751..fefc4b43 100644
 --- a/crates/media/src/probe.rs
 +++ b/crates/media/src/probe.rs
 @@ -9,7 +9,7 @@ pub struct AudioInfo {
@@ -1569,7 +1570,7 @@ index 2453317..dd85b8c 100644
  }
  
 diff --git a/crates/metafile/src/lib.rs b/crates/metafile/src/lib.rs
-index 8e10cdf..6c37baf 100644
+index 8e10cdf3..6c37baf8 100644
 --- a/crates/metafile/src/lib.rs
 +++ b/crates/metafile/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1579,7 +1580,7 @@ index 8e10cdf..6c37baf 100644
  //! fills, RGBA bitmaps and text strings, in a picture frame with y down.
  //!
 diff --git a/crates/model/src/bidi.rs b/crates/model/src/bidi.rs
-index 0b11352..c7dfd7a 100644
+index 0b113522..c7dfd7a0 100644
 --- a/crates/model/src/bidi.rs
 +++ b/crates/model/src/bidi.rs
 @@ -61,7 +61,7 @@ mod tests {
@@ -1592,7 +1593,7 @@ index 0b11352..c7dfd7a 100644
  
      #[test]
 diff --git a/crates/model/src/lib.rs b/crates/model/src/lib.rs
-index 275f944..cc073aa 100644
+index 1289e47a..9fab2120 100644
 --- a/crates/model/src/lib.rs
 +++ b/crates/model/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1601,7 +1602,7 @@ index 275f944..cc073aa 100644
  //!
  //! A [`Presentation`] has slide masters (each with a theme and layouts) and slides. Each slide
  //! uses a layout; placeholders on a slide inherit position, formatting and text styles from the
-@@ -947,7 +947,7 @@ fn lenient_size<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<S
+@@ -954,7 +954,7 @@ fn lenient_size<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<S
      Ok(Size::new(side("width"), side("height")))
  }
  
@@ -1611,10 +1612,10 @@ index 275f944..cc073aa 100644
  #[serde(default, rename_all = "camelCase")]
  pub struct KeptPart {
 diff --git a/crates/model/src/tests.rs b/crates/model/src/tests.rs
-index da234d5..de14c86 100644
+index 4ae6fc0f..f2ddc1e1 100644
 --- a/crates/model/src/tests.rs
 +++ b/crates/model/src/tests.rs
-@@ -11,7 +11,7 @@ fn new_presentation_is_valid() {
+@@ -15,7 +15,7 @@ fn new_presentation_is_valid() {
      let s = &p.slides[0];
      let (m, l) = p.master_for(s).unwrap();
      assert_eq!(l.unwrap().kind, LayoutType::Title);
@@ -1624,7 +1625,7 @@ index da234d5..de14c86 100644
      let kinds: Vec<_> = s.shapes.iter().filter_map(|x| x.ph_type()).collect();
      assert_eq!(kinds, vec![PhType::CtrTitle, PhType::SubTitle]);
 diff --git a/crates/model/src/theme.rs b/crates/model/src/theme.rs
-index 870a8bb..1997549 100644
+index 5087f3ea..6c75bd9a 100644
 --- a/crates/model/src/theme.rs
 +++ b/crates/model/src/theme.rs
 @@ -68,8 +68,8 @@ pub struct Theme {
@@ -1638,7 +1639,7 @@ index 870a8bb..1997549 100644
              fonts: FontScheme::default(),
              format: FormatScheme::default(),
              raw_extra: None,
-@@ -118,7 +118,7 @@ pub fn default_format() -> FormatScheme {
+@@ -119,7 +119,7 @@ pub fn default_format() -> FormatScheme {
          })
      };
      FormatScheme {
@@ -1647,7 +1648,7 @@ index 870a8bb..1997549 100644
          fills: vec![Fill::solid(ph()), grad(110000, 92000), grad(105000, 80000)],
          lines: vec![Line::solid(ph(), 0.75), Line::solid(ph(), 1.0), Line::solid(ph(), 1.5)],
          effects: vec![
-@@ -189,9 +189,9 @@ pub fn builtin_themes() -> Vec<Theme> {
+@@ -190,9 +190,9 @@ pub fn builtin_themes() -> Vec<Theme> {
      };
      vec![
          t(
@@ -1660,7 +1661,7 @@ index 870a8bb..1997549 100644
              ),
              "Inter",
 diff --git a/crates/pdf/README.md b/crates/pdf/README.md
-index a3402a0..cc29da6 100644
+index a3402a0c..cc29da65 100644
 --- a/crates/pdf/README.md
 +++ b/crates/pdf/README.md
 @@ -1,13 +1,13 @@
@@ -1681,7 +1682,7 @@ index a3402a0..cc29da6 100644
  with only `std` enabled, to inspect the generated PDFs.
  
 diff --git a/crates/pdf/src/lib.rs b/crates/pdf/src/lib.rs
-index 22dc42d..565b4f1 100644
+index 6baeda31..ab446c21 100644
 --- a/crates/pdf/src/lib.rs
 +++ b/crates/pdf/src/lib.rs
 @@ -1,6 +1,6 @@
@@ -1692,7 +1693,7 @@ index 22dc42d..565b4f1 100644
  //! the slide, effects included) and overlaid with an invisible layer of real text from the text
  //! layout engine with embedded font subsets, so the text can be searched, selected and copied.
  //! Hyperlinks and shape actions become link annotations, slide titles become bookmarks.
-@@ -141,8 +141,8 @@ fn export_inner(pres: &Presentation, opts: &PdfOptions) -> Result<Vec<u8>> {
+@@ -168,8 +168,8 @@ fn export_inner(pres: &Presentation, opts: &PdfOptions) -> Result<Vec<u8>> {
      }
      let title = opts.title.clone().unwrap_or_else(|| pres.props.title.clone());
      let metadata = Metadata {
@@ -1704,10 +1705,10 @@ index 22dc42d..565b4f1 100644
          authors: if pres.props.author.trim().is_empty() { Vec::new() } else { vec![pres.props.author.clone()] },
          ..Default::default()
 diff --git a/crates/pdf/src/tests.rs b/crates/pdf/src/tests.rs
-index 2bc5c41..af17f47 100644
+index b34e963e..49665307 100644
 --- a/crates/pdf/src/tests.rs
 +++ b/crates/pdf/src/tests.rs
-@@ -93,8 +93,8 @@ fn metadata_retains_values_and_omits_blank_fields() {
+@@ -102,8 +102,8 @@ fn metadata_retains_values_and_omits_blank_fields() {
      let pdf = hayro_syntax::Pdf::new(bytes.clone()).unwrap();
      assert_eq!(pdf.metadata().title.as_deref(), Some(b"  Deck title  ".as_slice()));
      assert_eq!(pdf.metadata().author.as_deref(), Some(b"  Author  ".as_slice()));
@@ -1719,7 +1720,7 @@ index 2bc5c41..af17f47 100644
      p.props.author = " ".into();
      let bytes = export(&p, &PdfOptions { title: Some(" ".into()), ..opts(PageLayout::Slides) }).unwrap();
 diff --git a/crates/pptx/src/cfb.rs b/crates/pptx/src/cfb.rs
-index 3155d19..683e35f 100644
+index 3155d192..683e35f7 100644
 --- a/crates/pptx/src/cfb.rs
 +++ b/crates/pptx/src/cfb.rs
 @@ -1,7 +1,7 @@
@@ -1732,7 +1733,7 @@ index 3155d19..683e35f 100644
  /// The CFB signature at the start of the file.
  const SIGNATURE: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
 diff --git a/crates/pptx/src/dgm.rs b/crates/pptx/src/dgm.rs
-index 5f85db0..73fe5be 100644
+index 5f85db00..73fe5bed 100644
 --- a/crates/pptx/src/dgm.rs
 +++ b/crates/pptx/src/dgm.rs
 @@ -1,5 +1,5 @@
@@ -1798,7 +1799,7 @@ index 5f85db0..73fe5be 100644
          assert_eq!(kind_for("urn:microsoft.com/office/officeart/2005/8/layout/pList2", "list"), "pictureHList");
          for k in [
 diff --git a/crates/pptx/src/lib.rs b/crates/pptx/src/lib.rs
-index 1b1dc5b..b9fff94 100644
+index be08c680..c5296fd3 100644
 --- a/crates/pptx/src/lib.rs
 +++ b/crates/pptx/src/lib.rs
 @@ -2,7 +2,7 @@
@@ -1811,7 +1812,7 @@ index 1b1dc5b..b9fff94 100644
  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
  #![forbid(unsafe_code)]
 diff --git a/crates/pptx/src/maps.rs b/crates/pptx/src/maps.rs
-index 0dfc8ae..58441ae 100644
+index 6ce81a9b..a7087bd8 100644
 --- a/crates/pptx/src/maps.rs
 +++ b/crates/pptx/src/maps.rs
 @@ -69,7 +69,7 @@ fn transition_from_xml_raw(e: &El) -> Option<(String, String)> {
@@ -1824,10 +1825,10 @@ index 0dfc8ae..58441ae 100644
              let out = e.attr("dir") == Some("out");
              (k("shred"), format!("{}{}", if particles { "particles" } else { "strips" }, if out { "Out" } else { "In" }))
 diff --git a/crates/pptx/src/read/chartex.rs b/crates/pptx/src/read/chartex.rs
-index d8f3e9c..e8dcf45 100644
+index 407d9863..5c94c9ae 100644
 --- a/crates/pptx/src/read/chartex.rs
 +++ b/crates/pptx/src/read/chartex.rs
-@@ -71,7 +71,7 @@ fn kind_of(layout: &str) -> Option<ChartType> {
+@@ -86,7 +86,7 @@ fn kind_of(layout: &str) -> Option<ChartType> {
      })
  }
  
@@ -1836,24 +1837,11 @@ index d8f3e9c..e8dcf45 100644
  pub fn read_chartex_xml(bytes: &[u8]) -> Option<Chart> {
      let doc = crate::xml::parse(bytes).ok()?;
      let mut root = doc.root;
-diff --git a/crates/pptx/src/read/mod.rs b/crates/pptx/src/read/mod.rs
-index 979cdb7..82fe0fc 100644
---- a/crates/pptx/src/read/mod.rs
-+++ b/crates/pptx/src/read/mod.rs
-@@ -159,7 +159,7 @@ pub fn keep_xml(el: &El, ns: &[(String, String)]) -> String {
- /// Namespace prefixes whose `mc:Choice` content we understand.
- const SUPPORTED_MC: [&str; 10] = ["p14", "p15", "p159", "a14", "a16", "p1510", "a15", "c14", "p188", "cx1"];
- 
--/// Office 2016 charts sit in a `cx1` choice; take it only for a layout DeckCraft reads (the
-+/// Office 2016 charts sit in a `cx1` choice; take it only for a layout UniCore reads (the
- /// fallback is a picture or "this chart isn't available" text). The part is checked later, when
- /// the frame is read, so here only the namespace counts.
- fn chartex_readable(ch: &El) -> bool {
 diff --git a/crates/pptx/src/read/shapes.rs b/crates/pptx/src/read/shapes.rs
-index 3f7072f..1d4de00 100644
+index 6d8acc4a..e724ad0b 100644
 --- a/crates/pptx/src/read/shapes.rs
 +++ b/crates/pptx/src/read/shapes.rs
-@@ -732,7 +732,7 @@ fn table(imp: &mut Imp, part: &Part, tbl: &El) -> Table {
+@@ -759,7 +759,7 @@ fn table(imp: &mut Imp, part: &Part, tbl: &El) -> Table {
          t.band_col = pr.bool("bandCol").unwrap_or(false);
          if let Some(id) = pr.child("tableStyleId").map(|e| e.text()) {
              // A style the file defines is drawn from its definition (by its GUID).
@@ -1863,7 +1851,7 @@ index 3f7072f..1d4de00 100644
              t.style =
                  if imp.table_style_ids.contains(&up) && !crate::tables::is_own_guid(&up) { up } else { crate::tables::style_from_guid(id.trim()) };
 diff --git a/crates/pptx/src/tables.rs b/crates/pptx/src/tables.rs
-index 67d25d6..9db79ef 100644
+index 67d25d62..9db79ef4 100644
 --- a/crates/pptx/src/tables.rs
 +++ b/crates/pptx/src/tables.rs
 @@ -1,5 +1,5 @@
@@ -1891,39 +1879,8 @@ index 67d25d6..9db79ef 100644
          style_def(&mut w, s, &name);
      }
      // Styles the file defined but no table uses still belong to the deck.
-diff --git a/crates/pptx/src/write/mod.rs b/crates/pptx/src/write/mod.rs
-index bea8dc6..68b34f8 100644
---- a/crates/pptx/src/write/mod.rs
-+++ b/crates/pptx/src/write/mod.rs
-@@ -39,7 +39,7 @@ const CT_CHARTEX: &str = "application/vnd.ms-office.chartex+xml";
- const RT_CHARTEX: &str = "http://schemas.microsoft.com/office/2014/relationships/chartEx";
- const CT_COMMENTS: &str = "application/vnd.openxmlformats-officedocument.presentationml.comments+xml";
- const CT_AUTHORS: &str = "application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml";
--/// Modern threaded comments (read by PowerPoint 2021+ and DeckCraft; the flattened legacy
-+/// Modern threaded comments (read by PowerPoint 2021+ and UniCore; the flattened legacy
- /// part next to it serves older readers).
- pub(crate) const CT_COMMENTS_MODERN: &str = "application/vnd.ms-powerpoint.comments+xml";
- const CT_AUTHORS_MODERN: &str = "application/vnd.ms-powerpoint.authors+xml";
-@@ -664,7 +664,7 @@ pub fn export(p: &Presentation, main_ct: &str) -> Result<Vec<u8>, PptxError> {
-             so.rels.add("comments", &opc::relative(&sname, &cname), false);
-             x.pkg.xml_part(&cname, CT_COMMENTS, comments_xml(&s.comments, &mut authors));
-             // The modern threaded part next to the flattened legacy one (issue #70):
--            // PowerPoint 2021+ and DeckCraft read replies and resolved state from it,
-+            // PowerPoint 2021+ and UniCore read replies and resolved state from it,
-             // older readers keep the legacy part.
-             let mname = format!("ppt/comments/modernComment{n_comments}.xml");
-             let rid = so.rels.add(RT_COMMENTS_MODERN, &opc::relative(&sname, &mname), false);
-@@ -1252,7 +1252,7 @@ fn app_xml(p: &Presentation) -> Vec<u8> {
-             .a("xmlns", "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties")
-             .a("xmlns:vt", "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"),
-     );
--    w.elt("Application", "DeckCraft");
-+    w.elt("Application", "UniCore");
-     w.elt("Slides", &p.slides.len().to_string());
-     w.elt("Notes", &p.slides.iter().filter(|s| !s.notes.is_empty()).count().to_string());
-     w.elt("HiddenSlides", &p.slides.iter().filter(|s| s.hidden).count().to_string());
 diff --git a/crates/render/src/camera.rs b/crates/render/src/camera.rs
-index af5187c..513b6f7 100644
+index af5187c9..513b6f74 100644
 --- a/crates/render/src/camera.rs
 +++ b/crates/render/src/camera.rs
 @@ -1,7 +1,7 @@
@@ -1936,10 +1893,10 @@ index af5187c..513b6f7 100644
  //! fits them: exact for orthographic cameras, within about 2% of the shape's size for the
  //! perspective ones (whose foreshortening an affine transform can't show). Depth, bevels' sides and
 diff --git a/crates/render/src/chartex.rs b/crates/render/src/chartex.rs
-index e62105e..40e290c 100644
+index 9a9a66b8..8bbe6aaa 100644
 --- a/crates/render/src/chartex.rs
 +++ b/crates/render/src/chartex.rs
-@@ -76,7 +76,7 @@ fn mix(a: Rgba, b: Rgba, t: f64) -> Rgba {
+@@ -90,7 +90,7 @@ fn mix(a: Rgba, b: Rgba, t: f64) -> Rgba {
  }
  
  /// A region map without its geography: the boundaries PowerPoint caches come from an online
@@ -1949,7 +1906,7 @@ index e62105e..40e290c 100644
  /// the map itself is not drawn.
  fn region_tiles(ctx: &mut RenderContext, rctx: &Ctx, c: &Chart, m: Affine, area: Rect, base: f64, text_col: Rgba) {
 diff --git a/crates/render/src/lib.rs b/crates/render/src/lib.rs
-index cf124a9..ec067b2 100644
+index 15b89ec5..518f61c7 100644
 --- a/crates/render/src/lib.rs
 +++ b/crates/render/src/lib.rs
 @@ -1,4 +1,4 @@
@@ -1958,7 +1915,11 @@ index cf124a9..ec067b2 100644
  //!
  //! One code path serves the editor canvas, thumbnails, image/PDF-raster export and the slide show:
  //! [`render_slide`] draws the background, the master and layout graphics, then the slide's shapes
-@@ -1083,7 +1083,7 @@ impl Renderer {
+diff --git a/crates/render/src/renderer.rs b/crates/render/src/renderer.rs
+index c25f6bab..c417c42c 100644
+--- a/crates/render/src/renderer.rs
++++ b/crates/render/src/renderer.rs
+@@ -753,7 +753,7 @@ impl Renderer {
                  paint::picture(ctx, f.pres, &paint::resolved(rctx, pf, None), bounds, m, t);
                  ctx.pop_layer();
              }
@@ -1966,21 +1927,12 @@ index cf124a9..ec067b2 100644
 +            // An object UniCore doesn't model (an embedded OLE object, an unknown graphic): its
              // preview picture, stretched over the frame, as PowerPoint draws it.
              ShapeKind::Opaque { preview: Some(media), .. } => {
-                 ctx.set_transform(m);
-@@ -2088,7 +2088,7 @@ pub fn text_transform(m: Affine, tr: Rect, rotation: f64) -> Affine {
-     t
- }
- 
--/// The WordArt warp of `s`'s text over its text rectangle `tr`, if it has one DeckCraft draws.
-+/// The WordArt warp of `s`'s text over its text rectangle `tr`, if it has one UniCore draws.
- pub fn text_warp(rctx: &Ctx, s: &Shape, tr: Rect) -> Option<deckcraft_geom::warp::Warp> {
-     let bp = resolve::body(rctx, s);
-     let name = bp.warp.as_deref()?;
+                 // An embedded object's fallback picture can carry a fill (old equation objects
 diff --git a/crates/render/src/tests.rs b/crates/render/src/tests.rs
-index 4ee1c88..69a48c9 100644
+index 2de2daab..ee091627 100644
 --- a/crates/render/src/tests.rs
 +++ b/crates/render/src/tests.rs
-@@ -1028,7 +1028,7 @@ fn colour_glyphs_paint_their_layers() {
+@@ -1165,7 +1165,7 @@ fn colour_glyphs_paint_their_layers() {
      let mut t = TextBody::from_text("\u{E000} \u{E001}");
      let props = &mut t.paragraphs[0].runs[0].props;
      props.size = Some(72.0);
@@ -1989,7 +1941,7 @@ index 4ee1c88..69a48c9 100644
      props.fill = Some(deckcraft_model::style::Fill::solid(ColorRef::rgb(deckcraft_color::Rgba::rgb(0, 160, 0))));
      sh.text = Some(t);
      let p = deck_with(vec![sh]);
-@@ -1264,7 +1264,7 @@ fn soft_edges_fade_to_the_outline() {
+@@ -1403,7 +1403,7 @@ fn soft_edges_fade_to_the_outline() {
  #[test]
  fn a_file_defined_table_style_draws_its_parts() {
      // Red table background (tblBg), see-through white on banded rows, a 4 pt blue left border and
@@ -1998,11 +1950,24 @@ index 4ee1c88..69a48c9 100644
      use deckcraft_model::style::{Fill, Line};
      use deckcraft_model::table::{TableBorder, TablePart, TablePartStyle, TableStyleDef};
      let rgb = |r, g, b| ColorRef::rgb(deckcraft_color::Rgba::rgb(r, g, b));
+diff --git a/crates/render/src/text_draw.rs b/crates/render/src/text_draw.rs
+index 3fe96d69..d48e2e94 100644
+--- a/crates/render/src/text_draw.rs
++++ b/crates/render/src/text_draw.rs
+@@ -89,7 +89,7 @@ pub fn text_transform(m: Affine, tr: Rect, rotation: f64) -> Affine {
+     t
+ }
+ 
+-/// The WordArt warp of `s`'s text over its text rectangle `tr`, if it has one DeckCraft draws.
++/// The WordArt warp of `s`'s text over its text rectangle `tr`, if it has one UniCore draws.
+ pub fn text_warp(rctx: &Ctx, s: &Shape, tr: Rect) -> Option<deckcraft_geom::warp::Warp> {
+     let bp = resolve::body(rctx, s);
+     let name = bp.warp.as_deref()?;
 diff --git a/crates/text/src/tests.rs b/crates/text/src/tests.rs
-index bc0f24f..128fc41 100644
+index 7dbdbe4f..ea9a77a0 100644
 --- a/crates/text/src/tests.rs
 +++ b/crates/text/src/tests.rs
-@@ -207,7 +207,7 @@ fn saved_shrink_scale_is_drawn() {
+@@ -233,7 +233,7 @@ fn saved_shrink_scale_is_drawn() {
  }
  
  /// A body whose file has `<a:normAutofit/>` with no `fontScale` is the schema default 100 %:
@@ -2012,7 +1977,7 @@ index bc0f24f..128fc41 100644
  fn bare_normautofit_draws_at_full_size() {
      let text = (0..30).map(|i| format!("Line number {i}")).collect::<Vec<_>>().join("\n");
 diff --git a/crates/ui-egui/examples/icon_gallery.rs b/crates/ui-egui/examples/icon_gallery.rs
-index 6b1a38a..d0cfd87 100644
+index 6b1a38a5..d0cfd872 100644
 --- a/crates/ui-egui/examples/icon_gallery.rs
 +++ b/crates/ui-egui/examples/icon_gallery.rs
 @@ -1,4 +1,4 @@
@@ -2021,20 +1986,109 @@ index 6b1a38a..d0cfd87 100644
  //!
  //! ```sh
  //! cargo run -p deckcraft-ui-egui --example icon_gallery -- /tmp/gallery.png
-diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
-index 999900d..0f8badb 100644
---- a/crates/ui-egui/src/backstage.rs
-+++ b/crates/ui-egui/src/backstage.rs
-@@ -216,7 +216,7 @@ impl Backstage {
- /// Save As and Change File Type: (id for [`SlideApp::export_as`], label, detail).
- pub const SAVE_TYPES: [(&str, &str, &str); 6] = [
-     ("pptx", "PowerPoint Presentation (*.pptx)", "Opens in PowerPoint and other presentation apps"),
--    ("deckcraft", "DeckCraft Presentation (*.deckcraft)", "DeckCraft's own format: everything is kept"),
-+    ("deckcraft", "UniCore Presentation (*.deckcraft)", "UniCore's own format: everything is kept"),
-     ("pdf", "PDF (*.pdf)", "A fixed copy that keeps its layout on any device"),
-     ("outline", "Outline (*.txt)", "The slide titles and bullet text as plain text"),
-     ("png", "PNG Picture (*.png)", "The current slide as a picture"),
-@@ -540,7 +540,7 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank:
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 7c9c373a..500ebdbe 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -42,6 +42,7 @@ impl SlideApp {
+         SlideApp {
+             last_fill: serde_json::json!("accent1"),
+             last_outline: serde_json::json!("tx1"),
++            save_format: "deckcraft",
+             table_pen: serde_json::json!({"width": 1.0}),
+             session,
+             services,
+diff --git a/crates/ui-egui/src/app/clipboard.rs b/crates/ui-egui/src/app/clipboard.rs
+index 19fd48bf..fd727d49 100644
+--- a/crates/ui-egui/src/app/clipboard.rs
++++ b/crates/ui-egui/src/app/clipboard.rs
+@@ -15,7 +15,7 @@ impl SlideApp {
+     /// Offer the copy or cut on the system clipboard.
+     ///
+     /// Slides go out as plain text. Text goes out as HTML plus the same plain words, so a paste
+-    /// back into DeckCraft still uses the internal clipboard. A textless shape leaves the
++    /// back into UniCore still uses the internal clipboard. A textless shape leaves the
+     /// invisible [`OBJECTS_MARKER`] rather than a picture: with only an image on the clipboard
+     /// egui-winit drops Ctrl+V, and the shortcut could no longer paste the shape here (#182).
+     pub(super) fn publish_clipboard(&mut self, ctx: &egui::Context, cut: bool) {
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 0f7781a8..2708c304 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -241,7 +241,7 @@ impl SlideApp {
+             "app.insertAudioDialog" => self.pick_and_insert("audio", "insert.audio"),
+             "app.reuseSlidesDialog" => self.pick_and_reuse(p.get("keepFormatting").and_then(Value::as_bool).unwrap_or(false)),
+             "app.insertVideoDialog" => self.pick_and_insert("video", "insert.video"),
+-            "app.saveAsDialog" => self.save_as_dialog("deckcraft"),
++            "app.saveAsDialog" => self.save_as_dialog(self.save_format),
+             "app.exportDialog" => self.dialog = Some(dialogs::Dialog::new("export")),
+             "app.pasteSpecial" => self.dialog = Some(dialogs::Dialog::new("pasteSpecial")),
+             "app.browseThemeDialog" => {
+@@ -277,10 +277,6 @@ impl SlideApp {
+                 let d = p.get("id").and_then(Value::as_str).ok_or("missing `id`")?;
+                 self.dialog = Some(dialogs::Dialog::new(d));
+             }
+-            "app.links" => {
+-                use deckcraft_engine::links::{APP_PAGE, APPS, DISCORD, GITHUB, WEBSITE};
+-                return Ok(json!({"discord": DISCORD, "website": WEBSITE, "apps": APPS, "appPage": APP_PAGE, "github": GITHUB}));
+-            }
+             _ => return Err(format!("unknown UI command `{id}`")),
+         }
+         Ok(Value::Null)
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index 1e846e0d..bc4368ac 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -123,7 +123,7 @@ fn command_for(purpose: FilePurpose, name: &str, bytes: &[u8]) -> Result<&'stati
+         FilePurpose::Open => open_command(name),
+         FilePurpose::Infer => infer_command(name, bytes),
+     };
+-    cmd.ok_or_else(|| format!("{name}: DeckCraft can't open this kind of file"))
++    cmd.ok_or_else(|| format!("{name}: UniCore can't open this kind of file"))
+ }
+ 
+ impl SlideApp {
+@@ -199,7 +199,7 @@ impl SlideApp {
+             "deckcraft" => ("deckcraft", "deckcraft", false),
+             "gif" => ("gif", "gif", false),
+             other => {
+-                self.set_status(format!("DeckCraft can't export “{other}”"));
++                self.set_status(format!("UniCore can't export “{other}”"));
+                 return false;
+             }
+         };
+@@ -256,7 +256,7 @@ impl SlideApp {
+         }
+     }
+ 
+-    /// File › Print: DeckCraft prints through a PDF. On the desktop the PDF (with the Print page's
++    /// File › Print: UniCore prints through a PDF. On the desktop the PDF (with the Print page's
+     /// layout, slides and options) is written to the temporary folder and opened in the system's
+     /// PDF viewer, which has the printers; on the web it downloads.
+     pub fn print_pdf(&mut self, params: Value) -> bool {
+@@ -493,7 +493,7 @@ impl SlideApp {
+                 Err(e) => self.set_status(e.to_string()),
+             }
+         } else {
+-            self.save_as_dialog("deckcraft");
++            self.save_as_dialog(self.save_format);
+         }
+     }
+ 
+@@ -511,7 +511,7 @@ impl SlideApp {
+                 UiRequest::Message { text } => self.set_status(text),
+                 UiRequest::PickFile { purpose } => {
+                     if purpose == "saveAs" {
+-                        self.save_as_dialog("deckcraft");
++                        self.save_as_dialog(self.save_format);
+                     }
+                 }
+                 UiRequest::Media { action, shape, ms } => {
+diff --git a/crates/ui-egui/src/backstage/files.rs b/crates/ui-egui/src/backstage/files.rs
+index 4b7cec66..390fe1f7 100644
+--- a/crates/ui-egui/src/backstage/files.rs
++++ b/crates/ui-egui/src/backstage/files.rs
+@@ -55,7 +55,7 @@ fn new_tiles(app: &mut SlideApp, ui: &mut Ui, query: &str, limit: usize, blank:
              shown += 1;
          }
          if sample && shown < limit {
@@ -2043,14 +2097,14 @@ index 999900d..0f8badb 100644
              if tile(ui, "Sample deck: Northern Lights", th.as_ref(), false).clicked()
                  && let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session)
              {
-@@ -688,15 +688,11 @@ fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &str, enable
+@@ -203,15 +203,11 @@ pub(super) fn task(ui: &mut Ui, icon: Icon, button: &str, title: &str, detail: &
  
  // ---------------------------------------------------------------- pages
  
 -/// Home: DeckCraft's mark, new presentations (the first themes, with a link to New) and recent
 +/// Home: UniCore's mark, new presentations (the first themes, with a link to New) and recent
  /// presentations (with a link to Open). The same page is the start screen.
- fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) {
+ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome) {
      let t = Tokens::get(ui.ctx());
 -    ui.horizontal(|ui| {
 -        let (r, _) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::hover());
@@ -2061,7 +2115,7 @@ index 999900d..0f8badb 100644
      ui.add_space(18.0);
      ui.horizontal(|ui| {
          ui.label(RichText::new("New").font(theme::bold(16.0)).color(t.text));
-@@ -736,8 +732,6 @@ fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mut Outcome)
+@@ -251,8 +247,6 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mu
              }
          });
      }
@@ -2070,7 +2124,50 @@ index 999900d..0f8badb 100644
  }
  
  /// New: a blank presentation, then every theme and starter template, with a search box.
-@@ -1043,9 +1037,9 @@ fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
+diff --git a/crates/ui-egui/src/backstage/info.rs b/crates/ui-egui/src/backstage/info.rs
+index 0dce7474..8a129902 100644
+--- a/crates/ui-egui/src/backstage/info.rs
++++ b/crates/ui-egui/src/backstage/info.rs
+@@ -1,10 +1,10 @@
+ use super::files::task;
+-use super::{Backstage, Icon, Outcome, Page, RichText, Sense, SlideApp, Tokens, Ui, Value, dim, heading, json, theme, vec2};
++use super::{Backstage, Icon, Outcome, Page, RichText, SlideApp, Tokens, Ui, Value, dim, heading, json, theme, vec2};
+ 
+ /// Save As and Change File Type: (id for [`SlideApp::export_as`], label, detail).
+ pub const SAVE_TYPES: [(&str, &str, &str); 7] = [
+     ("pptx", "PowerPoint Presentation (*.pptx)", "Opens in PowerPoint and other presentation apps"),
+-    ("deckcraft", "DeckCraft Presentation (*.deckcraft)", "DeckCraft's own format: everything is kept"),
++    ("deckcraft", "UniCore Presentation (*.deckcraft)", "UniCore's own format: everything is kept"),
+     ("pdf", "PDF (*.pdf)", "A fixed copy that keeps its layout on any device"),
+     ("outline", "Outline (*.txt)", "The slide titles and bullet text as plain text"),
+     ("rtf", "Outline/RTF (*.rtf)", "The slide titles and bullet text for word processors"),
+@@ -198,19 +198,13 @@ pub(super) fn about(app: &mut SlideApp, ui: &mut Ui) {
+         ui.vertical(|ui| {
+             ui.set_width(480.0);
+             heading(ui, "Product Information");
+-            ui.horizontal(|ui| {
+-                let (r, _) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::hover());
+-                crate::dialogs::paint_logo(ui.painter(), r);
+-                ui.label(RichText::new("DeckCraft").font(theme::bold(24.0)).color(t.text));
+-            });
++            ui.label(RichText::new("UniCore").font(theme::bold(24.0)).color(t.text));
+             dim(ui, &crate::dialogs::version_line());
+             dim(ui, "Open source under MIT OR Apache-2.0. Not affiliated with Microsoft.");
+             ui.add_space(14.0);
+-            if task(ui, Icon::Help, "Credits", "Credits", "The people and models who built DeckCraft.", true) {
++            if task(ui, Icon::Help, "About UniCore", "About UniCore", "The version.", true) {
+                 let _ = app.run("app.about", json!({}));
+             }
+-            ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+-            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
+         });
+         ui.add_space(40.0);
+         ui.vertical(|ui| {
+diff --git a/crates/ui-egui/src/backstage/print.rs b/crates/ui-egui/src/backstage/print.rs
+index 612ecaf7..165f5c8f 100644
+--- a/crates/ui-egui/src/backstage/print.rs
++++ b/crates/ui-egui/src/backstage/print.rs
+@@ -84,9 +84,9 @@ pub(super) fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
              dim(
                  ui,
                  if app.services.pick_save.is_some() {
@@ -2082,64 +2179,20 @@ index 999900d..0f8badb 100644
                  },
              );
              ui.add_space(14.0);
-@@ -1340,7 +1334,7 @@ fn bullets(ui: &mut Ui, items: &[&str]) {
-     ui.add_space(10.0);
- }
- 
--/// Account: the interface's appearance and what DeckCraft is. DeckCraft has no accounts, so
-+/// Account: the interface's appearance and what UniCore is. UniCore has no accounts, so
- /// there is nothing to sign in to.
- fn account(app: &mut SlideApp, ui: &mut Ui) {
-     let t = Tokens::get(ui.ctx());
-@@ -1358,31 +1352,18 @@ fn account(app: &mut SlideApp, ui: &mut Ui) {
-             });
-             ui.add_space(16.0);
-             heading(ui, "User Information");
--            dim(ui, "DeckCraft has no accounts: there is nothing to sign in to, and your presentations stay on your device.");
-+            dim(ui, "UniCore has no accounts: there is nothing to sign in to, and your presentations stay on your device.");
-         });
-         ui.add_space(40.0);
-         ui.vertical(|ui| {
-             heading(ui, "Product Information");
--            ui.horizontal(|ui| {
--                let (r, _) = ui.allocate_exact_size(vec2(40.0, 40.0), Sense::hover());
--                crate::dialogs::paint_logo(ui.painter(), r);
--                ui.label(RichText::new("DeckCraft").font(theme::bold(24.0)).color(t.text));
--            });
-+            ui.label(RichText::new("UniCore").font(theme::bold(24.0)).color(t.text));
-             dim(ui, &crate::dialogs::version_line());
-             dim(ui, "Open source under MIT OR Apache-2.0. Not affiliated with Microsoft.");
-             ui.add_space(14.0);
--            if task(
--                ui,
--                Icon::Help,
--                "About DeckCraft",
--                "About DeckCraft",
--                "The version, the people and models who built it, and where to find us.",
--                true,
--            ) {
-+            if task(ui, Icon::Help, "About UniCore", "About UniCore", "The version.", true) {
-                 let _ = app.run("app.about", json!({}));
-             }
--            ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
--            ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
-         });
-     });
- }
-diff --git a/crates/ui-egui/src/backstage_tests.rs b/crates/ui-egui/src/backstage_tests.rs
-index c29ef47..41b4829 100644
---- a/crates/ui-egui/src/backstage_tests.rs
-+++ b/crates/ui-egui/src/backstage_tests.rs
-@@ -166,7 +166,7 @@ fn every_page_renders() {
-         (Page::SaveAs, "Not saved yet"),
-         (Page::Print, "Print Hidden Slides"),
-         (Page::Export, "Create PDF Document"),
--        (Page::Account, "About DeckCraft"),
-+        (Page::Account, "About UniCore"),
-     ];
-     for (p, marker) in checks {
-         h.state_mut().run("app.backstage", json!({"page": p.id()})).unwrap();
-@@ -480,7 +480,7 @@ fn a_file_that_cant_be_opened_says_why() {
+diff --git a/crates/ui-egui/src/backstage/tests.rs b/crates/ui-egui/src/backstage/tests.rs
+index e6aa048a..0dd16e18 100644
+--- a/crates/ui-egui/src/backstage/tests.rs
++++ b/crates/ui-egui/src/backstage/tests.rs
+@@ -193,7 +193,7 @@ fn new_tiles_keep_the_right_margin_in_a_narrow_window() {
+     );
+     h.state_mut().run("app.backstage", json!({"page": "new"})).unwrap();
+     h.run_steps(3);
+-    let tiles = ["DeckCraft", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Briefing"];
++    let tiles = ["UniCore", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Briefing"];
+     for label in tiles {
+         let r = h.get_by_label(label).rect();
+         assert!(r.right() <= 1000.0 - 36.0, "{label} ends at {}, inside the 36pt right margin", r.right());
+@@ -596,7 +596,7 @@ fn a_file_that_cant_be_opened_says_why() {
      }
      h.run_steps(2);
      assert!(h.state().session.documents().is_empty());
@@ -2149,7 +2202,7 @@ index c29ef47..41b4829 100644
  }
  
 diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
-index 2393bd6..096c026 100644
+index ed33b9cd..5d3c8a08 100644
 --- a/crates/ui-egui/src/dialogs.rs
 +++ b/crates/ui-egui/src/dialogs.rs
 @@ -2,7 +2,7 @@
@@ -2161,7 +2214,7 @@ index 2393bd6..096c026 100644
  use serde_json::{Value, json};
  
  use crate::SlideApp;
-@@ -47,7 +47,7 @@ fn title(id: &str) -> &'static str {
+@@ -48,7 +48,7 @@ fn title(id: &str) -> &'static str {
          "paragraph" => "Paragraph",
          "tabs" => "Tabs",
          "font" => "Font",
@@ -2170,7 +2223,7 @@ index 2393bd6..096c026 100644
          "preferences" => "Preferences",
          "autocorrect" => "AutoCorrect",
          "gridOptions" => "Grid Options",
-@@ -68,10 +68,10 @@ fn title(id: &str) -> &'static str {
+@@ -70,10 +70,10 @@ fn title(id: &str) -> &'static str {
          "smartart" => "Choose a SmartArt Graphic",
          "bullets" => "Bullets and Numbering",
          "action" => "Action Settings",
@@ -2183,70 +2236,45 @@ index 2393bd6..096c026 100644
      }
  }
  
-@@ -274,7 +274,7 @@ fn album_choice(ui: &mut Ui, d: &mut Dialog, id: &str, key: &str, default: &str,
-     opened.response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, label));
+@@ -225,7 +225,7 @@ mod theme_fonts;
+ mod trim;
+ mod zoom;
+ 
+-pub use about::{about, paint_logo, version_line};
++pub use about::{about, version_line};
+ use body::body;
+ #[cfg(test)]
+ use hyperlink::{
+@@ -295,7 +295,6 @@ fn inches_text(v: Option<&Value>) -> String {
+     crate::widgets::fmt_num(v.and_then(Value::as_f64).filter(|n| n.is_finite()).unwrap_or(0.0) / 72.0, "")
  }
  
--const ALBUM_THEMES: &[&str] = &["DeckCraft", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Coral Reef", "Slate"];
-+const ALBUM_THEMES: &[&str] = &["UniCore", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Coral Reef", "Slate"];
- 
- fn current_theme(app: &SlideApp) -> String {
-     app.session
-@@ -282,7 +282,7 @@ fn current_theme(app: &SlideApp) -> String {
-         .and_then(|d| d.doc.masters.first())
-         .map(|m| m.theme.name.clone())
-         .filter(|n| !n.is_empty())
--        .unwrap_or_else(|| "DeckCraft".into())
-+        .unwrap_or_else(|| "UniCore".into())
- }
- 
- fn album_json_id(v: &Value) -> Option<u64> {
-@@ -465,7 +465,7 @@ fn photo_album_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
-         check(ui, d, "Captions under pictures", "captions", false);
-         check(ui, d, "ALL pictures black and white", "grayscale", false);
-         ui.label("Album theme");
--        album_choice(ui, d, "album_theme", "theme", "DeckCraft", &ALBUM_THEMES.iter().map(|n| (*n, *n)).collect::<Vec<_>>());
-+        album_choice(ui, d, "album_theme", "theme", "UniCore", &ALBUM_THEMES.iter().map(|n| (*n, *n)).collect::<Vec<_>>());
-     });
-     let captions = d.fields.get("captions").is_some_and(|v| v == "1");
-     let grayscale = d.fields.get("grayscale").is_some_and(|v| v == "1");
-@@ -482,7 +482,7 @@ fn photo_album_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
-         }
-         let layout = d.get("layout", "1");
-         let frame = d.get("frame", "rect");
--        let theme = d.get("theme", "DeckCraft");
-+        let theme = d.get("theme", "UniCore");
-         let theme_was = d.fields.get("themeWas").cloned().unwrap_or_default();
-         let mut payload = json!({"pictures": list, "layout": layout, "frame": frame, "captions": captions, "grayscale": grayscale});
-         if theme != theme_was
-@@ -2080,24 +2080,7 @@ fn body(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
-             ok || cancel
-         }
-         "about" => {
--            let tab = d.get("tab", "about");
--            ui.horizontal(|ui| {
--                for (k, l) in [("about", "About"), ("contributors", "Contributors"), ("models", "Models")] {
--                    if ui.selectable_label(tab == k, l).clicked() {
--                        d.fields.insert("tab".into(), k.into());
--                    }
--                }
--            });
--            ui.separator();
--            match tab.as_str() {
--                "contributors" | "models" => {
--                    // The credits need room for the table; the About tab keeps its compact size.
--                    ui.set_min_size(vec2(640.0, 380.0));
--                    ui.set_max_height(380.0);
--                    if tab == "models" { crate::credits::models_ui(ui) } else { crate::credits::contributors_ui(ui) }
--                }
--                _ => about(app, ui),
--            }
-+            about(app, ui);
-             let (ok, _) = buttons(ui, "Close");
-             ok
-         }
-@@ -2617,21 +2600,9 @@ fn pretty_equation(s: &str) -> String {
- }
+-pub mod credits;
+ #[cfg(test)]
+ mod font_dialog_tests;
+ #[cfg(not(target_arch = "wasm32"))]
+diff --git a/crates/ui-egui/src/dialogs/about.rs b/crates/ui-egui/src/dialogs/about.rs
+index 03c6629b..4f7b3e55 100644
+--- a/crates/ui-egui/src/dialogs/about.rs
++++ b/crates/ui-egui/src/dialogs/about.rs
+@@ -1,36 +1,9 @@
+-use super::{Color32, CornerRadius, Rect, Sense, SlideApp, Stroke, Tokens, Ui, pos2, theme, vec2};
+-
+-/// Room the About credits need for their table; the About tab keeps its compact size.
+-pub(super) const CREDITS_SIZE: egui::Vec2 = vec2(640.0, 380.0);
+-
+-/// The Contributors / Models body in a block of its own fixed size, below the tab row. Sizing the
+-/// dialog's `ui` instead (`set_min_size` / `set_max_height`) squeezed the tab row and the first
+-/// credits row together, so the text was garbled and the tabs stopped answering (#843).
+-pub(super) fn credits_block(ui: &mut Ui, models: bool) -> Rect {
+-    ui.allocate_ui(CREDITS_SIZE, |ui| {
+-        ui.set_min_size(CREDITS_SIZE);
+-        if models { crate::credits::models_ui(ui) } else { crate::credits::contributors_ui(ui) }
+-    })
+-    .response
+-    .rect
+-}
++use super::{SlideApp, Ui, theme};
  
  pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
 -    let t = Tokens::get(ui.ctx());
@@ -2269,10 +2297,11 @@ index 2393bd6..096c026 100644
      });
  }
  
-@@ -2650,22 +2621,6 @@ pub fn version_line() -> String {
+@@ -48,76 +21,3 @@ pub fn version_line() -> String {
+     }
      s
  }
- 
+-
 -/// DeckCraft's mark, drawn in code: a slide card with a play triangle in our orange.
 -pub fn paint_logo(p: &egui::Painter, r: Rect) {
 -    let orange = Color32::from_rgb(0xF2, 0x6B, 0x1D);
@@ -2289,10 +2318,102 @@ index 2393bd6..096c026 100644
 -    ));
 -}
 -
- /// The selection's proofing language and whether it's marked Do Not Check Spelling: the run at
- /// the caret, else the first run of the first selected shape; US English when none says.
- pub fn selected_language(app: &SlideApp) -> (String, bool) {
-@@ -3231,7 +3186,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+-#[cfg(test)]
+-mod about_credits_tests {
+-    use egui_kittest::Harness;
+-    use egui_kittest::kittest::Queryable;
+-
+-    use super::{CREDITS_SIZE, credits_block};
+-    use crate::dialogs::Dialog;
+-    use crate::{Services, SlideApp};
+-
+-    fn tab_of(h: &Harness<'_, SlideApp>) -> String {
+-        let d = h.state().dialog.as_ref().expect("the About dialog is open");
+-        d.fields.get("tab").cloned().unwrap_or_else(|| "about".into())
+-    }
+-
+-    /// The reported symptom (#843): in the real dialog the tabs stopped answering once Contributors
+-    /// or Models was open. Click through Contributors, Models and back to About.
+-    #[test]
+-    fn about_dialog_tabs_keep_responding() {
+-        let mut app = SlideApp::new(deckcraft_engine::Session::with_new(), Services::default());
+-        app.dialog = Some(Dialog::new("about"));
+-        let mut h = Harness::builder().with_size(egui::vec2(1440.0, 900.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+-            |ui, app: &mut SlideApp| {
+-                app.logic(ui.ctx());
+-                app.ui(ui);
+-            },
+-            app,
+-        );
+-        h.run_steps(4);
+-        assert_eq!(tab_of(&h), "about");
+-        for label in ["Contributors", "Models", "About", "Models", "Contributors"] {
+-            h.get_by_label(label).click();
+-            h.run_steps(3);
+-            assert_eq!(tab_of(&h), label.to_lowercase(), "clicking {label} switches the tab");
+-        }
+-    }
+-
+-    #[test]
+-    fn credits_get_their_own_block_below_the_tab_row() {
+-        for models in [false, true] {
+-            let ctx = egui::Context::default();
+-            let mut tabs = egui::Rect::NOTHING;
+-            let mut block = egui::Rect::NOTHING;
+-            let mut whole = egui::Rect::NOTHING;
+-            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+-                tabs = ui.label("About").rect;
+-                block = credits_block(ui, models);
+-                whole = ui.min_rect();
+-            });
+-            out.textures_delta.clear();
+-            assert_eq!(block.size(), CREDITS_SIZE, "models={models}");
+-            assert!(block.min.y >= tabs.max.y, "the credits start below the tab row (models={models})");
+-            assert!(whole.max.y >= block.max.y, "the dialog grows to hold the block (models={models})");
+-            assert!(whole.height() > CREDITS_SIZE.y, "the tab row is not squeezed into the credits height (models={models})");
+-        }
+-    }
+-}
+diff --git a/crates/ui-egui/src/dialogs/body.rs b/crates/ui-egui/src/dialogs/body.rs
+index cb1a879e..6bb6f1fb 100644
+--- a/crates/ui-egui/src/dialogs/body.rs
++++ b/crates/ui-egui/src/dialogs/body.rs
+@@ -1,4 +1,4 @@
+-use super::about::{about, credits_block};
++use super::about::about;
+ use super::alt_text::alt_text_starts_decorative;
+ use super::columns::columns_dialog;
+ use super::date_time::{date_rows, date_time_dialog};
+@@ -1269,22 +1269,8 @@ fn dlg_smartart(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+     ok || cancel
+ }
+ 
+-fn dlg_about(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+-    let tab = d.get("tab", "about");
+-    ui.horizontal(|ui| {
+-        for (k, l) in [("about", "About"), ("contributors", "Contributors"), ("models", "Models")] {
+-            if ui.selectable_label(tab == k, l).clicked() {
+-                d.fields.insert("tab".into(), k.into());
+-            }
+-        }
+-    });
+-    ui.separator();
+-    match tab.as_str() {
+-        "contributors" | "models" => {
+-            credits_block(ui, tab == "models");
+-        }
+-        _ => about(app, ui),
+-    }
++fn dlg_about(app: &mut SlideApp, ui: &mut Ui, _d: &mut Dialog) -> bool {
++    about(app, ui);
+     let (ok, cancel) = buttons(ui, "Close");
+     ok || cancel
+ }
+diff --git a/crates/ui-egui/src/dialogs/find.rs b/crates/ui-egui/src/dialogs/find.rs
+index c702db92..c46db159 100644
+--- a/crates/ui-egui/src/dialogs/find.rs
++++ b/crates/ui-egui/src/dialogs/find.rs
+@@ -49,7 +49,7 @@ pub(super) fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bo
                  p["with"] = json!(d.get("with", ""));
                  let msg = match app.session.execute("text.replace", &p) {
                      Ok(v) => format!("Replaced {} occurrence(s).", v.get("replaced").and_then(Value::as_u64).unwrap_or(0)),
@@ -2301,7 +2422,7 @@ index 2393bd6..096c026 100644
                  };
                  d.fields.insert("status".into(), msg);
                  d.fields.remove("cur");
-@@ -3246,7 +3201,7 @@ fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
+@@ -64,7 +64,7 @@ pub(super) fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bo
      if find_next {
          let list = app.session.execute("text.find", &q).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default();
          if list.is_empty() {
@@ -2310,10 +2431,143 @@ index 2393bd6..096c026 100644
              d.fields.remove("cur");
          } else {
              let n = d.get("next", "0").parse::<usize>().unwrap_or(0) % list.len();
-diff --git a/crates/ui-egui/src/effects_tests.rs b/crates/ui-egui/src/effects_tests.rs
-index 37d856f..08acbe8 100644
---- a/crates/ui-egui/src/effects_tests.rs
-+++ b/crates/ui-egui/src/effects_tests.rs
+diff --git a/crates/ui-egui/src/dialogs/photo_album.rs b/crates/ui-egui/src/dialogs/photo_album.rs
+index 340e5832..3f57c30f 100644
+--- a/crates/ui-egui/src/dialogs/photo_album.rs
++++ b/crates/ui-egui/src/dialogs/photo_album.rs
+@@ -85,7 +85,7 @@ fn album_choice(ui: &mut Ui, d: &mut Dialog, id: &str, name: &str, key: &str, de
+     });
+ }
+ 
+-const ALBUM_THEMES: &[&str] = &["DeckCraft", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Coral Reef", "Slate"];
++const ALBUM_THEMES: &[&str] = &["UniCore", "Harbor", "Ember", "Meadow", "Nocturne", "Paper", "Coral Reef", "Slate"];
+ 
+ fn current_theme(app: &SlideApp) -> String {
+     app.session
+@@ -93,7 +93,7 @@ fn current_theme(app: &SlideApp) -> String {
+         .and_then(|d| d.doc.masters.first())
+         .map(|m| m.theme.name.clone())
+         .filter(|n| !n.is_empty())
+-        .unwrap_or_else(|| "DeckCraft".into())
++        .unwrap_or_else(|| "UniCore".into())
+ }
+ 
+ fn album_json_id(v: &Value) -> Option<u64> {
+@@ -278,7 +278,7 @@ pub(super) fn photo_album_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog
+         check(ui, d, "Captions under pictures", "captions", false);
+         check(ui, d, "ALL pictures black and white", "grayscale", false);
+         ui.label("Album theme");
+-        album_choice(ui, d, "album_theme", "Album theme", "theme", "DeckCraft", &ALBUM_THEMES.iter().map(|n| (*n, *n)).collect::<Vec<_>>());
++        album_choice(ui, d, "album_theme", "Album theme", "theme", "UniCore", &ALBUM_THEMES.iter().map(|n| (*n, *n)).collect::<Vec<_>>());
+     });
+     let captions = d.fields.get("captions").is_some_and(|v| v == "1");
+     let grayscale = d.fields.get("grayscale").is_some_and(|v| v == "1");
+@@ -295,7 +295,7 @@ pub(super) fn photo_album_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog
+         }
+         let layout = d.get("layout", "1");
+         let frame = d.get("frame", "rect");
+-        let theme = d.get("theme", "DeckCraft");
++        let theme = d.get("theme", "UniCore");
+         let theme_was = d.fields.get("themeWas").cloned().unwrap_or_default();
+         let mut payload = json!({"pictures": list, "layout": layout, "frame": frame, "captions": captions, "grayscale": grayscale});
+         if theme != theme_was
+diff --git a/crates/ui-egui/src/dialogs/theme_colors_tests.rs b/crates/ui-egui/src/dialogs/theme_colors_tests.rs
+index d7dba9bb..48f0635e 100644
+--- a/crates/ui-egui/src/dialogs/theme_colors_tests.rs
++++ b/crates/ui-egui/src/dialogs/theme_colors_tests.rs
+@@ -130,7 +130,7 @@ fn typing_a_hex_replaces_accent_1() {
+     h.get_by_label("Save").click();
+     h.run_steps(2);
+     assert!(h.state().dialog.is_none(), "status: {:?}", h.state().status);
+-    assert_eq!(scheme(&h).name, "DeckCraft");
++    assert_eq!(scheme(&h).name, "UniCore");
+     assert_eq!(scheme(&h).get(SchemeSlot::Accent1).hex(), "11AA22");
+     assert_eq!(undo_len(&h), n + 1);
+ }
+diff --git a/crates/ui-egui/src/icons.rs b/crates/ui-egui/src/icons.rs
+index c3aa288b..03e60535 100644
+--- a/crates/ui-egui/src/icons.rs
++++ b/crates/ui-egui/src/icons.rs
+@@ -29,7 +29,7 @@ const DARK: Color32 = Color32::from_rgb(0x2B, 0x2B, 0x2B);
+ 
+ macro_rules! icons {
+     ($($(#[$m:meta])* $v:ident => $n:literal,)*) => {
+-        /// Every icon DeckCraft draws.
++        /// Every icon UniCore draws.
+         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+         pub enum Icon {
+             $($(#[$m])* $v,)*
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 5f624d9c..712ec63e 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! DeckCraft's egui frontend: a PowerPoint-style UI over `deckcraft-engine`.
++//! UniCore's egui frontend: a PowerPoint-style UI over `deckcraft-engine`.
+ //!
+ //! The UI is thin: every action goes through [`SlideApp::run`], which handles UI commands
+ //! (views, panes, zoom) here and sends everything else to the engine. The ribbon, menus,
+@@ -6,7 +6,7 @@
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+ 
+-/// DeckCraft as craft-update knows it, with its 128 px icon and accent colour: the update
++/// UniCore as craft-update knows it, with its 128 px icon and accent colour: the update
+ /// prompt shows both, and an AppImage's menu entry gets the icon.
+ #[cfg(not(target_arch = "wasm32"))]
+ pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
+@@ -61,7 +61,6 @@ use app::{OBJECTS_MARKER, system_clipboard_text, web_image_files};
+ use canvas::preview;
+ pub use canvas::squiggles;
+ pub use clock::{monotonic_secs, now_ms};
+-pub use dialogs::credits;
+ #[cfg(not(target_arch = "wasm32"))]
+ use dialogs::updates_ui;
+ pub use ime_hooks::install_ime_pass_hooks;
+@@ -137,7 +136,7 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+         Some("Cmd+P"),
+         "{layout?, perPage?, slides?, includeHidden?, frame?, paper?: letter|a4|legal|a3, orientation?: portrait|landscape}",
+     ),
+-    ("app.about", "About DeckCraft", None, "{}"),
++    ("app.about", "About UniCore", None, "{}"),
+     ("app.checkUpdates", "Check for Updates…", None, "{}"),
+     ("app.palette", "Command Palette", Some("Cmd+Shift+P"), "{}"),
+     ("app.preferences", "Preferences…", Some("Cmd+,"), "{}"),
+@@ -157,7 +156,6 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+     ("app.qat", "Quick Access Toolbar", None, "{add: command id, params?, label?, icon?} | {remove: id, params?} | {reset: true} → [buttons]"),
+     ("app.find", "Find…", Some("Cmd+F"), "{}"),
+     ("app.replace", "Replace…", Some("Cmd+H"), "{}"),
+-    ("app.links", "Community Links", None, "{}"),
+ ];
+ 
+ pub struct Perf {
+@@ -219,6 +217,9 @@ pub struct SlideApp {
+     pub last_fill: serde_json::Value,
+     /// Shape Outline's last colour, likewise. Text 1 until one is picked.
+     pub last_outline: serde_json::Value,
++    /// The format Save picks for a presentation without a file yet: the app's own, or `pptx` when
++    /// a host page stores the files (web bridge).
++    pub save_format: &'static str,
+     /// Table Design's border pen (`color`, `width`, `dash` for `table.borders`).
+     pub table_pen: serde_json::Value,
+     pub session: Session,
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index fb4c50fc..df836b92 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -307,7 +307,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
+                 ("Set Up Show…", "show.setup"),
+             ],
+         ),
+-        ("Help", vec![("About DeckCraft", "app.about"), ("Check for Updates…", "app.checkUpdates"), ("Command Palette", "app.palette")]),
++        ("Help", vec![("About UniCore", "app.about"), ("Check for Updates…", "app.checkUpdates"), ("Command Palette", "app.palette")]),
+     ]
+ }
+ 
+diff --git a/crates/ui-egui/src/ribbon/effects_tests.rs b/crates/ui-egui/src/ribbon/effects_tests.rs
+index 37d856fe..08acbe89 100644
+--- a/crates/ui-egui/src/ribbon/effects_tests.rs
++++ b/crates/ui-egui/src/ribbon/effects_tests.rs
 @@ -27,7 +27,7 @@ fn format_name(h: &Harness<'_, SlideApp>) -> String {
  #[test]
  fn effects_menu_applies_a_scheme_once() {
@@ -2332,173 +2586,11 @@ index 37d856f..08acbe8 100644
  
      h.get_by_label("Effects").click();
      h.run_steps(2);
-diff --git a/crates/ui-egui/src/icons.rs b/crates/ui-egui/src/icons.rs
-index 5450914..3924578 100644
---- a/crates/ui-egui/src/icons.rs
-+++ b/crates/ui-egui/src/icons.rs
-@@ -29,7 +29,7 @@ const DARK: Color32 = Color32::from_rgb(0x2B, 0x2B, 0x2B);
- 
- macro_rules! icons {
-     ($($(#[$m:meta])* $v:ident => $n:literal,)*) => {
--        /// Every icon DeckCraft draws.
-+        /// Every icon UniCore draws.
-         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-         pub enum Icon {
-             $($(#[$m])* $v,)*
-diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
-index eef9b1b..f042237 100644
---- a/crates/ui-egui/src/lib.rs
-+++ b/crates/ui-egui/src/lib.rs
-@@ -1,4 +1,4 @@
--//! DeckCraft's egui frontend: a PowerPoint-style UI over `deckcraft-engine`.
-+//! UniCore's egui frontend: a PowerPoint-style UI over `deckcraft-engine`.
- //!
- //! The UI is thin: every action goes through [`SlideApp::run`], which handles UI commands
- //! (views, panes, zoom) here and sends everything else to the engine. The ribbon, menus,
-@@ -10,7 +10,6 @@ pub mod animtimeline;
- pub mod backstage;
- pub mod canvas;
- pub mod control;
--pub mod credits;
- pub mod dialogs;
- pub mod doc_window;
- pub mod eyedropper;
-@@ -191,7 +190,7 @@ fn command_for(purpose: FilePurpose, name: &str, bytes: &[u8]) -> Result<&'stati
-         FilePurpose::Open => open_command(name),
-         FilePurpose::Infer => infer_command(name, bytes),
-     };
--    cmd.ok_or_else(|| format!("{name}: DeckCraft can't open this kind of file"))
-+    cmd.ok_or_else(|| format!("{name}: UniCore can't open this kind of file"))
- }
- 
- /// How long a transient status message stays visible.
-@@ -392,7 +391,7 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
-         Some("Cmd+P"),
-         "{layout?, perPage?, slides?, includeHidden?, frame?, paper?: letter|a4|legal|a3, orientation?: portrait|landscape}",
-     ),
--    ("app.about", "About DeckCraft", None, "{}"),
-+    ("app.about", "About UniCore", None, "{}"),
-     ("app.palette", "Command Palette", Some("Cmd+Shift+P"), "{}"),
-     ("app.preferences", "Preferences…", Some("Cmd+,"), "{}"),
-     ("app.openDialog", "Open…", None, "{purpose?}"),
-@@ -411,7 +410,6 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
-     ("app.qat", "Quick Access Toolbar", None, "{add: command id, params?, label?, icon?} | {remove: id, params?} | {reset: true} → [buttons]"),
-     ("app.find", "Find…", Some("Cmd+F"), "{}"),
-     ("app.replace", "Replace…", Some("Cmd+H"), "{}"),
--    ("app.links", "Community Links", None, "{}"),
- ];
- 
- pub struct Perf {
-@@ -433,6 +431,9 @@ struct AnimPreview {
- }
- 
- pub struct SlideApp {
-+    /// The format Save picks for a presentation without a file yet: the app's own, or `pptx` when
-+    /// a host page stores the files (web bridge).
-+    pub save_format: &'static str,
-     /// Table Design's border pen (`color`, `width`, `dash` for `table.borders`).
-     pub table_pen: serde_json::Value,
-     pub session: Session,
-@@ -533,6 +534,7 @@ impl SlideApp {
-     pub fn new(session: Session, mut services: Services) -> Self {
-         let audio_out = services.audio_out.take();
-         SlideApp {
-+            save_format: "deckcraft",
-             table_pen: serde_json::json!({"width": 1.0}),
-             session,
-             services,
-@@ -747,7 +749,7 @@ impl SlideApp {
-             "deckcraft" => ("deckcraft", "deckcraft", false),
-             "gif" => ("gif", "gif", false),
-             other => {
--                self.set_status(format!("DeckCraft can't export “{other}”"));
-+                self.set_status(format!("UniCore can't export “{other}”"));
-                 return false;
-             }
-         };
-@@ -804,7 +806,7 @@ impl SlideApp {
-         }
-     }
- 
--    /// File › Print: DeckCraft prints through a PDF. On the desktop the PDF (with the Print page's
-+    /// File › Print: UniCore prints through a PDF. On the desktop the PDF (with the Print page's
-     /// layout, slides and options) is written to the temporary folder and opened in the system's
-     /// PDF viewer, which has the printers; on the web it downloads.
-     pub fn print_pdf(&mut self, params: Value) -> bool {
-@@ -1016,7 +1018,7 @@ impl SlideApp {
-             "app.insertAudioDialog" => self.pick_and_insert("audio", "insert.audio"),
-             "app.reuseSlidesDialog" => self.pick_and_reuse(p.get("keepFormatting").and_then(Value::as_bool).unwrap_or(false)),
-             "app.insertVideoDialog" => self.pick_and_insert("video", "insert.video"),
--            "app.saveAsDialog" => self.save_as_dialog("deckcraft"),
-+            "app.saveAsDialog" => self.save_as_dialog(self.save_format),
-             "app.exportDialog" => self.dialog = Some(dialogs::Dialog::new("export")),
-             "app.pasteSpecial" => self.dialog = Some(dialogs::Dialog::new("pasteSpecial")),
-             "app.browseThemeDialog" => {
-@@ -1052,10 +1054,6 @@ impl SlideApp {
-                 let d = p.get("id").and_then(Value::as_str).ok_or("missing `id`")?;
-                 self.dialog = Some(dialogs::Dialog::new(d));
-             }
--            "app.links" => {
--                use deckcraft_engine::links::*;
--                return Ok(json!({"discord": DISCORD, "website": WEBSITE, "apps": APPS, "appPage": APP_PAGE, "github": GITHUB}));
--            }
-             _ => return Err(format!("unknown UI command `{id}`")),
-         }
-         Ok(Value::Null)
-@@ -1324,7 +1322,7 @@ impl SlideApp {
-                 Err(e) => self.set_status(e.to_string()),
-             }
-         } else {
--            self.save_as_dialog("deckcraft");
-+            self.save_as_dialog(self.save_format);
-         }
-     }
- 
-@@ -1342,7 +1340,7 @@ impl SlideApp {
-                 UiRequest::Message { text } => self.set_status(text),
-                 UiRequest::PickFile { purpose } => {
-                     if purpose == "saveAs" {
--                        self.save_as_dialog("deckcraft");
-+                        self.save_as_dialog(self.save_format);
-                     }
-                 }
-                 UiRequest::Media { action, shape, ms } => {
-@@ -1779,7 +1777,7 @@ impl SlideApp {
-     /// Offer the copy or cut on the system clipboard.
-     ///
-     /// Slides go out as plain text. Text goes out as HTML plus the same plain words, so a paste
--    /// back into DeckCraft still uses the internal clipboard. A textless shape leaves the
-+    /// back into UniCore still uses the internal clipboard. A textless shape leaves the
-     /// invisible [`OBJECTS_MARKER`] rather than a picture: with only an image on the clipboard
-     /// egui-winit drops Ctrl+V, and the shortcut could no longer paste the shape here (#182).
-     fn publish_clipboard(&mut self, ctx: &egui::Context, cut: bool) {
-diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
-index 440fd93..498e3ed 100644
---- a/crates/ui-egui/src/menus.rs
-+++ b/crates/ui-egui/src/menus.rs
-@@ -289,7 +289,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
-                 ("Set Up Show…", "show.setup"),
-             ],
-         ),
--        ("Help", vec![("About DeckCraft", "app.about"), ("Command Palette", "app.palette")]),
-+        ("Help", vec![("About UniCore", "app.about"), ("Command Palette", "app.palette")]),
-     ]
- }
- 
-diff --git a/crates/ui-egui/src/ribbon.rs b/crates/ui-egui/src/ribbon.rs
-index 3a679dd..e794b72 100644
---- a/crates/ui-egui/src/ribbon.rs
-+++ b/crates/ui-egui/src/ribbon.rs
-@@ -76,7 +76,7 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
-         let dirty = app.session.active().is_some_and(|d| d.is_dirty());
-         crate::qat::show(app, &mut child);
-         let title =
--            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "DeckCraft".into());
-+            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "UniCore".into());
-         ui.painter().text(rect.center(), Align2::CENTER_CENTER, title, theme::font(13.0), t.text);
-         // Right side.
-         let mut right = ui.new_child(
-@@ -502,7 +502,7 @@ fn font_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
+diff --git a/crates/ui-egui/src/ribbon/home.rs b/crates/ui-egui/src/ribbon/home.rs
+index 1c27dc98..ee055a79 100644
+--- a/crates/ui-egui/src/ribbon/home.rs
++++ b/crates/ui-egui/src/ribbon/home.rs
+@@ -189,7 +189,7 @@ fn font_group(app: &mut SlideApp, ui: &mut Ui, st: &Value) {
                          }
                      }
                      ui.separator();
@@ -2507,7 +2599,11 @@ index 3a679dd..e794b72 100644
                      if ui.button("Rescan Installed Fonts").clicked() {
                          run(app, "font.rescan", json!({}));
                          ui.close();
-@@ -2133,11 +2133,6 @@ fn record(app: &mut SlideApp, ui: &mut Ui) {
+diff --git a/crates/ui-egui/src/ribbon/slide_show.rs b/crates/ui-egui/src/ribbon/slide_show.rs
+index 89c78c11..9aaffcfe 100644
+--- a/crates/ui-egui/src/ribbon/slide_show.rs
++++ b/crates/ui-egui/src/ribbon/slide_show.rs
+@@ -70,9 +70,4 @@ pub(super) fn record(app: &mut SlideApp, ui: &mut Ui) {
              }
          }
      });
@@ -2517,26 +2613,37 @@ index 3a679dd..e794b72 100644
 -        }
 -    });
  }
- 
- fn comment_nav(app: &mut SlideApp, ui: &mut Ui, forward: bool) {
-diff --git a/crates/ui-egui/src/show.rs b/crates/ui-egui/src/show.rs
-index 51f859a..0624d23 100644
---- a/crates/ui-egui/src/show.rs
-+++ b/crates/ui-egui/src/show.rs
-@@ -1756,7 +1756,7 @@ fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &Presentation, no
+diff --git a/crates/ui-egui/src/ribbon/title_bar.rs b/crates/ui-egui/src/ribbon/title_bar.rs
+index 6c7e825e..e89bebe4 100644
+--- a/crates/ui-egui/src/ribbon/title_bar.rs
++++ b/crates/ui-egui/src/ribbon/title_bar.rs
+@@ -55,7 +55,7 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
+         let dirty = app.session.active().is_some_and(|d| d.is_dirty());
+         crate::qat::show(app, &mut child);
+         let title =
+-            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "DeckCraft".into());
++            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "UniCore".into());
+         ui.painter().text(rect.center(), Align2::CENTER_CENTER, title, theme::font(13.0), t.text);
+         // Right side.
+         let mut right = ui.new_child(
+diff --git a/crates/ui-egui/src/show/presenter.rs b/crates/ui-egui/src/show/presenter.rs
+index 38b8d76b..365fd0ff 100644
+--- a/crates/ui-egui/src/show/presenter.rs
++++ b/crates/ui-egui/src/show/presenter.rs
+@@ -148,7 +148,7 @@ pub(super) fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &std::
      };
      ctx.show_viewport_immediate(
          egui::ViewportId::from_hash_of("deckcraft_presenter"),
 -        egui::ViewportBuilder::default().with_title("Presenter View — DeckCraft").with_inner_size([1100.0, 700.0]),
 +        egui::ViewportBuilder::default().with_title("Presenter View — UniCore").with_inner_size([1100.0, 700.0]),
          |ui, _| {
-             if !keyboard(ui.ctx(), show, doc, now) {
+             if !keyboard(ui.ctx(), show, doc, now, true) {
                  *keep = false;
 diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
-index 1847d47..6829740 100644
+index 2e14bbaa..a118b7a7 100644
 --- a/crates/ui-egui/src/theme.rs
 +++ b/crates/ui-egui/src/theme.rs
-@@ -30,7 +30,7 @@ pub struct Tokens {
+@@ -32,7 +32,7 @@ pub struct Tokens {
      pub hover: Color32,
      pub pressed: Color32,
      pub selected: Color32,
@@ -2545,21 +2652,8 @@ index 1847d47..6829740 100644
      pub accent: Color32,
      pub accent_text: Color32,
      pub contextual: Color32,
-diff --git a/crates/ui-egui/src/theme_colors_tests.rs b/crates/ui-egui/src/theme_colors_tests.rs
-index d7dba9b..48f0635 100644
---- a/crates/ui-egui/src/theme_colors_tests.rs
-+++ b/crates/ui-egui/src/theme_colors_tests.rs
-@@ -130,7 +130,7 @@ fn typing_a_hex_replaces_accent_1() {
-     h.get_by_label("Save").click();
-     h.run_steps(2);
-     assert!(h.state().dialog.is_none(), "status: {:?}", h.state().status);
--    assert_eq!(scheme(&h).name, "DeckCraft");
-+    assert_eq!(scheme(&h).name, "UniCore");
-     assert_eq!(scheme(&h).get(SchemeSlot::Accent1).hex(), "11AA22");
-     assert_eq!(undo_len(&h), n + 1);
- }
 diff --git a/crates/ui-egui/src/uifonts.rs b/crates/ui-egui/src/uifonts.rs
-index f2212a9..d89b6dc 100644
+index 9d23f8fe..9d0cbd64 100644
 --- a/crates/ui-egui/src/uifonts.rs
 +++ b/crates/ui-egui/src/uifonts.rs
 @@ -6,7 +6,7 @@

@@ -309,11 +309,26 @@ export function GlobalMouse() {
       consumeOpened();
     };
 
+    // Un toque en un link de internet lo abre en el navegador (en las notas también, aunque se pueda editar).
+    // Con Ctrl, Shift o Alt, o con texto arrastrado/seleccionado, se deja el comportamiento normal.
+    const onLinkClick = (e: MouseEvent) => {
+      if (e.button !== 0 || e.defaultPrevented || e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
+      const link = (e.target as Element).closest?.("a[href]") as HTMLAnchorElement | null;
+      const url = externalUrl(link?.getAttribute("href") ?? null);
+      if (!url) return;
+      if (!window.getSelection()?.isCollapsed) return;
+      e.preventDefault();
+      e.stopPropagation();
+      void openExternal(url);
+    };
+
+    window.addEventListener("click", onLinkClick, true);
     window.addEventListener("contextmenu", onContext);
     window.addEventListener("mouseover", onOver);
     window.addEventListener("mousedown", onDown, true);
     window.addEventListener("auxclick", onAux);
     return () => {
+      window.removeEventListener("click", onLinkClick, true);
       window.removeEventListener("contextmenu", onContext);
       window.removeEventListener("mouseover", onOver);
       window.removeEventListener("mousedown", onDown, true);

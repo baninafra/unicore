@@ -15,6 +15,7 @@
   --primary-fill-hover: #6d70f3;
   --on-primary: #ffffff;
   --primary-soft: #a5b4fc;
+  --link: #60a5fa;
   --primary-tint: #25264a;
   --selection: rgba(129, 140, 248, 0.42);
   --selection-node: rgba(129, 140, 248, 0.18);
@@ -43,6 +44,7 @@
   --primary-fill: #4f52e0;
   --primary-fill-hover: #4346d0;
   --primary-soft: #4338ca;
+  --link: #1d4ed8;
   --primary-tint: #eceeff;
   --selection: rgba(99, 102, 241, 0.26);
   --selection-node: rgba(99, 102, 241, 0.1);
@@ -229,6 +231,9 @@ textarea.input { height: auto; min-height: 90px; padding: 10px 12px; resize: ver
 .row[aria-selected="true"], .row[aria-current="page"] { background: var(--primary-tint); color: var(--text); }
 .row svg { width: 15px; height: 15px; flex: none; color: var(--text-faint); }
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 12px; background: var(--primary-tint); color: var(--primary-soft); white-space: nowrap; }
+/* Links de internet: azules y subrayados para que se note que se pueden tocar. */
+.bn-editor a[href], .link-web { color: var(--link); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.bn-editor a[href]:hover, .link-web:hover { filter: brightness(1.15); }
 .wikilink { color: var(--primary-soft); text-decoration: none; cursor: pointer; }
 .wikilink:hover { text-decoration: underline; }
 .wikilink-unresolved { color: var(--primary-soft); opacity: 0.6; }

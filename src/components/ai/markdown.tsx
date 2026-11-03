@@ -152,7 +152,7 @@ function parseBlocks(source: string): Block[] {
 // Negrita, cursiva, código inline y enlaces. Recursivo para negrita con cursiva adentro.
 function renderInline(text: string, prefix = "i"): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /`([^`\n]+)`|\*\*([^*\n]+?)\*\*|\*([^*\s][^*\n]*?)\*|\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const re = /`([^`\n]+)`|\*\*([^*\n]+?)\*\*|\*([^*\s][^*\n]*?)\*|\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>()\[\]]*[^\s<>()\[\].,;:!?'"])/g;
   let last = 0;
   let n = 0;
   let m: RegExpExecArray | null;
@@ -181,9 +181,16 @@ function renderInline(text: string, prefix = "i"): ReactNode[] {
           href={m[5]}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary-soft underline underline-offset-2"
+          className="link-web"
         >
           {m[4]}
+        </a>,
+      );
+    } else if (m[6] !== undefined) {
+      // Un link suelto, sin formato: se reconoce solo.
+      out.push(
+        <a key={key} href={m[6]} target="_blank" rel="noopener noreferrer" className="link-web break-all">
+          {m[6]}
         </a>,
       );
     }

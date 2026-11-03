@@ -22,13 +22,15 @@ mod search;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use rusqlite::{params, Connection};
 use serde_json::Value;
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{Manager, State};
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 pub(crate) struct Store {
     pub(crate) conn: Mutex<Connection>,
@@ -248,6 +250,37 @@ fn refresh_frame(window: tauri::WebviewWindow) {
     frame::repaint(&window);
 }
 
+// La visibilidad no se recuerda: la ventana se muestra cuando la interfaz está lista.
+fn window_flags() -> StateFlags {
+    StateFlags::all() & !StateFlags::VISIBLE
+}
+
+/// Guarda el estado de la ventana (maximizada, tamaño, posición) apenas se deja de moverla.
+/// El plugin sólo lo guarda al cerrar la app, y si Windows se apaga con la app abierta ese
+/// cierre nunca llega: al prender de nuevo la ventana abría de cualquier manera.
+/// Sin estado guardado (primer uso) arranca maximizada.
+fn remember_window(app: &tauri::AppHandle, w: &tauri::WebviewWindow) {
+    let saved = app.path().app_config_dir().map(|d| d.join(app.filename()).exists()).unwrap_or(false);
+    if !saved {
+        let _ = w.maximize();
+    }
+    let version = Arc::new(AtomicU64::new(0));
+    let handle = app.clone();
+    w.on_window_event(move |e| {
+        if !matches!(e, tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_)) {
+            return;
+        }
+        let mine = version.fetch_add(1, Ordering::SeqCst) + 1;
+        let (version, handle) = (version.clone(), handle.clone());
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(800));
+            if version.load(Ordering::SeqCst) == mine {
+                let _ = handle.save_window_state(window_flags());
+            }
+        });
+    });
+}
+
 /// Modo servidor MCP por stdio (`unicore.exe --mcp`).
 pub fn run_mcp() {
     mcp::serve();
@@ -261,7 +294,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 // La visibilidad no: la ventana se muestra cuando la interfaz está lista.
-                .with_state_flags(tauri_plugin_window_state::StateFlags::all() & !tauri_plugin_window_state::StateFlags::VISIBLE)
+                .with_state_flags(window_flags())
                 .build(),
         )
         // Actualizaciones con un clic: busca la versión nueva en GitHub y la instala (firmada).
@@ -280,6 +313,7 @@ pub fn run() {
             app.manage(store);
             if let Some(w) = app.get_webview_window("main") {
                 frame::install(&w);
+                remember_window(app.handle(), &w);
             }
             // Por si la interfaz no llega a mostrar la ventana (un error al cargar), se muestra igual.
             let handle = app.handle().clone();
